@@ -1,0 +1,21 @@
+---
+alwaysApply: false
+globs: ["apps/web/**", "prisma/**"]
+---
+
+# Authentication Rules (NextAuth / Auth.js)
+
+- Use official Prisma adapter.
+- Do not invent auth tables manually.
+- Protect write endpoints server-side.
+
+## Environment Variables
+
+Required:
+
+- DATABASE_URL
+- NEXTAUTH_SECRET (or AUTH_SECRET depending on version)
+- Provider credentials (if using OAuth)
+
+Never commit secrets.
+Update .env.example when adding new variables.

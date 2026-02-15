@@ -1,0 +1,47 @@
+---
+alwaysApply: false
+globs: ["prisma/**", "packages/db/**", "apps/web/src/server/**"]
+---
+
+# Prisma and Database Discipline
+
+## Schema Changes
+
+Any schema change must include:
+
+- a migration
+- updates to docs/PRODUCT.md if domain model changed
+- updates to docs/ARCHITECTURE.md if storage changed
+
+## Modeling Conventions
+
+- Use consistent ID strategy (UUID or cuid — do not mix).
+- Include createdAt and updatedAt where appropriate.
+- Large file blobs must live in S3, not Postgres.
+
+## Indexing
+
+Add indexes for:
+
+- slug lookups
+- user ownership (userId)
+- foreign keys used in list endpoints
+
+## ID Strategy
+
+- All primary keys must use UUID.
+- Prisma model definition:
+
+  id String @id @default(uuid()) @db.Uuid
+
+- Do not mix ID strategies across core entities.
+- Do not use cuid.
+- Do not use autoincrement integers for domain entities.
+
+
+## Raw SQL
+
+- Prefer Prisma client.
+- If raw SQL is required:
+  - isolate in repository layer
+  - document why

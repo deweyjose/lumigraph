@@ -1,0 +1,23 @@
+---
+alwaysApply: true
+---
+
+# Documentation Discipline
+
+If you change:
+
+- Domain entities or fields
+- API routes
+- Database schema
+- Visibility rules
+- Auth behavior
+- Storage layout (S3 keys)
+- Major architectural decisions
+
+Then update:
+
+- docs/PRODUCT.md
+- docs/ARCHITECTURE.md
+- docs/DECISIONS.md (for non-trivial decisions)
+
+Documentation is part of the definition of done.
