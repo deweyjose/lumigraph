@@ -34,7 +34,7 @@ jobs:
     env:
       TF_IN_AUTOMATION: "true"
       TF_TARGET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target || 'app' }}
-      TF_VAR_env: ${{ job.environment.name }}
+      TF_VAR_env: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
       TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
