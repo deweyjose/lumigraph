@@ -11,6 +11,11 @@ on:
         options:
           - dev
           - prod
+      apply:
+        type: boolean
+        description: "Apply after plan?"
+        required: true
+        default: false
       target:
         type: choice
         description: "Which Terraform stack to run"
@@ -28,6 +33,10 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      github.event_name == 'pull_request'
     permissions:
       id-token: write
       contents: read
@@ -96,6 +105,8 @@ jobs:
         run: terraform plan -var="aws_region=${AWS_REGION}"
 
       - name: Terraform Apply
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        if: >
+          github.ref == 'refs/heads/main' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.apply == 'true')
         working-directory: infrastructure/${{ env.TF_TARGET }}
         run: terraform apply -auto-approve -var="aws_region=${AWS_REGION}"
