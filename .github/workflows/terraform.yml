@@ -18,7 +18,7 @@ on:
         default: false
       target:
         type: choice
-        description: "Which Terraform stack to run"
+        description: "Which Terraform stack to run?"
         required: true
         default: app
         options:
