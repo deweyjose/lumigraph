@@ -42,6 +42,20 @@ Repeat with `prod` when bootstrapping the prod account.
 
 ## 3) Initialize, plan, apply
 
+Run once per environment/account, in the matching workspace.
+
+Dev (allow branches + PRs):
+
+```bash
+terraform init
+terraform plan -var="aws_region=${AWS_REGION}" \
+  -var='github_subjects=["repo:deweyjose/lumigraph:ref:refs/heads/*","repo:deweyjose/lumigraph:ref:refs/pull/*/merge"]'
+terraform apply -var="aws_region=${AWS_REGION}" \
+  -var='github_subjects=["repo:deweyjose/lumigraph:ref:refs/heads/*","repo:deweyjose/lumigraph:ref:refs/pull/*/merge"]'
+```
+
+Prod (main only, default):
+
 ```bash
 terraform init
 terraform plan -var="aws_region=${AWS_REGION}"
@@ -73,6 +87,10 @@ If you override default names, also add:
 - Run this bootstrap stack once per AWS account (and per region if you want separate state per region).
 - For multi-account setups (e.g. `lumigraph-prod` and `lumigraph-dev`), run it in each account with the appropriate `AWS_PROFILE`/`AWS_REGION`.
 - Each account will produce a different `role_arn`. Store them separately in the matching GitHub Environment (`dev` vs `prod`).
+- OIDC trust best practice:
+  - `prod` allows only `refs/heads/main`.
+  - `dev` allows branch and PR refs for CI.
+  - Configure via `github_subjects` (list of OIDC subject patterns).
 - Default state bucket name format:
   `lumigraph-tfstate-<suffix>-<account-id>-<region>`
 - Default lock table name format:

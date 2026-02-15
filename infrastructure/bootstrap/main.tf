@@ -13,7 +13,7 @@ locals {
     "${var.project_name}-tflock-${var.name_suffix}-${local.account_id}-${var.aws_region}"
   )
 
-  github_subject = "repo:${var.github_repo_owner}/${var.github_repo_name}:ref:refs/heads/${var.github_branch}"
+  github_subjects = var.github_subjects
 }
 
 resource "aws_s3_bucket" "tf_state" {
@@ -88,9 +88,9 @@ data "aws_iam_policy_document" "github_actions_trust" {
     }
 
     condition {
-      test     = "StringEquals"
+      test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [local.github_subject]
+      values   = local.github_subjects
     }
   }
 }

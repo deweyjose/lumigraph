@@ -45,8 +45,8 @@ variable "github_repo_name" {
   default     = "lumigraph"
 }
 
-variable "github_branch" {
-  description = "Branch allowed to assume the GitHub Actions role."
-  type        = string
-  default     = "main"
+variable "github_subjects" {
+  description = "OIDC subject patterns allowed to assume the GitHub Actions role."
+  type        = list(string)
+  default     = ["repo:deweyjose/lumigraph:ref:refs/heads/main"]
 }
