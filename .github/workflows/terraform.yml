@@ -1,0 +1,100 @@
+name: Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: "Which environment to run (GitHub Environment)"
+        required: true
+        default: dev
+        options:
+          - dev
+          - prod
+      target:
+        type: choice
+        description: "Which Terraform stack to run"
+        required: true
+        default: app
+        options:
+          - app
+          - bootstrap
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_TARGET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target || 'app' }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Configure Backend (app only)
+        if: env.TF_TARGET == 'app'
+        working-directory: infrastructure/app
+        run: |
+          if [ -n "${TF_STATE_BUCKET}" ] && [ -n "${TF_LOCK_TABLE}" ]; then
+            STATE_BUCKET="${TF_STATE_BUCKET}"
+            LOCK_TABLE="${TF_LOCK_TABLE}"
+          else
+            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+            STATE_BUCKET="lumigraph-tfstate-main-${ACCOUNT_ID}-${AWS_REGION}"
+            LOCK_TABLE="lumigraph-tflock-main-${ACCOUNT_ID}-${AWS_REGION}"
+          fi
+
+          cat > backend.hcl <<EOF
+          bucket         = "${STATE_BUCKET}"
+          key            = "app/terraform.tfstate"
+          region         = "${AWS_REGION}"
+          dynamodb_table = "${LOCK_TABLE}"
+          encrypt        = true
+          EOF
+
+      - name: Terraform Init (bootstrap)
+        if: env.TF_TARGET == 'bootstrap'
+        working-directory: infrastructure/bootstrap
+        run: terraform init
+
+      - name: Terraform Init (app)
+        if: env.TF_TARGET == 'app'
+        working-directory: infrastructure/app
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Fmt
+        working-directory: infrastructure/${{ env.TF_TARGET }}
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        working-directory: infrastructure/${{ env.TF_TARGET }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: infrastructure/${{ env.TF_TARGET }}
+        run: terraform plan -var="aws_region=${AWS_REGION}"
+
+      - name: Terraform Apply
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        working-directory: infrastructure/${{ env.TF_TARGET }}
+        run: terraform apply -auto-approve -var="aws_region=${AWS_REGION}"
