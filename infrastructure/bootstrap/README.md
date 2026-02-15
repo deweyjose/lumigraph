@@ -49,9 +49,9 @@ Dev (allow branches + PRs):
 ```bash
 terraform init
 terraform plan -var="aws_region=${AWS_REGION}" \
-  -var='github_subjects=["repo:deweyjose/lumigraph:ref:refs/heads/*","repo:deweyjose/lumigraph:ref:refs/pull/*/merge"]'
+  -var='github_subjects=["repo:deweyjose/lumigraph:environment:dev","repo:deweyjose/lumigraph:pull_request","repo:deweyjose/lumigraph:ref:refs/heads/*"]'
 terraform apply -var="aws_region=${AWS_REGION}" \
-  -var='github_subjects=["repo:deweyjose/lumigraph:ref:refs/heads/*","repo:deweyjose/lumigraph:ref:refs/pull/*/merge"]'
+  -var='github_subjects=["repo:deweyjose/lumigraph:environment:dev","repo:deweyjose/lumigraph:pull_request","repo:deweyjose/lumigraph:ref:refs/heads/*"]'
 ```
 
 Prod (main only, default):
@@ -88,8 +88,11 @@ If you override default names, also add:
 - For multi-account setups (e.g. `lumigraph-prod` and `lumigraph-dev`), run it in each account with the appropriate `AWS_PROFILE`/`AWS_REGION`.
 - Each account will produce a different `role_arn`. Store them separately in the matching GitHub Environment (`dev` vs `prod`).
 - OIDC trust best practice:
-  - `prod` allows only `refs/heads/main`.
-  - `dev` allows branch and PR refs for CI.
+  - When using GitHub Environments, `sub` can be environment-scoped (e.g. `repo:deweyjose/lumigraph:environment:dev`).
+  - PRs may use `repo:deweyjose/lumigraph:pull_request`.
+  - Recommended:
+    - `prod`: `repo:deweyjose/lumigraph:environment:prod` (and/or `ref:refs/heads/main`)
+    - `dev`: `repo:deweyjose/lumigraph:environment:dev`, `repo:deweyjose/lumigraph:pull_request`, and `ref:refs/heads/*`
   - Configure via `github_subjects` (list of OIDC subject patterns).
 - Default state bucket name format:
   `lumigraph-tfstate-<suffix>-<account-id>-<region>`
