@@ -54,12 +54,14 @@ terraform apply -var="aws_region=${AWS_REGION}" \
   -var='github_subjects=["repo:deweyjose/lumigraph:environment:dev","repo:deweyjose/lumigraph:pull_request","repo:deweyjose/lumigraph:ref:refs/heads/*"]'
 ```
 
-Prod (main only, default):
+Prod (environment-scoped + main):
 
 ```bash
 terraform init
-terraform plan -var="aws_region=${AWS_REGION}"
-terraform apply -var="aws_region=${AWS_REGION}"
+terraform plan -var="aws_region=${AWS_REGION}" \
+  -var='github_subjects=["repo:deweyjose/lumigraph:environment:prod","repo:deweyjose/lumigraph:ref:refs/heads/main"]'
+terraform apply -var="aws_region=${AWS_REGION}" \
+  -var='github_subjects=["repo:deweyjose/lumigraph:environment:prod","repo:deweyjose/lumigraph:ref:refs/heads/main"]'
 ```
 
 ## 4) Capture outputs
@@ -91,7 +93,7 @@ If you override default names, also add:
   - When using GitHub Environments, `sub` can be environment-scoped (e.g. `repo:deweyjose/lumigraph:environment:dev`).
   - PRs may use `repo:deweyjose/lumigraph:pull_request`.
   - Recommended:
-    - `prod`: `repo:deweyjose/lumigraph:environment:prod` (and/or `ref:refs/heads/main`)
+    - `prod`: `repo:deweyjose/lumigraph:environment:prod` and `ref:refs/heads/main`
     - `dev`: `repo:deweyjose/lumigraph:environment:dev`, `repo:deweyjose/lumigraph:pull_request`, and `ref:refs/heads/*`
   - Configure via `github_subjects` (list of OIDC subject patterns).
 - Default state bucket name format:
