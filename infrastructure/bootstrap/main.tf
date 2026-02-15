@@ -157,6 +157,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "s3:GetEncryptionConfiguration",
       "s3:PutBucketPublicAccessBlock",
       "s3:GetBucketPublicAccessBlock",
+      "s3:GetBucketPolicy",
       "s3:PutBucketCors",
       "s3:GetBucketCors",
       "s3:PutBucketTagging",
