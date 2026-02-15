@@ -39,6 +39,12 @@ jobs:
       TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
 
     steps:
+      - name: Debug environment selection
+        run: |
+          echo "Job environment: ${{ job.environment.name }}"
+          echo "GitHub ref: ${{ github.ref }}"
+          echo "Event: ${{ github.event_name }}"
+
       - name: Checkout
         uses: actions/checkout@v4
 
