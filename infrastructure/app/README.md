@@ -12,6 +12,7 @@ If you use SSO profiles, make sure you have logged in and exported the profile/r
 aws sso login --profile lumigraph-<env>
 export AWS_PROFILE=lumigraph-<env>
 export AWS_REGION=us-east-1
+export TF_VAR_env=<env>
 ```
 
 ## Backend configuration
@@ -42,8 +43,9 @@ terraform apply -var="aws_region=us-east-1"
 - `aws_region`
 
 ## Optional variables
-- `artifacts_bucket_name` (default: `lumigraph-artifacts-prod`)
+- `project_name` (default: `lumigraph`)
 - `env` (default: `prod`)
+- `artifacts_bucket_name` (default: `<project>-artifacts-<env>-<account-id>-<region>`)
 - `allowed_localhost_origins`
 - `allowed_vercel_preview_origins`
 - `allowed_vercel_prod_origins`

@@ -3,6 +3,12 @@ variable "aws_region" {
   type        = string
 }
 
+variable "project_name" {
+  description = "Project name used for resource naming."
+  type        = string
+  default     = "lumigraph"
+}
+
 variable "env" {
   description = "Environment name (used in tags)."
   type        = string
@@ -12,7 +18,7 @@ variable "env" {
 variable "artifacts_bucket_name" {
   description = "S3 bucket name for Lumigraph artifacts."
   type        = string
-  default     = "lumigraph-artifacts-prod"
+  default     = null
 }
 
 variable "allowed_localhost_origins" {

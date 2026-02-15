@@ -1,4 +1,13 @@
+data "aws_caller_identity" "current" {}
+
 locals {
+  account_id = data.aws_caller_identity.current.account_id
+
+  effective_artifacts_bucket_name = coalesce(
+    var.artifacts_bucket_name,
+    "${var.project_name}-artifacts-${var.env}-${local.account_id}-${var.aws_region}"
+  )
+
   cors_allowed_origins = distinct(compact(concat(
     var.allowed_localhost_origins,
     var.allowed_vercel_preview_origins,
@@ -7,10 +16,10 @@ locals {
 }
 
 resource "aws_s3_bucket" "artifacts" {
-  bucket = var.artifacts_bucket_name
+  bucket = local.effective_artifacts_bucket_name
 
   tags = {
-    Project = "lumigraph"
+    Project = var.project_name
     Env     = var.env
   }
 }
