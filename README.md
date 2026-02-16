@@ -1,5 +1,19 @@
 # Lumigraph
 
+## Local development
+
+Start Postgres with Docker:
+
+```bash
+docker compose up -d
+```
+
+Copy `.env.example` to `.env` and run migrations:
+
+```bash
+pnpm db:migrate
+```
+
 Infrastructure is managed with Terraform and deployed via GitHub Actions using OIDC (no long-lived AWS keys).
 
 ## One-time bootstrap (per account)

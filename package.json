@@ -7,6 +7,14 @@
     "lint": "pnpm -C apps/web lint",
     "format": "pnpm -C apps/web format",
     "test": "pnpm -C apps/web test",
-    "typecheck": "pnpm -C apps/web typecheck"
+    "typecheck": "pnpm -C apps/web typecheck",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
+  },
+  "devDependencies": {
+    "@prisma/client": "7",
+    "dotenv": "^17.3.1",
+    "prisma": "7"
   }
 }
