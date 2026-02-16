@@ -1,0 +1,12 @@
+{
+  "name": "lumigraph",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm -C apps/web dev",
+    "lint": "pnpm -C apps/web lint",
+    "format": "pnpm -C apps/web format",
+    "test": "pnpm -C apps/web test",
+    "typecheck": "pnpm -C apps/web typecheck"
+  }
+}
