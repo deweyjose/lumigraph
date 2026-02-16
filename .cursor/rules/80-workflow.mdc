@@ -26,3 +26,4 @@ All PRs must include:
 - Change (what changed, high level)
 - Why (why we are making the change)
 - Behavior (what it does / user impact)
+- Include Fixed #<issue> or Closes #<issue> so the GitHub issue automatically closes on merge.
