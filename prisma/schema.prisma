@@ -52,7 +52,6 @@ model ImagePost {
   datasets Dataset[]
 
   @@index([userId])
-  @@index([slug])
 }
 
 model Dataset {
