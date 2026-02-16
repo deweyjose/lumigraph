@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export const metadata = {
   title: "Lumigraph",
-  description: "Astrophotography journal and dataset platform."
+  description: "Astrophotography journal and dataset platform.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
