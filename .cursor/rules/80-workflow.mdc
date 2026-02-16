@@ -21,4 +21,9 @@ Branch names must include the issue ID and use one of:
 - `docs/<issue-id>`
 
 ## PR Description
-All descriptions are managed by Cursor BugBot - just create the PR with no description.
+All PRs must include:
+- Intent (what the PR is trying to accomplish)
+- Change (what changed, high level)
+- Why (why we are making the change)
+- Behavior (what it does / user impact)
+- Include Fixed #<issue> or Closes #<issue> so the GitHub issue automatically closes on merge.
