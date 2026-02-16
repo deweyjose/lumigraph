@@ -16,3 +16,11 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 **Context:** AI tools do not share chat history; persistent context must live in repo.  
 **Alternatives:** Start with code scaffold first.  
 **Consequences:** Slower first commit, faster consistent implementation thereafter.
+
+---
+
+### 2026-02-16 — ImagePost visibility enum (replace isPublished)
+**Decision:** Replace `ImagePost.isPublished` (boolean) with `visibility` (`PostVisibility`: DRAFT, PRIVATE, UNLISTED, PUBLIC) so the schema matches the documented visibility model (public, unlisted/link-only, private).  
+**Context:** ARCHITECTURE.md and PRODUCT.md require posts to support public, unlisted (link-only), and private; a boolean could not represent unlisted.  
+**Alternatives:** Keep boolean and add a second field (would be redundant and error-prone).  
+**Consequences:** Existing “published” rows migrated to PUBLIC; link-only visibility can be implemented without further schema change.

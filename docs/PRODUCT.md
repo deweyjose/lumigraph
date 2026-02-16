@@ -79,7 +79,7 @@ Represents a final astrophotography image.
 - `slug` (unique)
 - `title`
 - `description`
-- `isPublished` (boolean)
+- `visibility` ("draft" | "private" | "unlisted" | "public")
 - `targetName` (e.g., "M31")
 - `targetType` (Galaxy, Nebula, etc.)
 - `captureDate`
@@ -92,7 +92,7 @@ Represents a final astrophotography image.
 **Rules:**
 
 - Only owner can edit
-- Only published posts are public
+- Visibility: draft (owner only), private (owner only), unlisted (link-only), public (discoverable)
 - Slug must be unique
 
 ---

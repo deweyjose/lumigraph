@@ -12,6 +12,13 @@ enum DatasetVisibility {
   PUBLIC
 }
 
+enum PostVisibility {
+  DRAFT
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
 enum TargetType {
   GALAXY
   NEBULA
@@ -38,7 +45,7 @@ model ImagePost {
   slug               String   @unique
   title              String
   description        String?
-  isPublished        Boolean  @default(false)
+  visibility         PostVisibility @default(DRAFT)
   targetName         String?
   targetType         TargetType?
   captureDate        DateTime?
