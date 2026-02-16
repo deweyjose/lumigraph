@@ -1,0 +1,28 @@
+---
+alwaysApply: true
+---
+
+# Workflow Rules
+
+## Issues
+- Every PR must be tied to a GitHub issue.
+- Start work by selecting an issue and linking it in the PR.
+- If there is not an issue in GitHub ask if you should create one.
+
+## Start Work Checklist
+- Ensure local `main` is current before branching.
+- Create a branch before making changes (follow naming rules below).
+
+## Branch Naming
+Branch names must include the issue ID and use one of:
+- `feature/<issue-id>`
+- `infrastructure/<issue-id>`
+- `bug/<issue-id>`
+- `docs/<issue-id>`
+
+## PR Description
+All PRs must include:
+- Intent (what the PR is trying to accomplish)
+- Change (what changed, high level)
+- Why (why we are making the change)
+- Behavior (what it does / user impact)

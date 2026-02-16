@@ -96,9 +96,27 @@ If you override default names, also add:
     - `prod`: `repo:deweyjose/lumigraph:environment:prod` and `ref:refs/heads/main`
     - `dev`: `repo:deweyjose/lumigraph:environment:dev`, `repo:deweyjose/lumigraph:pull_request`, and `ref:refs/heads/*`
   - Configure via `github_subjects` (list of OIDC subject patterns).
+- If you see S3 `AccessDenied` on any `Get*` bucket call during app plans, re-apply bootstrap after updating the IAM policy in this stack.
 - Default state bucket name format:
   `lumigraph-tfstate-<suffix>-<account-id>-<region>`
 - Default lock table name format:
   `lumigraph-tflock-<suffix>-<account-id>-<region>`
 - Override names with `-var="state_bucket_name=..."` and `-var="lock_table_name=..."` if needed.
 - `name_suffix` is UUID-safe and can be set to any unique identifier (default: `main`).
+
+## Recover local bootstrap state
+
+If you lose local state for bootstrap, you can rebuild it by importing the existing AWS resources.
+Run in the correct account/workspace (`dev` or `prod`):
+
+```bash
+cd infrastructure/bootstrap
+terraform init
+terraform workspace select <env>
+terraform import aws_s3_bucket.tf_state <state-bucket-name>
+terraform import aws_dynamodb_table.tf_lock <lock-table-name>
+terraform import aws_iam_openid_connect_provider.github_actions <oidc-provider-arn>
+terraform import aws_iam_role.github_actions lumigraph-github-actions
+terraform import aws_iam_policy.github_actions <policy-arn>
+terraform import aws_iam_role_policy_attachment.github_actions lumigraph-github-actions/<policy-arn>
+```
