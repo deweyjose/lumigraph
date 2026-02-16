@@ -7,6 +7,7 @@ alwaysApply: true
 ## Issues
 - Every PR must be tied to a GitHub issue.
 - Start work by selecting an issue and linking it in the PR.
+- If there is not an issue in GitHub ask if you should create one.
 
 ## Start Work Checklist
 - Ensure local `main` is current before branching.
