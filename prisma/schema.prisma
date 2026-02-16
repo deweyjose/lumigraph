@@ -10,6 +10,8 @@ enum DatasetVisibility {
   PRIVATE
   UNLISTED
   PUBLIC
+
+  @@map("dataset_visibility")
 }
 
 enum PostVisibility {
@@ -17,6 +19,8 @@ enum PostVisibility {
   PRIVATE
   UNLISTED
   PUBLIC
+
+  @@map("post_visibility")
 }
 
 enum TargetType {
@@ -25,6 +29,8 @@ enum TargetType {
   STAR_CLUSTER
   PLANETARY_NEBULA
   OTHER
+
+  @@map("target_type")
 }
 
 model User {
@@ -32,44 +38,47 @@ model User {
   email     String      @unique
   name      String?
   image     String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
 
   imagePosts ImagePost[]
   datasets   Dataset[]
+
+  @@map("users")
 }
 
 model ImagePost {
-  id                 String   @id @default(uuid()) @db.Uuid
-  userId             String   @db.Uuid
-  slug               String   @unique
+  id                 String         @id @default(uuid()) @db.Uuid
+  userId             String         @db.Uuid @map("user_id")
+  slug               String         @unique
   title              String
   description        String?
   visibility         PostVisibility @default(DRAFT)
-  targetName         String?
-  targetType         TargetType?
-  captureDate        DateTime?
+  targetName         String?        @map("target_name")
+  targetType         TargetType?    @map("target_type")
+  captureDate        DateTime?      @map("capture_date")
   bortle             Int?
-  finalImageUrl      String?
-  finalImageThumbUrl String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  finalImageUrl      String?        @map("final_image_url")
+  finalImageThumbUrl String?        @map("final_image_thumb_url")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
 
   user     User      @relation(fields: [userId], references: [id])
   datasets Dataset[]
 
   @@index([userId])
+  @@map("image_posts")
 }
 
 model Dataset {
   id          String            @id @default(uuid()) @db.Uuid
-  userId      String            @db.Uuid
-  imagePostId String?           @db.Uuid
+  userId      String            @db.Uuid @map("user_id")
+  imagePostId String?           @db.Uuid @map("image_post_id")
   title       String
   description String?
   visibility  DatasetVisibility @default(PRIVATE)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
 
   user       User       @relation(fields: [userId], references: [id])
   imagePost  ImagePost? @relation(fields: [imagePostId], references: [id])
@@ -77,19 +86,21 @@ model Dataset {
 
   @@index([userId])
   @@index([imagePostId])
+  @@map("datasets")
 }
 
 model DatasetArtifact {
   id        String   @id @default(uuid()) @db.Uuid
-  datasetId String   @db.Uuid
+  datasetId String   @db.Uuid @map("dataset_id")
   filename  String
-  fileType  String
-  s3Key     String
-  sizeBytes BigInt
+  fileType  String   @map("file_type")
+  s3Key     String   @map("s3_key")
+  sizeBytes BigInt   @map("size_bytes")
   checksum  String?
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   dataset Dataset @relation(fields: [datasetId], references: [id])
 
   @@index([datasetId])
+  @@map("dataset_artifacts")
 }
