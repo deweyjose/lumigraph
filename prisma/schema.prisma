@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DatasetVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum PostVisibility {
+  DRAFT
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum TargetType {
+  GALAXY
+  NEBULA
+  STAR_CLUSTER
+  PLANETARY_NEBULA
+  OTHER
+}
+
+model User {
+  id        String      @id @default(uuid()) @db.Uuid
+  email     String      @unique
+  name      String?
+  image     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  imagePosts ImagePost[]
+  datasets   Dataset[]
+}
+
+model ImagePost {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @db.Uuid
+  slug               String   @unique
+  title              String
+  description        String?
+  visibility         PostVisibility @default(DRAFT)
+  targetName         String?
+  targetType         TargetType?
+  captureDate        DateTime?
+  bortle             Int?
+  finalImageUrl      String?
+  finalImageThumbUrl String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  datasets Dataset[]
+
+  @@index([userId])
+}
+
+model Dataset {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @db.Uuid
+  imagePostId String?           @db.Uuid
+  title       String
+  description String?
+  visibility  DatasetVisibility @default(PRIVATE)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id])
+  imagePost  ImagePost? @relation(fields: [imagePostId], references: [id])
+  artifacts  DatasetArtifact[]
+
+  @@index([userId])
+  @@index([imagePostId])
+}
+
+model DatasetArtifact {
+  id        String   @id @default(uuid()) @db.Uuid
+  datasetId String   @db.Uuid
+  filename  String
+  fileType  String
+  s3Key     String
+  sizeBytes BigInt
+  checksum  String?
+  createdAt DateTime @default(now())
+
+  dataset Dataset @relation(fields: [datasetId], references: [id])
+
+  @@index([datasetId])
+}
