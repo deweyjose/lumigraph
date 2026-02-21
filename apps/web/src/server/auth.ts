@@ -7,25 +7,20 @@ export function getAuthOptions(): NextAuthOptions {
   const githubId = process.env.GITHUB_ID;
   const githubSecret = process.env.GITHUB_SECRET;
 
-  const base: NextAuthOptions = {
-    adapter: PrismaAdapter(prisma),
-    session: {
-      strategy: "database"
-    },
-    providers: []
-  };
-
   if (!githubId || !githubSecret) {
-    return base;
+    console.warn(
+      "⚠ GITHUB_ID or GITHUB_SECRET is missing — auth providers disabled"
+    );
   }
 
+  const providers =
+    githubId && githubSecret
+      ? [GitHubProvider({ clientId: githubId, clientSecret: githubSecret })]
+      : [];
+
   return {
-    ...base,
-    providers: [
-      GitHubProvider({
-        clientId: githubId,
-        clientSecret: githubSecret
-      })
-    ]
+    adapter: PrismaAdapter(prisma),
+    session: { strategy: "database" },
+    providers
   };
 }
