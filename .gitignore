@@ -13,6 +13,9 @@ pnpm-debug.log*
 .next/
 out/
 
+# TypeScript incremental
+*.tsbuildinfo
+
 # Env
 .env
 .env.*
@@ -23,3 +26,5 @@ out/
 
 # Misc
 coverage/
+
+.tool-versions
