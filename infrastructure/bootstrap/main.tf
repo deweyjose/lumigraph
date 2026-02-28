@@ -202,6 +202,83 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
     resources = ["*"]
   }
+
+  # M1-13: RDS + RDS Proxy + Vercel OIDC role. Terraform needs to create and manage these.
+  statement {
+    sid = "RdsManage"
+    actions = [
+      "rds:AddTagsToResource",
+      "rds:CreateDBInstance",
+      "rds:CreateDBParameterGroup",
+      "rds:CreateDBSubnetGroup",
+      "rds:CreateDBProxy",
+      "rds:RegisterDBProxyTargets",
+      "rds:DeregisterDBProxyTargets",
+      "rds:DescribeDBInstances",
+      "rds:DescribeDBParameterGroups",
+      "rds:DescribeDBSubnetGroups",
+      "rds:DescribeDBProxies",
+      "rds:DescribeDBProxyTargets",
+      "rds:ModifyDBInstance",
+      "rds:ModifyDBProxy",
+      "rds:DeleteDBInstance",
+      "rds:DeleteDBParameterGroup",
+      "rds:DeleteDBSubnetGroup",
+      "rds:DeleteDBProxy",
+      "rds:ListTagsForResource",
+      "rds:RemoveTagsFromResource"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "Ec2SecurityGroupsAndNetwork"
+    actions = [
+      "ec2:CreateSecurityGroup",
+      "ec2:DeleteSecurityGroup",
+      "ec2:DescribeSecurityGroups",
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:DescribeVpcs",
+      "ec2:DescribeSubnets",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:CreateTags",
+      "ec2:DeleteTags",
+      "ec2:DescribeTags"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "IamRolesAndPoliciesForRdsAndVercel"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:GetRole",
+      "iam:PassRole",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+      "iam:GetRolePolicy",
+      "iam:CreatePolicy",
+      "iam:DeletePolicy",
+      "iam:CreatePolicyVersion",
+      "iam:DeletePolicyVersion",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:ListRolePolicies",
+      "iam:ListAttachedRolePolicies",
+      "iam:GetPolicy",
+      "iam:GetPolicyVersion",
+      "iam:ListPolicyVersions",
+      "iam:ListPolicies"
+    ]
+    resources = [
+      "arn:aws:iam::${local.account_id}:role/lumigraph-*",
+      "arn:aws:iam::${local.account_id}:policy/lumigraph-*"
+    ]
+  }
 }
 
 resource "aws_iam_policy" "github_actions" {
