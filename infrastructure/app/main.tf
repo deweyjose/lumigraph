@@ -33,7 +33,7 @@ locals {
 
   effective_vpc_id = var.vpc_id != null ? var.vpc_id : data.aws_vpc.default[0].id
 
-  effective_subnet_ids = length(var.subnet_ids) > 0 ? var.subnet_ids : data.aws_subnets.default_vpc[0].ids
+  effective_subnet_ids = length(var.subnet_ids) > 0 ? var.subnet_ids : sort(data.aws_subnets.default_vpc[0].ids)
 
   effective_artifacts_bucket_name = coalesce(
     var.artifacts_bucket_name,
@@ -253,9 +253,10 @@ resource "aws_db_proxy" "main" {
   idle_client_timeout    = var.db_proxy_idle_client_timeout_seconds
 
   auth {
-    auth_scheme = "SECRETS"
-    iam_auth    = "REQUIRED"
-    secret_arn  = aws_db_instance.main.master_user_secret[0].secret_arn
+    auth_scheme               = "SECRETS"
+    iam_auth                  = "REQUIRED"
+    secret_arn                = aws_db_instance.main.master_user_secret[0].secret_arn
+    client_password_auth_type = "POSTGRES_SCRAM_SHA_256"
   }
 
   tags = {
