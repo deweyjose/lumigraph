@@ -33,6 +33,7 @@ Use `.github/workflows/terraform.yml`:
 - `allowed_vercel_prod_origins`
 - `db_name` (default: `lumigraph_db`)
 - `db_master_username` (default: `lumigraph_admin`)
+- `db_engine_version` (default: `16`)
 - `db_instance_class` (default: `db.t4g.micro`)
 - `db_allocated_storage_gb` (default: `20`)
 - `db_max_allocated_storage_gb` (default: `100`)

@@ -173,6 +173,7 @@ resource "aws_vpc_security_group_ingress_rule" "proxy_cidrs" {
 resource "aws_db_instance" "main" {
   identifier                          = "${var.project_name}-postgres-${var.env}"
   engine                              = "postgres"
+  engine_version                      = var.db_engine_version
   instance_class                      = var.db_instance_class
   db_name                             = var.db_name
   username                            = var.db_master_username
@@ -183,10 +184,11 @@ resource "aws_db_instance" "main" {
   port                                = var.db_port
   db_subnet_group_name                = aws_db_subnet_group.main.name
   vpc_security_group_ids              = [aws_security_group.db.id]
-  publicly_accessible                 = true
+  publicly_accessible                 = !local.is_prod
   storage_encrypted                   = true
   kms_key_id                          = data.aws_kms_key.rds.arn
   iam_database_authentication_enabled = true
+  auto_minor_version_upgrade          = true
   backup_retention_period             = local.backup_retention_days
   multi_az                            = local.is_prod
   deletion_protection                 = local.is_prod
@@ -320,8 +322,7 @@ data "aws_iam_policy_document" "vercel_db_connect" {
   statement {
     actions = ["rds-db:connect"]
     resources = [
-      "arn:aws:rds-db:${var.aws_region}:${local.account_id}:dbuser:*/${var.db_iam_app_username}",
-      "arn:aws:rds-db:${var.aws_region}:${local.account_id}:dbuser:*/${var.db_master_username}"
+      "arn:aws:rds-db:${var.aws_region}:${local.account_id}:dbuser:*/${var.db_iam_app_username}"
     ]
   }
 }

@@ -315,6 +315,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
   }
 
+  # OIDC provider ARN is unknown until after creation, so resources must be "*".
   statement {
     sid = "IamOpenIdConnectProvidersForVercel"
     actions = [

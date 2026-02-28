@@ -63,6 +63,12 @@ variable "db_master_username" {
   default     = "lumigraph_admin"
 }
 
+variable "db_engine_version" {
+  description = "PostgreSQL engine major version. RDS picks the latest minor version."
+  type        = string
+  default     = "16"
+}
+
 variable "db_instance_class" {
   description = "RDS instance class."
   type        = string
