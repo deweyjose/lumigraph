@@ -16,7 +16,7 @@ Lumigraph is a multi-user astrophotography platform for:
 ### Components
 - Web App: Next.js (App Router)
 - API: Next.js route handlers (initially), evolving to service modules
-- DB: Postgres
+- DB: AWS RDS Postgres (via RDS Proxy for app traffic)
 - Storage: S3 for artifacts + images; CDN (CloudFront) optional early
 - AI: external LLM provider (TBD); used for writing assistance (never auto-publish)
 - Auth: NextAuth (minimal to start)
@@ -69,6 +69,10 @@ Lumigraph is a multi-user astrophotography platform for:
   - max file size constraints
   - per-user quotas (later)
 - Complete upload requires server-side “register artifact” call.
+
+### Infrastructure Access
+- GitHub Actions assumes AWS roles through GitHub OIDC for Terraform deploys.
+- Vercel assumes a team-scoped AWS role through Vercel OIDC for DB IAM auth (`rds-db:connect`).
 
 ### Visibility
 Datasets and posts must support:

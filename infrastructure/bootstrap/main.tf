@@ -203,6 +203,38 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = ["*"]
   }
 
+  statement {
+    sid = "KmsDescribeDefaultKeys"
+    actions = [
+      "kms:DescribeKey"
+    ]
+    resources = [
+      "arn:aws:kms:*:${local.account_id}:alias/aws/rds",
+      "arn:aws:kms:*:${local.account_id}:alias/aws/secretsmanager",
+      "arn:aws:kms:*:${local.account_id}:key/*"
+    ]
+  }
+
+  statement {
+    sid = "SecretsManagerForRds"
+    actions = [
+      "secretsmanager:CreateSecret",
+      "secretsmanager:DeleteSecret",
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:PutSecretValue",
+      "secretsmanager:UpdateSecret",
+      "secretsmanager:TagResource",
+      "secretsmanager:UntagResource",
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:PutResourcePolicy",
+      "secretsmanager:DeleteResourcePolicy"
+    ]
+    resources = [
+      "arn:aws:secretsmanager:*:${local.account_id}:secret:rds!*"
+    ]
+  }
+
   # M1-13: RDS + RDS Proxy + Vercel OIDC role. Terraform needs to create and manage these.
   statement {
     sid = "RdsManage"
@@ -219,8 +251,10 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "rds:DescribeDBSubnetGroups",
       "rds:DescribeDBProxies",
       "rds:DescribeDBProxyTargets",
+      "rds:DescribeDBProxyTargetGroups",
       "rds:ModifyDBInstance",
       "rds:ModifyDBProxy",
+      "rds:ModifyDBProxyTargetGroup",
       "rds:DeleteDBInstance",
       "rds:DeleteDBParameterGroup",
       "rds:DeleteDBSubnetGroup",
@@ -237,6 +271,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ec2:CreateSecurityGroup",
       "ec2:DeleteSecurityGroup",
       "ec2:DescribeSecurityGroups",
+      "ec2:DescribeVpcAttribute",
       "ec2:AuthorizeSecurityGroupIngress",
       "ec2:AuthorizeSecurityGroupEgress",
       "ec2:RevokeSecurityGroupIngress",
@@ -278,6 +313,36 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "arn:aws:iam::${local.account_id}:role/lumigraph-*",
       "arn:aws:iam::${local.account_id}:policy/lumigraph-*"
     ]
+  }
+
+  # OIDC provider ARN is unknown until after creation, so resources must be "*".
+  statement {
+    sid = "IamOpenIdConnectProvidersForVercel"
+    actions = [
+      "iam:CreateOpenIDConnectProvider",
+      "iam:DeleteOpenIDConnectProvider",
+      "iam:UpdateOpenIDConnectProviderThumbprint",
+      "iam:AddClientIDToOpenIDConnectProvider",
+      "iam:RemoveClientIDFromOpenIDConnectProvider",
+      "iam:TagOpenIDConnectProvider",
+      "iam:UntagOpenIDConnectProvider"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "IamCreateRdsServiceLinkedRole"
+    actions = [
+      "iam:CreateServiceLinkedRole"
+    ]
+    resources = [
+      "arn:aws:iam::*:role/aws-service-role/rds.amazonaws.com/AWSServiceRoleForRDS"
+    ]
+    condition {
+      test     = "StringLike"
+      variable = "iam:AWSServiceName"
+      values   = ["rds.amazonaws.com"]
+    }
   }
 }
 

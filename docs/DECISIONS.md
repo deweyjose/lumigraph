@@ -30,3 +30,21 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 **Decision:** Use snake_case for database table/column/enum names via Prisma `@map`/`@@map`.
 **Context:** We prefer snake_case for DB objects and want to keep TS-friendly model names in application code.
 **Implications:** All tables, columns, and enum types are mapped to snake_case; migrations are regenerated accordingly.
+
+---
+
+## 2026-02-28 — App infra runs in GitHub Actions
+
+**Decision:** Run `infrastructure/app` exclusively in GitHub Actions; reserve local/admin Terraform execution for `infrastructure/bootstrap`.  
+**Context:** Team workflow uses environment-scoped GitHub OIDC roles and GitHub Environments for safe multi-account/apply behavior.  
+**Alternatives:** Allow local plan/apply for app stack.  
+**Consequences:** App stack validation/plan/apply happens in GHA; bootstrap remains the controlled local-admin exception.
+
+---
+
+## 2026-02-28 — M1-13 uses RDS + Proxy + Vercel OIDC role
+
+**Decision:** Provision RDS Postgres with IAM database auth enabled, front it with RDS Proxy, and grant Vercel OIDC a dedicated `rds-db:connect` role.  
+**Context:** M1-13 requires AWS-hosted Postgres and secure app-to-DB auth without static long-lived AWS credentials.  
+**Alternatives:** Use static DB credentials stored in Vercel env vars.  
+**Consequences:** App stack now includes DB/proxy/networking/role outputs and environment-specific defaults (backup retention and Multi-AZ).
