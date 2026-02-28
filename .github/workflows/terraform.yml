@@ -36,25 +36,49 @@ on:
       - ".github/workflows/terraform.yml"
 
 jobs:
-  terraform:
+  resolve-matrix:
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      github.ref == 'refs/heads/main' ||
-      github.event_name == 'pull_request'
+    outputs:
+      environments: ${{ steps.set.outputs.environments }}
+      target: ${{ steps.set.outputs.target }}
+      should_apply: ${{ steps.set.outputs.should_apply }}
+    steps:
+      - id: set
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo 'environments=["${{ github.event.inputs.environment }}"]' >> "$GITHUB_OUTPUT"
+            echo "target=${{ github.event.inputs.target }}" >> "$GITHUB_OUTPUT"
+            echo "should_apply=${{ github.event.inputs.apply }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo 'environments=["dev","prod"]' >> "$GITHUB_OUTPUT"
+            echo "target=app" >> "$GITHUB_OUTPUT"
+            echo "should_apply=true" >> "$GITHUB_OUTPUT"
+          else
+            echo 'environments=["dev"]' >> "$GITHUB_OUTPUT"
+            echo "target=app" >> "$GITHUB_OUTPUT"
+            echo "should_apply=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  terraform:
+    needs: resolve-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJson(needs.resolve-matrix.outputs.environments) }}
+    environment: ${{ matrix.environment }}
     permissions:
       id-token: write
       contents: read
     env:
       TF_IN_AUTOMATION: "true"
-      TF_TARGET: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target || 'app' }}
-      TF_VAR_env: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod' || 'dev') }}
+      TF_TARGET: ${{ needs.resolve-matrix.outputs.target }}
+      TF_VAR_env: ${{ matrix.environment }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
       TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
 
-    steps:      
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -111,8 +135,6 @@ jobs:
         run: terraform plan -var="aws_region=${AWS_REGION}"
 
       - name: Terraform Apply
-        if: >
-          github.ref == 'refs/heads/main' ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.apply == 'true')
+        if: needs.resolve-matrix.outputs.should_apply == 'true'
         working-directory: infrastructure/${{ env.TF_TARGET }}
         run: terraform apply -auto-approve -var="aws_region=${AWS_REGION}"
