@@ -66,7 +66,7 @@ variable "db_master_username" {
 variable "db_engine_version" {
   description = "PostgreSQL engine major version. RDS picks the latest minor version."
   type        = string
-  default     = "16"
+  default     = "17"
 }
 
 variable "db_instance_class" {
