@@ -215,6 +215,26 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
   }
 
+  statement {
+    sid = "SecretsManagerForRds"
+    actions = [
+      "secretsmanager:CreateSecret",
+      "secretsmanager:DeleteSecret",
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:PutSecretValue",
+      "secretsmanager:UpdateSecret",
+      "secretsmanager:TagResource",
+      "secretsmanager:UntagResource",
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:PutResourcePolicy",
+      "secretsmanager:DeleteResourcePolicy"
+    ]
+    resources = [
+      "arn:aws:secretsmanager:*:${local.account_id}:secret:rds!*"
+    ]
+  }
+
   # M1-13: RDS + RDS Proxy + Vercel OIDC role. Terraform needs to create and manage these.
   statement {
     sid = "RdsManage"
