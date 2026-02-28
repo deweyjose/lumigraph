@@ -169,7 +169,7 @@ resource "aws_db_instance" "main" {
   db_name                             = var.db_name
   username                            = var.db_master_username
   manage_master_user_password         = true
-  master_user_secret_kms_key_id       = "alias/aws/secretsmanager"
+  master_user_secret_kms_key_id       = "arn:aws:kms:${var.aws_region}:${local.account_id}:alias/aws/secretsmanager"
   allocated_storage                   = var.db_allocated_storage_gb
   max_allocated_storage               = var.db_max_allocated_storage_gb
   port                                = var.db_port
@@ -177,7 +177,7 @@ resource "aws_db_instance" "main" {
   vpc_security_group_ids              = [aws_security_group.db.id]
   publicly_accessible                 = true
   storage_encrypted                   = true
-  kms_key_id                          = "alias/aws/rds"
+  kms_key_id                          = "arn:aws:kms:${var.aws_region}:${local.account_id}:alias/aws/rds"
   iam_database_authentication_enabled = true
   backup_retention_period             = local.backup_retention_days
   multi_az                            = local.is_prod
