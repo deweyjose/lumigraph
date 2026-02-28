@@ -254,7 +254,7 @@ resource "aws_db_proxy" "main" {
 
   auth {
     auth_scheme = "SECRETS"
-    iam_auth    = "OPTIONAL"
+    iam_auth    = "ENABLED"
     secret_arn  = aws_db_instance.main.master_user_secret[0].secret_arn
   }
 
