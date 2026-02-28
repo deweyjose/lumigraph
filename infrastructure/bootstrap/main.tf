@@ -279,6 +279,20 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "arn:aws:iam::${local.account_id}:policy/lumigraph-*"
     ]
   }
+
+  statement {
+    sid = "IamOpenIdConnectProvidersForVercel"
+    actions = [
+      "iam:CreateOpenIDConnectProvider",
+      "iam:DeleteOpenIDConnectProvider",
+      "iam:UpdateOpenIDConnectProviderThumbprint",
+      "iam:AddClientIDToOpenIDConnectProvider",
+      "iam:RemoveClientIDFromOpenIDConnectProvider",
+      "iam:TagOpenIDConnectProvider",
+      "iam:UntagOpenIDConnectProvider"
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "github_actions" {

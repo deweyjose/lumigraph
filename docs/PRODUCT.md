@@ -164,6 +164,8 @@ Deployment model:
 - Manual apply on branches
 - Auto apply on main
 - GitHub environments inject correct `AWS_ROLE_ARN`
+- `infrastructure/app` deploys through GitHub Actions only
+- `infrastructure/bootstrap` remains the local-admin exception
 
 ---
 
