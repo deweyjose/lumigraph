@@ -271,6 +271,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ec2:CreateSecurityGroup",
       "ec2:DeleteSecurityGroup",
       "ec2:DescribeSecurityGroups",
+      "ec2:DescribeSecurityGroupRules",
       "ec2:DescribeVpcAttribute",
       "ec2:AuthorizeSecurityGroupIngress",
       "ec2:AuthorizeSecurityGroupEgress",
