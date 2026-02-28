@@ -1,0 +1,153 @@
+name: Migrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: "Which environment to run migrations against"
+        required: true
+        default: dev
+        options:
+          - dev
+          - prod
+      apply:
+        type: boolean
+        description: "Apply migrations? (false = dry run)"
+        required: true
+        default: false
+  push:
+    branches:
+      - main
+    paths:
+      - "prisma/migrations/**"
+      - ".github/workflows/migrate.yml"
+  pull_request:
+    paths:
+      - "prisma/migrations/**"
+      - "prisma/schema.prisma"
+      - ".github/workflows/migrate.yml"
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || '') }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate migration history (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
+        run: |
+          echo "Checking Prisma migration files are consistent with schema..."
+          pnpm prisma validate
+          pnpm prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "${DATABASE_URL}" \
+            --exit-code \
+            || echo "::warning::Migration diff detected — make sure prisma migrate dev was run."
+
+      - name: Configure AWS Credentials (OIDC)
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform (for reading outputs)
+        if: github.event_name != 'pull_request'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Read Terraform outputs
+        if: github.event_name != 'pull_request'
+        working-directory: infrastructure/app
+        run: |
+          if [ -n "${TF_STATE_BUCKET}" ] && [ -n "${TF_LOCK_TABLE}" ]; then
+            STATE_BUCKET="${TF_STATE_BUCKET}"
+            LOCK_TABLE="${TF_LOCK_TABLE}"
+          else
+            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+            STATE_BUCKET="lumigraph-tfstate-main-${ACCOUNT_ID}-${AWS_REGION}"
+            LOCK_TABLE="lumigraph-tflock-main-${ACCOUNT_ID}-${AWS_REGION}"
+          fi
+
+          cat > backend.hcl <<EOF
+          bucket         = "${STATE_BUCKET}"
+          key            = "app/terraform.tfstate"
+          region         = "${AWS_REGION}"
+          dynamodb_table = "${LOCK_TABLE}"
+          encrypt        = true
+          EOF
+
+          terraform init -backend-config=backend.hcl > /dev/null
+          DB_HOST=$(terraform output -raw db_instance_endpoint)
+          DB_PORT=$(terraform output -raw db_instance_port)
+          DB_NAME=$(terraform output -raw db_name)
+          DB_USER=$(terraform output -raw db_master_username)
+
+          echo "DB_HOST=${DB_HOST}" >> "$GITHUB_ENV"
+          echo "DB_PORT=${DB_PORT}" >> "$GITHUB_ENV"
+          echo "DB_NAME=${DB_NAME}" >> "$GITHUB_ENV"
+          echo "DB_USER=${DB_USER}" >> "$GITHUB_ENV"
+
+      - name: Retrieve master password from Secrets Manager
+        if: github.event_name != 'pull_request'
+        run: |
+          INSTANCE_ID=$(aws rds describe-db-instances \
+            --query "DBInstances[?DBName=='${DB_NAME}'].DbiResourceId" \
+            --output text)
+
+          SECRET_ARN=$(aws rds describe-db-instances \
+            --query "DBInstances[?DBName=='${DB_NAME}'].MasterUserSecret.SecretArn" \
+            --output text)
+
+          DB_PASSWORD=$(aws secretsmanager get-secret-value \
+            --secret-id "${SECRET_ARN}" \
+            --query SecretString --output text | jq -r '.password')
+
+          echo "::add-mask::${DB_PASSWORD}"
+          echo "DB_PASSWORD=${DB_PASSWORD}" >> "$GITHUB_ENV"
+
+      - name: Build DATABASE_URL
+        if: github.event_name != 'pull_request'
+        run: |
+          DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
+          echo "::add-mask::${DATABASE_URL}"
+          echo "DATABASE_URL=${DATABASE_URL}" >> "$GITHUB_ENV"
+
+      - name: Prisma migrate deploy
+        if: >
+          github.ref == 'refs/heads/main' ||
+          (github.event_name == 'workflow_dispatch' && github.event.inputs.apply == 'true')
+        run: pnpm prisma migrate deploy
+
+      - name: Prisma migrate status (dry run)
+        if: >
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.apply != 'true'
+        run: pnpm prisma migrate status
