@@ -163,26 +163,26 @@ resource "aws_vpc_security_group_ingress_rule" "proxy_cidrs" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier                       = "${var.project_name}-postgres-${var.env}"
-  engine                           = "postgres"
-  instance_class                   = var.db_instance_class
-  db_name                          = var.db_name
-  username                         = var.db_master_username
-  manage_master_user_password      = true
-  allocated_storage                = var.db_allocated_storage_gb
-  max_allocated_storage            = var.db_max_allocated_storage_gb
-  port                             = var.db_port
-  db_subnet_group_name             = aws_db_subnet_group.main.name
-  vpc_security_group_ids           = [aws_security_group.db.id]
-  publicly_accessible              = true
-  storage_encrypted                = true
+  identifier                          = "${var.project_name}-postgres-${var.env}"
+  engine                              = "postgres"
+  instance_class                      = var.db_instance_class
+  db_name                             = var.db_name
+  username                            = var.db_master_username
+  manage_master_user_password         = true
+  allocated_storage                   = var.db_allocated_storage_gb
+  max_allocated_storage               = var.db_max_allocated_storage_gb
+  port                                = var.db_port
+  db_subnet_group_name                = aws_db_subnet_group.main.name
+  vpc_security_group_ids              = [aws_security_group.db.id]
+  publicly_accessible                 = true
+  storage_encrypted                   = true
   iam_database_authentication_enabled = true
-  backup_retention_period          = local.backup_retention_days
-  multi_az                         = local.is_prod
-  deletion_protection              = local.is_prod
-  apply_immediately                = true
-  skip_final_snapshot              = !local.is_prod
-  final_snapshot_identifier        = local.is_prod ? "${var.project_name}-postgres-${var.env}-final" : null
+  backup_retention_period             = local.backup_retention_days
+  multi_az                            = local.is_prod
+  deletion_protection                 = local.is_prod
+  apply_immediately                   = true
+  skip_final_snapshot                 = !local.is_prod
+  final_snapshot_identifier           = local.is_prod ? "${var.project_name}-postgres-${var.env}-final" : null
 
   tags = {
     Name    = "${var.project_name}-postgres-${var.env}"
@@ -264,8 +264,8 @@ resource "aws_db_proxy_default_target_group" "main" {
 }
 
 resource "aws_db_proxy_target" "main" {
-  db_proxy_name         = aws_db_proxy.main.name
-  target_group_name     = aws_db_proxy_default_target_group.main.name
+  db_proxy_name          = aws_db_proxy.main.name
+  target_group_name      = aws_db_proxy_default_target_group.main.name
   db_instance_identifier = aws_db_instance.main.identifier
 }
 
