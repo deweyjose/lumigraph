@@ -72,7 +72,12 @@ Lumigraph is a multi-user astrophotography platform for:
 
 ### Infrastructure Access
 - GitHub Actions assumes AWS roles through GitHub OIDC for Terraform deploys.
+- GitHub Actions runs Prisma migrations as `lumigraph_admin` (password from Secrets Manager).
 - Vercel assumes a team-scoped AWS role through Vercel OIDC for DB IAM auth (`rds-db:connect`).
+
+### Database Roles
+- `lumigraph_admin`: RDS master user. Runs migrations. Password managed by Secrets Manager.
+- `app_user`: Application runtime user. Authenticates via IAM auth tokens (no password). Created by bootstrap migration.
 
 ### Visibility
 Datasets and posts must support:

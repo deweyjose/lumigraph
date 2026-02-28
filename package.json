@@ -10,6 +10,8 @@
     "typecheck": "pnpm -C apps/web typecheck",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:status": "prisma migrate status",
     "db:studio": "prisma studio"
   },
   "devDependencies": {

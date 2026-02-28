@@ -48,3 +48,21 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 **Context:** M1-13 requires AWS-hosted Postgres and secure app-to-DB auth without static long-lived AWS credentials.  
 **Alternatives:** Use static DB credentials stored in Vercel env vars.  
 **Consequences:** App stack now includes DB/proxy/networking/role outputs and environment-specific defaults (backup retention and Multi-AZ).
+
+---
+
+## 2026-02-28 — M1-14 Migration pipeline in GitHub Actions
+
+**Decision:** Run `prisma migrate deploy` in GitHub Actions as the RDS master user (`lumigraph_admin`), retrieving the password from Secrets Manager. Auto-apply to dev on main merge; manual dispatch for feature branches and prod.  
+**Context:** Migrations require DDL privileges that `app_user` should not have. The pipeline mirrors the Terraform workflow: validate on PRs, auto-apply dev, manual-with-approval for prod.  
+**Alternatives:** Run migrations locally, or grant `app_user` DDL privileges.  
+**Consequences:** `app_user` stays limited to DML at runtime. Migrations are version-controlled and run through the same GHA pipeline as infrastructure.
+
+---
+
+## 2026-02-28 — Bootstrap app_user via Prisma migration
+
+**Decision:** Create the `app_user` Postgres role (with `rds_iam` grant and default privileges) in a Prisma migration rather than a standalone script or Terraform.  
+**Context:** The role is a one-time setup that logically belongs with the schema. Prisma migrations run as `lumigraph_admin` which has the privileges to create roles.  
+**Alternatives:** Terraform `cyrilgdn/postgresql` provider; manual SQL script.  
+**Consequences:** Role setup is version-controlled and applied automatically with the first `prisma migrate deploy`.
