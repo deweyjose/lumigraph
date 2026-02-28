@@ -105,7 +105,7 @@ jobs:
           EOF
 
           terraform init -backend-config=backend.hcl > /dev/null
-          DB_HOST=$(terraform output -raw db_instance_endpoint)
+          DB_HOST=$(terraform output -raw db_proxy_endpoint)
           DB_PORT=$(terraform output -raw db_instance_port)
           DB_NAME=$(terraform output -raw db_name)
           DB_USER=$(terraform output -raw db_master_username)

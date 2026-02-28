@@ -112,9 +112,9 @@ variable "db_proxy_idle_client_timeout_seconds" {
 }
 
 variable "proxy_allowed_cidrs" {
-  description = "CIDRs allowed to connect to the RDS Proxy endpoint."
+  description = "CIDRs allowed to connect to the RDS Proxy endpoint. Proxy enforces TLS + auth."
   type        = list(string)
-  default     = []
+  default     = ["0.0.0.0/0"]
 }
 
 variable "vercel_team_slug" {

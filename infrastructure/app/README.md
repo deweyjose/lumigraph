@@ -41,7 +41,7 @@ Use `.github/workflows/terraform.yml`:
 - `db_backup_retention_days_dev` (default: `7`)
 - `db_backup_retention_days_prod` (default: `14`)
 - `db_proxy_idle_client_timeout_seconds` (default: `1800`)
-- `proxy_allowed_cidrs` (default: `[]` - no inbound access until explicitly set)
+- `proxy_allowed_cidrs` (default: `["0.0.0.0/0"]` — proxy enforces TLS + auth)
 - `vercel_team_slug` (default: `deweys-projects-c66e9e02`)
 - `vercel_project_name` (default: `lumigraph`)
 - `vercel_oidc_subjects` (default: `owner:<team>:project:<project>:environment:*`)

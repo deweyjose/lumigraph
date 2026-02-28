@@ -66,3 +66,12 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 **Context:** The role is a one-time setup that logically belongs with the schema. Prisma migrations run as `lumigraph_admin` which has the privileges to create roles.  
 **Alternatives:** Terraform `cyrilgdn/postgresql` provider; manual SQL script.  
 **Consequences:** Role setup is version-controlled and applied automatically with the first `prisma migrate deploy`.
+
+---
+
+## 2026-02-28 — RDS Proxy allows both IAM and password auth
+
+**Decision:** Set RDS Proxy `iam_auth` to `OPTIONAL` (accepts both IAM tokens and password auth) and route all traffic — app runtime and migrations — through the proxy.  
+**Context:** GHA migrations connect as `lumigraph_admin` using a password from Secrets Manager. Vercel connects as `app_user` using IAM auth tokens. With `iam_auth = "REQUIRED"`, password-based migration connections were rejected.  
+**Alternatives:** Open the DB security group to allow direct GHA → RDS instance connections, bypassing the proxy.  
+**Consequences:** Single entry point (proxy) for all database traffic. Proxy still enforces TLS. `proxy_allowed_cidrs` defaults to `0.0.0.0/0` since both GHA and Vercel use dynamic IPs.
