@@ -203,6 +203,17 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = ["*"]
   }
 
+  statement {
+    sid = "KmsDescribeDefaultKeys"
+    actions = [
+      "kms:DescribeKey"
+    ]
+    resources = [
+      "arn:aws:kms:*:${local.account_id}:alias/aws/rds",
+      "arn:aws:kms:*:${local.account_id}:alias/aws/secretsmanager"
+    ]
+  }
+
   # M1-13: RDS + RDS Proxy + Vercel OIDC role. Terraform needs to create and manage these.
   statement {
     sid = "RdsManage"

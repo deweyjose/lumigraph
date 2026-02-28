@@ -14,6 +14,14 @@ data "aws_subnets" "default_vpc" {
   }
 }
 
+data "aws_kms_key" "rds" {
+  key_id = "alias/aws/rds"
+}
+
+data "aws_kms_key" "secretsmanager" {
+  key_id = "alias/aws/secretsmanager"
+}
+
 data "tls_certificate" "vercel_oidc" {
   url = "https://oidc.vercel.com/${var.vercel_team_slug}"
 }
@@ -169,6 +177,7 @@ resource "aws_db_instance" "main" {
   db_name                             = var.db_name
   username                            = var.db_master_username
   manage_master_user_password         = true
+  master_user_secret_kms_key_id       = data.aws_kms_key.secretsmanager.arn
   allocated_storage                   = var.db_allocated_storage_gb
   max_allocated_storage               = var.db_max_allocated_storage_gb
   port                                = var.db_port
@@ -176,6 +185,7 @@ resource "aws_db_instance" "main" {
   vpc_security_group_ids              = [aws_security_group.db.id]
   publicly_accessible                 = true
   storage_encrypted                   = true
+  kms_key_id                          = data.aws_kms_key.rds.arn
   iam_database_authentication_enabled = true
   backup_retention_period             = local.backup_retention_days
   multi_az                            = local.is_prod
@@ -217,7 +227,7 @@ data "aws_iam_policy_document" "rds_proxy_secrets" {
 
   statement {
     actions   = ["kms:Decrypt"]
-    resources = ["*"]
+    resources = [data.aws_kms_key.secretsmanager.arn]
   }
 }
 
