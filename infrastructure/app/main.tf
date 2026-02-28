@@ -264,6 +264,10 @@ resource "aws_db_proxy" "main" {
     Project = var.project_name
     Env     = var.env
   }
+
+  lifecycle {
+    ignore_changes = [vpc_subnet_ids]
+  }
 }
 
 resource "aws_db_proxy_default_target_group" "main" {
