@@ -210,7 +210,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
     resources = [
       "arn:aws:kms:*:${local.account_id}:alias/aws/rds",
-      "arn:aws:kms:*:${local.account_id}:alias/aws/secretsmanager"
+      "arn:aws:kms:*:${local.account_id}:alias/aws/secretsmanager",
+      "arn:aws:kms:*:${local.account_id}:key/*"
     ]
   }
 
