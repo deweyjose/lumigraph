@@ -18,6 +18,12 @@ export function SiteHeader() {
             >
               Gallery
             </Link>
+            <Link
+              href="/datasets"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Datasets
+            </Link>
           </nav>
         </div>
         <UserNav />
