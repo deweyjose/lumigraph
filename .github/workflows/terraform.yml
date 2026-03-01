@@ -1,3 +1,5 @@
+# Runs Terraform plan/apply for infrastructure/app (and bootstrap via manual dispatch).
+# Migrate workflow triggers automatically after successful runs on main.
 name: Terraform
 
 on:
