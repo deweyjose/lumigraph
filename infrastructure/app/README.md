@@ -2,7 +2,7 @@
 
 This Terraform stack creates app-facing infrastructure for Lumigraph:
 
-- Artifacts S3 buckets
+- Artifacts S3 bucket
 - RDS PostgreSQL instance (IAM DB auth enabled)
 - RDS Proxy
 - Vercel OIDC provider + IAM role for `rds-db:connect`
