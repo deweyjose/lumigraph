@@ -66,3 +66,12 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 **Context:** The role is a one-time setup that logically belongs with the schema. Prisma migrations run as `lumigraph_admin` which has the privileges to create roles.  
 **Alternatives:** Terraform `cyrilgdn/postgresql` provider; manual SQL script.  
 **Consequences:** Role setup is version-controlled and applied automatically with the first `prisma migrate deploy`.
+
+---
+
+## 2026-02-28 — M1-15 Self-hosted GHA runner in bootstrap
+
+**Decision:** Deploy the self-hosted GitHub Actions runner EC2 instance in `infrastructure/bootstrap` rather than `infrastructure/app`.  
+**Context:** The runner is Tier 0 / CI infrastructure — it runs the pipelines that deploy the app stack and execute migrations. Placing it in the app stack creates a chicken-and-egg problem: the runner must exist before GHA can target it, but the app stack is deployed by GHA. The runner also needs direct VPC access to the RDS instance (bypassing the IAM-only proxy) for password-based migration connections.  
+**Alternatives:** Place the runner in `infrastructure/app` (circular dependency, requires manual first apply); use a public DB endpoint (security risk).  
+**Consequences:** Bootstrap is applied locally (existing pattern). The app stack receives only a `runner_security_group_id` variable and one DB SG ingress rule. Runner labels are environment-specific (`lumigraph-runner-dev`, `lumigraph-runner-prod`) so the migrate workflow targets the correct runner per environment. One GitHub PAT stored in Secrets Manager per AWS account.

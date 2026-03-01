@@ -5,10 +5,12 @@ This Terraform stack creates:
 - DynamoDB table for state locking
 - GitHub Actions OIDC provider
 - IAM role for GitHub Actions (least-privilege)
+- Self-hosted GHA runner (EC2) for database migrations (M1-15)
 
 ## Prereqs
 - Terraform >= 1.6
-- AWS CLI configured with a profile that can create IAM, S3, and DynamoDB resources
+- AWS CLI configured with a profile that can create IAM, S3, DynamoDB, and EC2 resources
+- A GitHub fine-grained PAT (with `administration:write` on the repo) stored in Secrets Manager as `lumigraph/github-runner-pat` in each account
 
 ## 1) Configure AWS profile + region
 
@@ -48,9 +50,9 @@ Dev (allow branches + PRs):
 
 ```bash
 terraform init
-terraform plan -var="aws_region=${AWS_REGION}" \
+terraform plan -var="aws_region=${AWS_REGION}" -var="env=dev" \
   -var='github_subjects=["repo:deweyjose/lumigraph:environment:dev","repo:deweyjose/lumigraph:pull_request","repo:deweyjose/lumigraph:ref:refs/heads/*"]'
-terraform apply -var="aws_region=${AWS_REGION}" \
+terraform apply -var="aws_region=${AWS_REGION}" -var="env=dev" \
   -var='github_subjects=["repo:deweyjose/lumigraph:environment:dev","repo:deweyjose/lumigraph:pull_request","repo:deweyjose/lumigraph:ref:refs/heads/*"]'
 ```
 
@@ -58,9 +60,9 @@ Prod (environment-scoped + main):
 
 ```bash
 terraform init
-terraform plan -var="aws_region=${AWS_REGION}" \
+terraform plan -var="aws_region=${AWS_REGION}" -var="env=prod" \
   -var='github_subjects=["repo:deweyjose/lumigraph:environment:prod","repo:deweyjose/lumigraph:ref:refs/heads/main"]'
-terraform apply -var="aws_region=${AWS_REGION}" \
+terraform apply -var="aws_region=${AWS_REGION}" -var="env=prod" \
   -var='github_subjects=["repo:deweyjose/lumigraph:environment:prod","repo:deweyjose/lumigraph:ref:refs/heads/main"]'
 ```
 
@@ -73,6 +75,8 @@ terraform output -raw role_arn
 terraform output -raw oidc_provider_arn
 terraform output -raw tf_state_bucket_name
 terraform output -raw tf_lock_table_name
+terraform output -raw runner_instance_id
+terraform output -raw runner_security_group_id
 ```
 
 ## 5) GitHub secrets (GitHub Environments)
@@ -80,6 +84,7 @@ terraform output -raw tf_lock_table_name
 Create GitHub Environments named `dev` and `prod`, then add these secrets to each:
 - `AWS_ROLE_ARN` = output from `role_arn`
 - `AWS_REGION` = the region you used (e.g. `us-east-1`)
+- `TF_VAR_runner_security_group_id` = output from `runner_security_group_id` (used by the app stack to allow DB ingress from the runner)
 
 If you override default names, also add:
 - `TF_STATE_BUCKET`
@@ -113,10 +118,23 @@ Run in the correct account/workspace (`dev` or `prod`):
 cd infrastructure/bootstrap
 terraform init
 terraform workspace select <env>
+
+# State + locking
 terraform import aws_s3_bucket.tf_state <state-bucket-name>
 terraform import aws_dynamodb_table.tf_lock <lock-table-name>
+
+# OIDC + GHA role
 terraform import aws_iam_openid_connect_provider.github_actions <oidc-provider-arn>
 terraform import aws_iam_role.github_actions lumigraph-github-actions
 terraform import aws_iam_policy.github_actions <policy-arn>
 terraform import aws_iam_role_policy_attachment.github_actions lumigraph-github-actions/<policy-arn>
+
+# Self-hosted GHA runner
+terraform import aws_instance.gha_runner <instance-id>
+terraform import aws_security_group.runner <runner-sg-id>
+terraform import aws_iam_role.runner lumigraph-gha-runner-<env>
+terraform import aws_iam_instance_profile.runner lumigraph-gha-runner-<env>
+terraform import aws_iam_policy.runner <runner-policy-arn>
+terraform import aws_iam_role_policy_attachment.runner lumigraph-gha-runner-<env>/<runner-policy-arn>
+terraform import aws_iam_role_policy_attachment.runner_ssm_core lumigraph-gha-runner-<env>/arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 ```
