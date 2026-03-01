@@ -128,8 +128,9 @@ See docs/PRODUCT.md for canonical definitions.
 - GET /api/public/gallery
 
 ### Datasets
-- POST /api/datasets
-- PUT /api/datasets/:id
+- GET /api/datasets — list current user's datasets (auth required)
+- POST /api/datasets — create dataset (auth required; body: title, optional description, visibility, imagePostId)
+- PUT /api/datasets/:id — update dataset (auth required, owner only; body: optional title, description, visibility, imagePostId)
 - POST /api/datasets/:id/artifacts/presign
 - POST /api/datasets/:id/artifacts/complete
 - GET /api/public/datasets/:id (or by post slug)

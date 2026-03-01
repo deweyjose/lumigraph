@@ -38,6 +38,8 @@ describe("datasetService", () => {
     expect(mockCreate).toHaveBeenCalledWith({
       data: {
         title: "My Dataset",
+        description: undefined,
+        visibility: "PRIVATE",
         user: { connect: { id: "user-1" } },
       },
     });
