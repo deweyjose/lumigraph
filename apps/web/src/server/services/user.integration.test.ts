@@ -11,7 +11,11 @@ describe("registerWithPassword (integration)", () => {
   });
 
   it("creates a user with email and password and returns userId", async () => {
-    const result = await registerWithPassword(uniqueEmail, "password123", "Test User");
+    const result = await registerWithPassword(
+      uniqueEmail,
+      "password123",
+      "Test User"
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
