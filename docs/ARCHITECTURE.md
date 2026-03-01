@@ -14,12 +14,12 @@ Lumigraph is a multi-user astrophotography platform for:
 
 ## 1) System Overview (Phase 1)
 ### Components
-- Web App: Next.js (App Router)
+- Web App: Next.js 16 (App Router)
 - API: Next.js route handlers (initially), evolving to service modules
 - DB: AWS RDS Postgres (direct connection with IAM auth; RDS Proxy provisioned for future use)
 - Storage: S3 for artifacts + images; CDN (CloudFront) optional early
 - AI: external LLM provider (TBD); used for writing assistance (never auto-publish)
-- Auth: NextAuth (minimal to start)
+- Auth: Auth.js v5 (next-auth@5), JWT sessions, Prisma adapter
 
 ### Core Flows
 1) Sign up / sign in
@@ -135,9 +135,9 @@ See docs/PRODUCT.md for canonical definitions.
 - POST /api/downloads (track event)
 - GET /api/artifacts/:id/download (issues signed URL + tracks)
 
-## 7) Authentication Model (NextAuth + Prisma)
+## 7) Authentication Model (Auth.js v5 + Prisma)
 
-Lumigraph uses NextAuth with the Prisma adapter and database-backed sessions. The following concepts are important for anyone working on auth or user identity.
+Lumigraph uses Auth.js v5 (next-auth@5) with the Prisma adapter and JWT sessions. The following concepts are important for anyone working on auth or user identity.
 
 ### User vs Account
 
@@ -151,21 +151,20 @@ Lumigraph uses NextAuth with the Prisma adapter and database-backed sessions. Th
 - **Schema**: `identifier` (e.g. email or a namespaced string), `token`, `expires`. Unique on `(identifier, token)`.
 - **Reuse for password reset**: We reuse the same table for **password-reset tokens** by using a namespaced identifier (e.g. `password-reset:${userId}`). The reset flow creates a token, emails a link, and on submit we verify the token, update the user’s password, and delete the token. NextAuth does not provide built-in password reset; we implement it ourselves using this pattern.
 
-### Sessions in the database
+### Session strategy (JWT)
 
-- **Why store sessions in the DB instead of JWT?**  
-  - **Revocability**: We can invalidate a session by deleting it (logout everywhere, ban user, etc.).  
-  - **Server-side consistency**: All devices see the same session list; no need to blacklist JWTs.  
-  - **Multi-device**: Session list and “sign out all devices” are straightforward with a `sessions` table.
-- **Trade-off**: Credentials provider (email + password) is supported by NextAuth with database sessions: we look up the User by email, verify the password, and return the user; the adapter then creates a Session row and sets the session cookie. We keep database sessions for all providers (OAuth, email magic link, credentials).
+- Auth.js v5 **does not support database sessions with the Credentials provider** (`UnsupportedStrategy` error). Since we use email+password sign-in, we must use JWT sessions.
+- The `jwt` and `session` callbacks in `auth.config.ts` attach `user.id` to the token and propagate it to the session object so server code can identify the user.
+- There is no `sessions` table in the database. The `Session` model was removed from the Prisma schema since JWT sessions are purely cookie-based.
+- **Trade-off**: JWTs cannot be revoked server-side. If we need "sign out everywhere" or instant ban enforcement, we would add a token blocklist or switch auth methods.
 
 ### Same user, multiple sign-in methods
 
-- A User can have both **Accounts** (e.g. Google, GitHub) and a **password** (stored as `password_hash` on User). We do not auto-link by email: if someone signs up with Google and later sets a password (e.g. via “forgot password” or a profile “set password”), the same User row is used. Sign-in can be via any configured method; no separate “linking” step is required—same email, same User.
+- A User can have both **Accounts** (e.g. Google, GitHub) and a **password** (stored as `password_hash` on User). Sign-in can be via any configured method; same email maps to the same User.
 
-### Recommendation
+### Schema note
 
-- **Keep** User, Account, Session, and VerificationToken as-is. They match NextAuth’s model and support OAuth, magic link, credentials, and our custom password-reset flow without extra tables.
+- **Keep** User, Account, and VerificationToken as-is. They match Auth.js's expected model and support OAuth, magic link, credentials, and our custom password-reset flow without extra tables. Session model removed (JWT sessions don't use it).
 
 ## 8) S3 Layout
 Suggested keys (do not hardcode; create helper functions):

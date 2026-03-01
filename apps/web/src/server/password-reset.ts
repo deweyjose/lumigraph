@@ -17,12 +17,13 @@ function baseUrl(): string {
 /**
  * Create a password-reset token for the user and send the reset email.
  * Uses VerificationToken with identifier "password-reset:${userId}".
- * Returns true if the user existed and email was sent (or no email config); false if user not found.
+ * Always returns void to prevent user enumeration — callers should show
+ * the same "check your email" message regardless of whether the user exists.
  */
-export async function requestPasswordReset(email: string): Promise<boolean> {
+export async function requestPasswordReset(email: string): Promise<void> {
   const prisma = await getPrisma();
   const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
-  if (!user) return false;
+  if (!user) return;
 
   const token = randomBytes(32).toString("hex");
   const identifier = `${PASSWORD_RESET_PREFIX}${user.id}`;
@@ -34,15 +35,12 @@ export async function requestPasswordReset(email: string): Promise<boolean> {
   });
 
   const resetLink = `${baseUrl()}/auth/reset-password?token=${encodeURIComponent(token)}`;
-  const sent = await sendMail({
+  await sendMail({
     to: user.email,
     subject: "Reset your Lumigraph password",
     text: `You requested a password reset. Open this link to set a new password (valid for 1 hour):\n\n${resetLink}\n\nIf you didn't request this, you can ignore this email.`,
     html: `<p>You requested a password reset. <a href="${resetLink}">Click here to set a new password</a> (valid for 1 hour).</p><p>If you didn't request this, you can ignore this email.</p>`,
   });
-
-  // We don't reveal whether the user exists; if email is not configured we still return true
-  return true;
 }
 
 export type ResetResult = "ok" | "invalid_token" | "expired";

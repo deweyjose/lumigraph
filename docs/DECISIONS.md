@@ -102,3 +102,30 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 **Context:** Developers need a one-command way to run Postgres and apply migrations. The same Prisma migrations run locally (as `lumigraph`, which has full privileges) and in CI (as `lumigraph_admin` on RDS); RDS-only steps in migrations are guarded with `IF EXISTS (rds_iam, lumigraph_admin)` so they are no-ops locally.  
 **Alternatives:** Separate local migration path; managed local Postgres.  
 **Consequences:** Connection string is documented as `postgresql://lumigraph:lumigraph@localhost:5432/lumigraph_db`. Root script `pnpm dev:db` starts Postgres and runs migrations. README and ENGINEERING.md describe the local DB workflow.
+
+---
+
+## 2026-03-01 — Upgrade to Next.js 16
+
+**Decision:** Upgrade the web app from Next.js 14 to Next.js 16 (React 19, Turbopack, latest ESLint flat config).  
+**Context:** Stay on supported Next.js and React versions; benefit from Turbopack and improved tooling.  
+**Changes:** (1) NextAuth API route handler updated for async `params` (Next 15+). (2) `next.config.js`: `experimental.typedRoutes` moved to top-level `typedRoutes: false`. (3) Middleware: explicit default export wrapping next-auth (type assertion for next-auth’s `NextRequestWithAuth`). (4) Lint: `next lint` removed in Next 16 — use ESLint 9 flat config; added `eslint.config.mjs`, removed `.eslintrc.json`, lint script runs `eslint . --max-warnings 0`.  
+**Consequences:** Build and typecheck pass. Next-auth and eslint-config-next report peer dependency warnings (next-auth targets Next 14; we accept the mismatch for now). Middleware deprecation warning points to future migration to `proxy.ts`.
+
+---
+
+## 2026-03-01 — Auth.js v5, proxy, and env
+
+**Decision:** Upgrade to Auth.js v5 (next-auth@5 beta), migrate from `middleware.ts` to `proxy.ts`, use `AUTH_*` env vars exclusively (no legacy fallback).  
+**Context:** Align with Next.js 16 (proxy convention), resolve peer dependency warnings, and use latest Auth.js APIs. New project — no backwards-compatibility needed.  
+**Changes:** (1) Replaced next-auth v4 with v5; use `auth.config.ts` (edge-safe) and `auth.ts` (full config with Credentials + Nodemailer + lazy Prisma adapter). (2) Lazy Prisma adapter in `src/server/lazy-prisma-adapter.ts` so Vercel IAM auth (`getPrisma()`) works with the sync adapter API. (3) API route exports `handlers` from `auth`. (4) Removed `middleware.ts`; added `proxy.ts` using `auth()` from auth.config for `/dashboard` and `/posts`. (5) `.env.example` and README document `AUTH_SECRET` and `AUTH_*` provider vars.  
+**Consequences:** Session and sign-in flows unchanged. Only `AUTH_*` env vars are supported (no `NEXTAUTH_*`, `GITHUB_ID`, or `GOOGLE_CLIENT_ID` fallback). ESLint flat config remains in `apps/web/eslint.config.mjs`.
+
+---
+
+## 2026-03-01 — JWT sessions (Auth.js Credentials constraint)
+
+**Decision:** Use JWT session strategy (`session: { strategy: "jwt" }`) for all auth providers. Remove the `Session` Prisma model and drop the `sessions` table.  
+**Context:** Auth.js v5 does not support database sessions with the Credentials provider (`UnsupportedStrategy` error). Since we require email+password sign-in for MVP, JWT is the only option. The `sessions` table was never written to under JWT strategy — dead schema.  
+**Alternatives:** Drop Credentials provider and use magic-link-only (would allow database sessions but worse UX for MVP); keep the unused Session model for future optionality (zero cost but misleading).  
+**Consequences:** Sessions cannot be revoked server-side. If "sign out everywhere" or instant ban enforcement is needed later, we would add a token blocklist or transition auth methods. The `jwt` and `session` callbacks in `auth.config.ts` propagate `user.id` into the session object. Session-related adapter methods removed from the lazy Prisma adapter.

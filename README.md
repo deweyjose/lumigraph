@@ -33,6 +33,10 @@
    pnpm dev
    ```
 
+5. **Auth (Auth.js v5)**: Set `AUTH_SECRET` (e.g. `openssl rand -base64 32`). Optionally set `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET`, `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`; legacy `GITHUB_ID`/`GOOGLE_CLIENT_ID` are also supported.
+
+6. **Lint**: ESLint uses the flat config in `apps/web/eslint.config.mjs`. Run `pnpm lint` from the repo root. If your editor linter points at the repo root, ensure it picks up `apps/web` (or run ESLint from `apps/web`).
+
 Infrastructure is managed with Terraform and deployed via GitHub Actions using OIDC (no long-lived AWS keys).
 
 ## One-time bootstrap (per account)
