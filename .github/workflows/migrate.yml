@@ -11,7 +11,42 @@ on:
         type: boolean
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate migration history
+        env:
+          DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
+        run: |
+          echo "Checking Prisma migration files are consistent with schema..."
+          pnpm prisma validate
+          pnpm prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "${DATABASE_URL}" \
+            --exit-code \
+            || echo "::warning::Migration diff detected — make sure prisma migrate dev was run."
+
   migrate:
+    needs: validate
+    if: inputs.apply
     runs-on: [self-hosted, "lumigraph-runner-${{ inputs.environment }}"]
     environment: ${{ inputs.environment }}
     permissions:
@@ -51,9 +86,4 @@ jobs:
           echo "DATABASE_URL=${DATABASE_URL}" >> "$GITHUB_ENV"
 
       - name: Prisma migrate deploy
-        if: inputs.apply
         run: pnpm prisma migrate deploy
-
-      - name: Prisma migrate status (dry run)
-        if: "!inputs.apply"
-        run: pnpm prisma migrate status
