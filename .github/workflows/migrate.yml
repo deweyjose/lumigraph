@@ -29,17 +29,11 @@ on:
       - ".github/workflows/migrate.yml"
 
 jobs:
-  migrate:
+  validate:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || '') }}
     permissions:
-      id-token: write
       contents: read
-    env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
-      TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,8 +50,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate migration history (PR only)
-        if: github.event_name == 'pull_request'
+      - name: Validate migration history
         env:
           DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
         run: |
@@ -70,72 +63,62 @@ jobs:
             --exit-code \
             || echo "::warning::Migration diff detected — make sure prisma migrate dev was run."
 
-      - name: Configure AWS Credentials (OIDC)
-        if: github.event_name != 'pull_request'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Setup Terraform (for reading outputs)
-        if: github.event_name != 'pull_request'
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_wrapper: false
-
-      - name: Read Terraform outputs
-        if: github.event_name != 'pull_request'
-        working-directory: infrastructure/app
+  resolve-runner:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      runner_label: ${{ steps.set.outputs.runner_label }}
+      environment: ${{ steps.set.outputs.environment }}
+      should_apply: ${{ steps.set.outputs.should_apply }}
+    steps:
+      - id: set
         run: |
-          if [ -n "${TF_STATE_BUCKET}" ] && [ -n "${TF_LOCK_TABLE}" ]; then
-            STATE_BUCKET="${TF_STATE_BUCKET}"
-            LOCK_TABLE="${TF_LOCK_TABLE}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+            APPLY="${{ github.event.inputs.apply }}"
           else
-            ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-            STATE_BUCKET="lumigraph-tfstate-main-${ACCOUNT_ID}-${AWS_REGION}"
-            LOCK_TABLE="lumigraph-tflock-main-${ACCOUNT_ID}-${AWS_REGION}"
+            ENV="dev"
+            APPLY="true"
           fi
+          echo "runner_label=lumigraph-runner-${ENV}" >> "$GITHUB_OUTPUT"
+          echo "environment=${ENV}" >> "$GITHUB_OUTPUT"
+          echo "should_apply=${APPLY}" >> "$GITHUB_OUTPUT"
 
-          cat > backend.hcl <<EOF
-          bucket         = "${STATE_BUCKET}"
-          key            = "app/terraform.tfstate"
-          region         = "${AWS_REGION}"
-          dynamodb_table = "${LOCK_TABLE}"
-          encrypt        = true
-          EOF
+  migrate:
+    needs: resolve-runner
+    runs-on: [self-hosted, "${{ needs.resolve-runner.outputs.runner_label }}"]
+    environment: ${{ needs.resolve-runner.outputs.environment }}
+    permissions:
+      contents: read
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
 
-          terraform init -backend-config=backend.hcl > /dev/null
-          DB_HOST=$(terraform output -raw db_instance_endpoint)
-          DB_PORT=$(terraform output -raw db_instance_port)
-          DB_NAME=$(terraform output -raw db_name)
-          DB_USER=$(terraform output -raw db_master_username)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-          echo "DB_HOST=${DB_HOST}" >> "$GITHUB_ENV"
-          echo "DB_PORT=${DB_PORT}" >> "$GITHUB_ENV"
-          echo "DB_NAME=${DB_NAME}" >> "$GITHUB_ENV"
-          echo "DB_USER=${DB_USER}" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Retrieve master password from Secrets Manager
-        if: github.event_name != 'pull_request'
+      - name: Resolve DB connection info
         run: |
-          INSTANCE_ID=$(aws rds describe-db-instances \
-            --query "DBInstances[?DBName=='${DB_NAME}'].DbiResourceId" \
-            --output text)
+          DB_NAME="${DB_NAME:-lumigraph_db}"
 
-          SECRET_ARN=$(aws rds describe-db-instances \
-            --query "DBInstances[?DBName=='${DB_NAME}'].MasterUserSecret.SecretArn" \
-            --output text)
+          DB_JSON=$(aws rds describe-db-instances \
+            --query "DBInstances[?DBName=='${DB_NAME}'] | [0]" \
+            --output json)
+
+          DB_HOST=$(echo "$DB_JSON" | jq -r '.Endpoint.Address')
+          DB_PORT=$(echo "$DB_JSON" | jq -r '.Endpoint.Port')
+          DB_USER=$(echo "$DB_JSON" | jq -r '.MasterUsername')
+          SECRET_ARN=$(echo "$DB_JSON" | jq -r '.MasterUserSecret.SecretArn')
 
           DB_PASSWORD=$(aws secretsmanager get-secret-value \
             --secret-id "${SECRET_ARN}" \
             --query SecretString --output text | jq -r '.password')
 
           echo "::add-mask::${DB_PASSWORD}"
-          echo "DB_PASSWORD=${DB_PASSWORD}" >> "$GITHUB_ENV"
 
-      - name: Build DATABASE_URL
-        if: github.event_name != 'pull_request'
-        run: |
           DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
           echo "::add-mask::${DATABASE_URL}"
           echo "DATABASE_URL=${DATABASE_URL}" >> "$GITHUB_ENV"
@@ -143,11 +126,11 @@ jobs:
       - name: Prisma migrate deploy
         if: >
           github.ref == 'refs/heads/main' ||
-          (github.event_name == 'workflow_dispatch' && github.event.inputs.apply == 'true')
+          (github.event_name == 'workflow_dispatch' && needs.resolve-runner.outputs.should_apply == 'true')
         run: pnpm prisma migrate deploy
 
       - name: Prisma migrate status (dry run)
         if: >
           github.event_name == 'workflow_dispatch' &&
-          github.event.inputs.apply != 'true'
+          needs.resolve-runner.outputs.should_apply != 'true'
         run: pnpm prisma migrate status

@@ -50,3 +50,35 @@ variable "github_subjects" {
   type        = list(string)
   default     = ["repo:deweyjose/lumigraph:ref:refs/heads/main"]
 }
+
+# --- Self-hosted GHA runner ---
+
+variable "vpc_id" {
+  description = "VPC ID for the runner. If null, the default VPC is used."
+  type        = string
+  default     = null
+}
+
+variable "subnet_ids" {
+  description = "Subnet IDs for the runner. If empty, default VPC subnets are used."
+  type        = list(string)
+  default     = []
+}
+
+variable "runner_instance_type" {
+  description = "EC2 instance type for the GHA runner."
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "runner_pat_secret_name" {
+  description = "Secrets Manager secret name containing the GitHub PAT for runner registration."
+  type        = string
+  default     = "lumigraph/github-runner-pat"
+}
+
+variable "runner_version" {
+  description = "GitHub Actions runner agent version."
+  type        = string
+  default     = "2.322.0"
+}

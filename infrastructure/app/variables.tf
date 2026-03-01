@@ -140,3 +140,9 @@ variable "db_iam_app_username" {
   type        = string
   default     = "app_user"
 }
+
+variable "runner_security_group_id" {
+  description = "Security group ID of the self-hosted GHA runner (from bootstrap). When set, an ingress rule is added to the DB SG."
+  type        = string
+  default     = ""
+}

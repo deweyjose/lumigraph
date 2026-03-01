@@ -170,6 +170,17 @@ resource "aws_vpc_security_group_ingress_rule" "proxy_cidrs" {
   cidr_ipv4         = each.value
 }
 
+resource "aws_vpc_security_group_ingress_rule" "db_from_runner" {
+  count = var.runner_security_group_id != "" ? 1 : 0
+
+  security_group_id            = aws_security_group.db.id
+  description                  = "PostgreSQL from GHA runner (migrations)"
+  from_port                    = var.db_port
+  to_port                      = var.db_port
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = var.runner_security_group_id
+}
+
 resource "aws_db_instance" "main" {
   identifier                          = "${var.project_name}-postgres-${var.env}"
   engine                              = "postgres"

@@ -1,5 +1,23 @@
 data "aws_caller_identity" "current" {}
 
+data "aws_vpc" "default" {
+  count   = var.vpc_id == null ? 1 : 0
+  default = true
+}
+
+data "aws_subnets" "default_vpc" {
+  count = length(var.subnet_ids) == 0 ? 1 : 0
+
+  filter {
+    name   = "vpc-id"
+    values = [local.effective_vpc_id]
+  }
+}
+
+data "aws_ssm_parameter" "al2023_ami" {
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+}
+
 locals {
   account_id = data.aws_caller_identity.current.account_id
 
@@ -14,6 +32,12 @@ locals {
   )
 
   github_subjects = var.github_subjects
+
+  effective_vpc_id     = var.vpc_id != null ? var.vpc_id : data.aws_vpc.default[0].id
+  effective_subnet_ids = length(var.subnet_ids) > 0 ? var.subnet_ids : data.aws_subnets.default_vpc[0].ids
+
+  runner_name   = "${var.project_name}-runner-${var.env}"
+  runner_labels = "${var.project_name}-runner-${var.env}"
 }
 
 resource "aws_s3_bucket" "tf_state" {
@@ -287,6 +311,51 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     resources = ["*"]
   }
 
+  # M1-15: EC2 instance management for the self-hosted GHA runner.
+  statement {
+    sid = "Ec2InstanceManagement"
+    actions = [
+      "ec2:RunInstances",
+      "ec2:TerminateInstances",
+      "ec2:StartInstances",
+      "ec2:StopInstances",
+      "ec2:DescribeInstances",
+      "ec2:DescribeInstanceStatus",
+      "ec2:DescribeInstanceAttribute",
+      "ec2:ModifyInstanceAttribute",
+      "ec2:DescribeImages",
+      "ec2:DescribeInstanceTypes",
+      "ec2:DescribeVolumes",
+      "ec2:DescribeKeyPairs"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "IamInstanceProfiles"
+    actions = [
+      "iam:CreateInstanceProfile",
+      "iam:DeleteInstanceProfile",
+      "iam:GetInstanceProfile",
+      "iam:AddRoleToInstanceProfile",
+      "iam:RemoveRoleFromInstanceProfile",
+      "iam:ListInstanceProfilesForRole"
+    ]
+    resources = [
+      "arn:aws:iam::${local.account_id}:instance-profile/${var.project_name}-*"
+    ]
+  }
+
+  statement {
+    sid = "SsmParameterRead"
+    actions = [
+      "ssm:GetParameter"
+    ]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:*:parameter/aws/service/ami-amazon-linux-latest/*"
+    ]
+  }
+
   statement {
     sid = "IamRolesAndPoliciesForRdsAndVercel"
     actions = [
@@ -355,4 +424,157 @@ resource "aws_iam_policy" "github_actions" {
 resource "aws_iam_role_policy_attachment" "github_actions" {
   role       = aws_iam_role.github_actions.name
   policy_arn = aws_iam_policy.github_actions.arn
+}
+
+# =============================================================================
+# M1-15: Self-hosted GitHub Actions runner
+# =============================================================================
+
+resource "aws_security_group" "runner" {
+  name        = "${var.project_name}-gha-runner-${var.env}"
+  description = "GHA self-hosted runner - egress only"
+  vpc_id      = local.effective_vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name    = "${var.project_name}-gha-runner-${var.env}"
+    Project = var.project_name
+    Env     = var.env
+  }
+}
+
+data "aws_iam_policy_document" "runner_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "runner" {
+  name               = "${var.project_name}-gha-runner-${var.env}"
+  assume_role_policy = data.aws_iam_policy_document.runner_assume_role.json
+
+  tags = {
+    Project = var.project_name
+    Env     = var.env
+  }
+}
+
+data "aws_iam_policy_document" "runner_permissions" {
+  statement {
+    sid = "SecretsManagerReadRds"
+    actions = [
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [
+      "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:rds!*"
+    ]
+  }
+
+  statement {
+    sid = "SecretsManagerReadRunnerPat"
+    actions = [
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [
+      "arn:aws:secretsmanager:${var.aws_region}:${local.account_id}:secret:${var.runner_pat_secret_name}-*"
+    ]
+  }
+
+  statement {
+    sid = "KmsDecrypt"
+    actions = [
+      "kms:Decrypt"
+    ]
+    resources = [
+      "arn:aws:kms:${var.aws_region}:${local.account_id}:key/*"
+    ]
+  }
+
+  statement {
+    sid = "RdsDescribe"
+    actions = [
+      "rds:DescribeDBInstances"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "SsmSessionManager"
+    actions = [
+      "ssmmessages:CreateControlChannel",
+      "ssmmessages:CreateDataChannel",
+      "ssmmessages:OpenControlChannel",
+      "ssmmessages:OpenDataChannel",
+      "ssm:UpdateInstanceInformation"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "runner" {
+  name   = "${var.project_name}-gha-runner-${var.env}"
+  policy = data.aws_iam_policy_document.runner_permissions.json
+}
+
+resource "aws_iam_role_policy_attachment" "runner" {
+  role       = aws_iam_role.runner.name
+  policy_arn = aws_iam_policy.runner.arn
+}
+
+resource "aws_iam_role_policy_attachment" "runner_ssm_core" {
+  role       = aws_iam_role.runner.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "runner" {
+  name = "${var.project_name}-gha-runner-${var.env}"
+  role = aws_iam_role.runner.name
+}
+
+resource "aws_instance" "gha_runner" {
+  ami                    = data.aws_ssm_parameter.al2023_ami.value
+  instance_type          = var.runner_instance_type
+  subnet_id              = local.effective_subnet_ids[0]
+  vpc_security_group_ids = [aws_security_group.runner.id]
+  iam_instance_profile   = aws_iam_instance_profile.runner.name
+
+  user_data = templatefile("${path.module}/templates/runner-user-data.sh", {
+    aws_region             = var.aws_region
+    runner_pat_secret_name = var.runner_pat_secret_name
+    github_owner           = var.github_repo_owner
+    github_repo            = var.github_repo_name
+    runner_name            = local.runner_name
+    runner_labels          = local.runner_labels
+    runner_version         = var.runner_version
+  })
+
+  user_data_replace_on_change = true
+
+  root_block_device {
+    volume_size = 30
+    volume_type = "gp3"
+    encrypted   = true
+  }
+
+  metadata_options {
+    http_tokens   = "required"
+    http_endpoint = "enabled"
+  }
+
+  tags = {
+    Name    = local.runner_name
+    Project = var.project_name
+    Env     = var.env
+  }
 }

@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Lumigraph
-Version: 0.1  
-Last updated: 2026-02-15
+Version: 0.2  
+Last updated: 2026-02-28
 
 ## 0) Purpose
 This document describes Lumigraph’s system architecture and engineering constraints so implementation work stays consistent across humans + AI tools.
@@ -72,8 +72,9 @@ Lumigraph is a multi-user astrophotography platform for:
 
 ### Infrastructure Access
 - GitHub Actions assumes AWS roles through GitHub OIDC for Terraform deploys.
-- GitHub Actions runs Prisma migrations as `lumigraph_admin` (password from Secrets Manager).
+- A self-hosted GHA runner (EC2, managed in `infrastructure/bootstrap`) runs inside the VPC with direct access to the RDS instance. Migrations run on this runner as `lumigraph_admin` (password from Secrets Manager). Per-environment runner labels (`lumigraph-runner-dev`, `lumigraph-runner-prod`) route jobs to the correct runner.
 - Vercel assumes a team-scoped AWS role through Vercel OIDC for DB IAM auth (`rds-db:connect`).
+- The RDS Proxy remains `iam_auth = "REQUIRED"` for all external (Vercel) traffic. The runner bypasses the proxy and connects directly to the RDS instance endpoint.
 
 ### Database Roles
 - `lumigraph_admin`: RDS master user. Runs migrations. Password managed by Secrets Manager.
