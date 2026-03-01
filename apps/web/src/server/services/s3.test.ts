@@ -31,9 +31,9 @@ describe("s3 service", () => {
 
   describe("imageFinalKey", () => {
     it("returns path users/{userId}/images/{imagePostId}/final/{filename}", () => {
-      expect(
-        s3Service.imageFinalKey("user-1", "post-1", "original.tif")
-      ).toBe("users/user-1/images/post-1/final/original.tif");
+      expect(s3Service.imageFinalKey("user-1", "post-1", "original.tif")).toBe(
+        "users/user-1/images/post-1/final/original.tif"
+      );
     });
   });
 

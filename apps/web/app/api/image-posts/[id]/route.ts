@@ -18,7 +18,10 @@ const UpdateImagePostBodySchema = z.object({
     .string()
     .min(1)
     .max(200)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/i, "Slug must be alphanumeric and hyphens only")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/i,
+      "Slug must be alphanumeric and hyphens only"
+    )
     .optional(),
   description: z.string().max(10_000).optional().nullable(),
   visibility: PostVisibility.optional(),

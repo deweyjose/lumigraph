@@ -15,6 +15,9 @@ config({
   ...(typeof process.env.DOTENV_DEBUG === "undefined" && { quiet: true }),
 });
 
-if (process.env.AWS_S3_ENDPOINT && !process.env.AWS_REQUEST_CHECKSUM_CALCULATION) {
+if (
+  process.env.AWS_S3_ENDPOINT &&
+  !process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+) {
   process.env.AWS_REQUEST_CHECKSUM_CALCULATION = "WHEN_REQUIRED";
 }
