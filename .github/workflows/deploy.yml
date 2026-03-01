@@ -35,22 +35,21 @@ on:
     branches:
       - main
 
-# ---------- Build (lint, format, test) ----------
+# ---------- Build and Test run in parallel; both must pass ----------
 jobs:
   build:
     permissions:
       contents: read
     uses: ./.github/workflows/build.yml
 
-  integration:
-    needs: build
+  test:
     permissions:
       contents: read
-    uses: ./.github/workflows/integration.yml
+    uses: ./.github/workflows/test.yml
 
   # ---------- Path filter: run Terraform/Migrate only when relevant paths change ----------
   filter:
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -82,9 +81,9 @@ jobs:
           echo "run_terraform=${{ steps.dispatch.outputs.run_terraform || steps.paths.outputs.infra }}" >> $GITHUB_OUTPUT
           echo "run_migrate=${{ steps.dispatch.outputs.run_migrate || steps.paths.outputs.prisma }}" >> $GITHUB_OUTPUT
 
-  # ---------- Resolve inputs for Terraform/Migrate ----------
+  # ---------- Resolve inputs for Terraform/Migrate (gated on build + test + filter) ----------
   resolve:
-    needs: [build, filter]
+    needs: [build, test, filter]
     runs-on: ubuntu-latest
     outputs:
       environments: ${{ steps.set.outputs.environments }}

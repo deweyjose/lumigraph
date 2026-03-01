@@ -1,4 +1,5 @@
-# Lint, format, and test. Invoked by Deploy orchestrator.
+# Lint, format, and typecheck (no tests). Invoked by Deploy orchestrator.
+# Runs in parallel with Test; both must pass for the workflow to succeed.
 name: Build
 
 on:
@@ -34,5 +35,5 @@ jobs:
       - name: Format
         run: pnpm format
 
-      - name: Test
-        run: pnpm test
+      - name: Typecheck
+        run: pnpm typecheck
