@@ -40,9 +40,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start Postgres and run integration tests
+      - name: Start Postgres and LocalStack and run integration tests
         run: |
-          docker compose up -d postgres
+          docker compose up -d postgres localstack
           docker compose run --rm integration
 
       - name: Teardown

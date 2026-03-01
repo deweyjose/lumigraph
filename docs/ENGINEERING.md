@@ -135,10 +135,10 @@ pnpm dev
 
 ### Integration tests (docker-compose)
 
-To run integration tests in the same way as CI (with Postgres in Docker):
+To run integration tests in the same way as CI (Postgres + LocalStack in Docker):
 
 ```bash
-docker compose up -d postgres   # if not already up
+docker compose up -d postgres localstack   # if not already up
 docker compose run --rm integration
 ```
 
@@ -149,6 +149,35 @@ pnpm test:integration:docker
 ```
 
 The integration service installs dependencies, generates the Prisma client, applies migrations, and runs the vitest integration projects (`db-integration`, `web-integration`). It uses the same `docker-compose.yml` and `DATABASE_URL` as local dev.
+
+### S3 integration tests (LocalStack)
+
+The S3 presigned-URL integration test runs only when `AWS_S3_ENDPOINT` is set. Other integration tests (user, dataset, artifact, image-post) do not require S3.
+
+**Option A — Run everything in Docker (recommended for CI and one-command local run)**
+
+No `.env` needed for S3; the integration container gets env from `docker-compose.yml`:
+
+```bash
+docker compose up -d postgres localstack
+docker compose run --rm integration
+# or: pnpm test:integration:docker
+```
+
+**Option B — Run integration tests locally with S3 against LocalStack**
+
+Use this to run `pnpm test:integration` from your machine and have the S3 test run against a local LocalStack:
+
+1. Start LocalStack: `docker compose up -d localstack`
+2. Copy the integration env example and (optionally) edit:
+   ```bash
+   cp apps/web/.env.integration.example apps/web/.env.integration
+   ```
+   `.env.integration` is gitignored; it should contain `AWS_S3_ENDPOINT`, `AWS_S3_BUCKET`, `AWS_REGION`, and LocalStack credentials (see the example file).
+3. Ensure Postgres is running and `DATABASE_URL` is set (e.g. in `apps/web/.env` or your shell).
+4. Run integration tests from repo root: `pnpm test:integration`
+
+The web-integration Vitest project loads `apps/web/.env.integration` via `vitest.integration.setup.ts`. If `.env.integration` is missing or `AWS_S3_ENDPOINT` is unset, the S3 test is skipped and the rest of the integration suite still runs. The setup also sets `AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED` when an S3 endpoint is set, so LocalStack (which does not support the SDK’s default request checksums) works.
 
 ## 6) Testing Strategy (MVP)
 - Unit test validation + permission checks

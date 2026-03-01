@@ -16,18 +16,41 @@ services:
       timeout: 3s
       retries: 5
 
+  localstack:
+    image: localstack/localstack:4.0
+    environment:
+      SERVICES: s3
+      DEBUG: "0"
+    ports:
+      - "4566:4566"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
   integration:
     build:
       context: .
       dockerfile: Dockerfile.integration
     environment:
       DATABASE_URL: postgresql://lumigraph:lumigraph@postgres:5432/lumigraph_db
+      AWS_S3_ENDPOINT: http://localstack:4566
+      AWS_S3_BUCKET: test-bucket
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      # LocalStack does not support SDK default request checksums
+      AWS_REQUEST_CHECKSUM_CALCULATION: "WHEN_REQUIRED"
     volumes:
       - .:/app
     working_dir: /app
     command: sh -c "pnpm install --no-cache --frozen-lockfile && pnpm db:generate && pnpm db:deploy && pnpm test:integration"
     depends_on:
       postgres:
+        condition: service_healthy
+      localstack:
         condition: service_healthy
 
 volumes:
