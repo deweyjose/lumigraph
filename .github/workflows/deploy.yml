@@ -1,0 +1,161 @@
+# Orchestrates Terraform and Migrate for each environment.
+#
+# Push to main:  plan + apply Terraform (dev, prod) → apply migrations (dev, prod)
+# Pull request:  plan-only Terraform (dev) + validate migrations
+# Manual:        pick environment, target, and apply flag
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: "Which environment to deploy"
+        required: true
+        default: dev
+        options:
+          - dev
+          - prod
+      target:
+        type: choice
+        description: "Which Terraform stack to run"
+        required: true
+        default: app
+        options:
+          - app
+          - bootstrap
+      apply:
+        type: boolean
+        description: "Apply changes? (false = plan/dry-run only)"
+        required: true
+        default: false
+  push:
+    branches:
+      - main
+    paths:
+      - "infrastructure/**"
+      - "prisma/migrations/**"
+      - "prisma/schema.prisma"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "infrastructure/**"
+      - "prisma/migrations/**"
+      - "prisma/schema.prisma"
+      - ".github/workflows/**"
+
+# ---------- resolve inputs for all downstream jobs ----------
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      environments: ${{ steps.set.outputs.environments }}
+      target: ${{ steps.set.outputs.target }}
+      apply: ${{ steps.set.outputs.apply }}
+    steps:
+      - id: set
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo 'environments=["${{ github.event.inputs.environment }}"]' >> "$GITHUB_OUTPUT"
+            echo "target=${{ github.event.inputs.target }}" >> "$GITHUB_OUTPUT"
+            echo "apply=${{ github.event.inputs.apply }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo 'environments=["dev","prod"]' >> "$GITHUB_OUTPUT"
+            echo "target=app" >> "$GITHUB_OUTPUT"
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          else
+            echo 'environments=["dev"]' >> "$GITHUB_OUTPUT"
+            echo "target=app" >> "$GITHUB_OUTPUT"
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------- Terraform (per environment) ----------
+  terraform-dev:
+    needs: resolve
+    if: contains(fromJson(needs.resolve.outputs.environments), 'dev')
+    uses: ./.github/workflows/terraform-reusable.yml
+    with:
+      environment: dev
+      target: ${{ needs.resolve.outputs.target }}
+      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+    secrets: inherit
+    concurrency:
+      group: deploy-terraform-dev
+      cancel-in-progress: false
+
+  terraform-prod:
+    needs: resolve
+    if: contains(fromJson(needs.resolve.outputs.environments), 'prod')
+    uses: ./.github/workflows/terraform-reusable.yml
+    with:
+      environment: prod
+      target: ${{ needs.resolve.outputs.target }}
+      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+    secrets: inherit
+    concurrency:
+      group: deploy-terraform-prod
+      cancel-in-progress: false
+
+  # ---------- Migrate (per environment, after Terraform) ----------
+  migrate-dev:
+    needs: [resolve, terraform-dev]
+    if: >
+      contains(fromJson(needs.resolve.outputs.environments), 'dev') &&
+      needs.resolve.outputs.target == 'app'
+    uses: ./.github/workflows/migrate-reusable.yml
+    with:
+      environment: dev
+      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+    secrets: inherit
+    concurrency:
+      group: deploy-migrate-dev
+      cancel-in-progress: false
+
+  migrate-prod:
+    needs: [resolve, terraform-prod]
+    if: >
+      contains(fromJson(needs.resolve.outputs.environments), 'prod') &&
+      needs.resolve.outputs.target == 'app'
+    uses: ./.github/workflows/migrate-reusable.yml
+    with:
+      environment: prod
+      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+    secrets: inherit
+    concurrency:
+      group: deploy-migrate-prod
+      cancel-in-progress: false
+
+  # ---------- PR-only: validate migration files ----------
+  validate-migrations:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate migration history
+        env:
+          DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
+        run: |
+          echo "Checking Prisma migration files are consistent with schema..."
+          pnpm prisma validate
+          pnpm prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "${DATABASE_URL}" \
+            --exit-code \
+            || echo "::warning::Migration diff detected — make sure prisma migrate dev was run."

@@ -1,0 +1,59 @@
+name: Migrate (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      apply:
+        required: true
+        type: boolean
+
+jobs:
+  migrate:
+    runs-on: [self-hosted, "lumigraph-runner-${{ inputs.environment }}"]
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      NODE_OPTIONS: --max-old-space-size=384
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --child-concurrency=2 --network-concurrency=8
+
+      - name: Resolve DB connection info
+        run: |
+          DB_NAME="${DB_NAME:-lumigraph_db}"
+
+          DB_JSON=$(aws rds describe-db-instances \
+            --query "DBInstances[?DBName=='${DB_NAME}'] | [0]" \
+            --output json)
+
+          DB_HOST=$(echo "$DB_JSON" | jq -r '.Endpoint.Address')
+          DB_PORT=$(echo "$DB_JSON" | jq -r '.Endpoint.Port')
+          DB_USER=$(echo "$DB_JSON" | jq -r '.MasterUsername')
+          SECRET_ARN=$(echo "$DB_JSON" | jq -r '.MasterUserSecret.SecretArn')
+
+          DB_PASSWORD=$(aws secretsmanager get-secret-value \
+            --secret-id "${SECRET_ARN}" \
+            --query SecretString --output text | jq -r '.password')
+
+          echo "::add-mask::${DB_PASSWORD}"
+
+          DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
+          echo "::add-mask::${DATABASE_URL}"
+          echo "DATABASE_URL=${DATABASE_URL}" >> "$GITHUB_ENV"
+
+      - name: Prisma migrate deploy
+        if: inputs.apply
+        run: pnpm prisma migrate deploy
+
+      - name: Prisma migrate status (dry run)
+        if: "!inputs.apply"
+        run: pnpm prisma migrate status
