@@ -141,23 +141,31 @@ Add to the `github_actions_permissions` policy in [infrastructure/bootstrap/main
 ~~1. **Create a GitHub fine-grained PAT** scoped to `deweyjose/lumigraph` with `administration:write` permission~~ DONE
 ~~2. **Store the PAT in AWS Secrets Manager** as `lumigraph/github-runner-pat`~~ DONE (in both dev and prod accounts if needed)
 3. **Apply bootstrap for dev** (locally):
-   ```
+
+```
    cd infrastructure/bootstrap
    terraform init
    terraform plan  -var="aws_region=us-east-1" -var="env=dev"
    terraform apply -var="aws_region=us-east-1" -var="env=dev"
-   ```
-4. **Apply bootstrap for prod** (locally, separate state file or workspace):
-   ```
+   
+
+```
+
+1. **Apply bootstrap for prod** (locally, separate state file or workspace):
+
+```
    terraform plan  -var="aws_region=us-east-1" -var="env=prod"
    terraform apply -var="aws_region=us-east-1" -var="env=prod"
-   ```
-5. **Copy the `runner_security_group_id` output** from each apply and add as environment-scoped GitHub secrets:
-   - Settings > Environments > `dev` > secret `TF_VAR_runner_security_group_id` = `sg-xxxx`
-   - Settings > Environments > `prod` > secret `TF_VAR_runner_security_group_id` = `sg-yyyy`
-6. **Apply the app stack** (GHA dispatch or merge to main) to add the DB SG ingress rule
-7. **Verify** runners appear: GitHub repo > Settings > Actions > Runners (`lumigraph-runner-dev`, `lumigraph-runner-prod`)
-8. **Test**: dispatch the migrate workflow with `environment=dev, apply=true`
+   
+
+```
+
+1. **Copy the `runner_security_group_id` output** from each apply and add as environment-scoped GitHub secrets:
+  - Settings > Environments > `dev` > secret `TF_VAR_runner_security_group_id` = `sg-xxxx`
+  - Settings > Environments > `prod` > secret `TF_VAR_runner_security_group_id` = `sg-yyyy`
+2. **Apply the app stack** (GHA dispatch or merge to main) to add the DB SG ingress rule
+3. **Verify** runners appear: GitHub repo > Settings > Actions > Runners (`lumigraph-runner-dev`, `lumigraph-runner-prod`)
+4. **Test**: dispatch the migrate workflow with `environment=dev, apply=true`
 
 ## What I (the AI) Will Do
 
