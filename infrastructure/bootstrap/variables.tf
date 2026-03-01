@@ -68,7 +68,7 @@ variable "subnet_ids" {
 variable "runner_instance_type" {
   description = "EC2 instance type for the GHA runner."
   type        = string
-  default     = "t3.micro"
+  default     = "t3.small"
 }
 
 variable "runner_pat_secret_name" {

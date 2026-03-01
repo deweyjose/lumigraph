@@ -77,6 +77,7 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
       TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+      TF_VAR_runner_security_group_id: ${{ secrets.TF_VAR_runner_security_group_id }}
 
     steps:
       - name: Checkout
@@ -132,9 +133,23 @@ jobs:
 
       - name: Terraform Plan
         working-directory: infrastructure/${{ env.TF_TARGET }}
-        run: terraform plan -var="aws_region=${AWS_REGION}"
+        run: |
+          if [ "${TF_TARGET}" = "app" ] && [ -n "${TF_VAR_runner_security_group_id}" ]; then
+            terraform plan \
+              -var="aws_region=${AWS_REGION}" \
+              -var="runner_security_group_id=${TF_VAR_runner_security_group_id}"
+          else
+            terraform plan -var="aws_region=${AWS_REGION}"
+          fi
 
       - name: Terraform Apply
         if: needs.resolve-matrix.outputs.should_apply == 'true'
         working-directory: infrastructure/${{ env.TF_TARGET }}
-        run: terraform apply -auto-approve -var="aws_region=${AWS_REGION}"
+        run: |
+          if [ "${TF_TARGET}" = "app" ] && [ -n "${TF_VAR_runner_security_group_id}" ]; then
+            terraform apply -auto-approve \
+              -var="aws_region=${AWS_REGION}" \
+              -var="runner_security_group_id=${TF_VAR_runner_security_group_id}"
+          else
+            terraform apply -auto-approve -var="aws_region=${AWS_REGION}"
+          fi
