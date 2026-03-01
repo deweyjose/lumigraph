@@ -104,28 +104,24 @@ jobs:
 
   # ---------- Migrate (per environment, after Terraform) ----------
   migrate-dev:
-    needs: [resolve, terraform-dev]
-    if: >
-      contains(fromJson(needs.resolve.outputs.environments), 'dev') &&
-      needs.resolve.outputs.target == 'app'
+    needs: terraform-dev
+    if: needs.terraform-dev.outputs.target == 'app'
     uses: ./.github/workflows/migrate.yml
     with:
       environment: dev
-      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+      apply: ${{ fromJson(needs.terraform-dev.outputs.apply) }}
     secrets: inherit
     concurrency:
       group: deploy-migrate-dev
       cancel-in-progress: false
 
   migrate-prod:
-    needs: [resolve, terraform-prod]
-    if: >
-      contains(fromJson(needs.resolve.outputs.environments), 'prod') &&
-      needs.resolve.outputs.target == 'app'
+    needs: terraform-prod
+    if: needs.terraform-prod.outputs.target == 'app'
     uses: ./.github/workflows/migrate.yml
     with:
       environment: prod
-      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+      apply: ${{ fromJson(needs.terraform-prod.outputs.apply) }}
     secrets: inherit
     concurrency:
       group: deploy-migrate-prod

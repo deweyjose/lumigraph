@@ -13,10 +13,20 @@ on:
       apply:
         required: true
         type: boolean
+    outputs:
+      target:
+        description: "Pass-through of the target input"
+        value: ${{ jobs.terraform.outputs.target }}
+      apply:
+        description: "Pass-through of the apply input"
+        value: ${{ jobs.terraform.outputs.apply }}
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
+    outputs:
+      target: ${{ inputs.target }}
+      apply: ${{ inputs.apply }}
     environment: ${{ inputs.environment }}
     permissions:
       id-token: write
