@@ -44,7 +44,10 @@ describe("userService", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("EMAIL_TAKEN");
-    expect(userRepo.findByEmail).toHaveBeenCalledWith(prisma, "taken@example.com");
+    expect(userRepo.findByEmail).toHaveBeenCalledWith(
+      prisma,
+      "taken@example.com"
+    );
     expect(userRepo.create).not.toHaveBeenCalled();
   });
 

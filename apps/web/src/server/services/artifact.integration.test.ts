@@ -12,7 +12,8 @@ describe("artifact service (integration)", () => {
 
   afterEach(async () => {
     const prisma = await getPrisma();
-    if (datasetId) await prisma.datasetArtifact.deleteMany({ where: { datasetId } });
+    if (datasetId)
+      await prisma.datasetArtifact.deleteMany({ where: { datasetId } });
     if (userId) {
       await prisma.dataset.deleteMany({ where: { userId } });
       await prisma.user.deleteMany({ where: { id: userId } });
@@ -45,7 +46,9 @@ describe("artifact service (integration)", () => {
     expect(artifact?.sizeBytes).toBe(1024n);
 
     const prisma = await getPrisma();
-    const found = await prisma.datasetArtifact.findUnique({ where: { id: artifact!.id } });
+    const found = await prisma.datasetArtifact.findUnique({
+      where: { id: artifact!.id },
+    });
     expect(found?.filename).toBe("test.fits");
     expect(found?.datasetId).toBe(datasetId);
   });

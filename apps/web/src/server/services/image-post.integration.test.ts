@@ -34,13 +34,19 @@ describe("image-post service (integration)", () => {
     expect(created?.userId).toBe(userId);
 
     const prisma = await getPrisma();
-    const found = await prisma.imagePost.findUnique({ where: { id: created!.id } });
+    const found = await prisma.imagePost.findUnique({
+      where: { id: created!.id },
+    });
     expect(found?.title).toBe("Integration Post");
 
-    const updated = await updateDraft(userId, created!.id, { title: "Updated Title" });
+    const updated = await updateDraft(userId, created!.id, {
+      title: "Updated Title",
+    });
     expect(updated?.title).toBe("Updated Title");
 
-    const foundAfter = await prisma.imagePost.findUnique({ where: { id: created!.id } });
+    const foundAfter = await prisma.imagePost.findUnique({
+      where: { id: created!.id },
+    });
     expect(foundAfter?.title).toBe("Updated Title");
   });
 });

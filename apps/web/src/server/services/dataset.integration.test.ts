@@ -31,7 +31,9 @@ describe("dataset service (integration)", () => {
     expect(created?.userId).toBe(userId);
 
     const prisma = await getPrisma();
-    const found = await prisma.dataset.findUnique({ where: { id: created!.id } });
+    const found = await prisma.dataset.findUnique({
+      where: { id: created!.id },
+    });
     expect(found?.title).toBe("Integration Dataset");
 
     const updated = await datasetService.update(userId, created!.id, {
@@ -39,7 +41,9 @@ describe("dataset service (integration)", () => {
     });
     expect(updated?.title).toBe("Updated Dataset Title");
 
-    const foundAfter = await prisma.dataset.findUnique({ where: { id: created!.id } });
+    const foundAfter = await prisma.dataset.findUnique({
+      where: { id: created!.id },
+    });
     expect(foundAfter?.title).toBe("Updated Dataset Title");
   });
 });
