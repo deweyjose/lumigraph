@@ -115,10 +115,16 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_security_group" "db" {
-  name                   = "${var.project_name}-db-${var.env}"
-  description            = "PostgreSQL ingress"
-  vpc_id                 = local.effective_vpc_id
-  revoke_rules_on_delete = false
+  name        = "${var.project_name}-db-${var.env}"
+  description = "PostgreSQL ingress from RDS Proxy"
+  vpc_id      = local.effective_vpc_id
+
+  ingress {
+    from_port       = var.db_port
+    to_port         = var.db_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.proxy.id]
+  }
 
   egress {
     from_port   = 0
@@ -138,15 +144,6 @@ resource "aws_security_group" "db" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "db_from_proxy" {
-  security_group_id            = aws_security_group.db.id
-  description                  = "PostgreSQL from RDS Proxy"
-  from_port                    = var.db_port
-  to_port                      = var.db_port
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = aws_security_group.proxy.id
-}
-
 resource "aws_vpc_security_group_ingress_rule" "db_from_runner" {
   count = var.runner_security_group_id != "" ? 1 : 0
 
@@ -159,10 +156,9 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_runner" {
 }
 
 resource "aws_security_group" "proxy" {
-  name                   = "${var.project_name}-db-proxy-${var.env}"
-  description            = "RDS Proxy ingress"
-  vpc_id                 = local.effective_vpc_id
-  revoke_rules_on_delete = false
+  name        = "${var.project_name}-db-proxy-${var.env}"
+  description = "RDS Proxy ingress"
+  vpc_id      = local.effective_vpc_id
 
   egress {
     from_port   = 0
@@ -175,10 +171,6 @@ resource "aws_security_group" "proxy" {
     Name    = "${var.project_name}-db-proxy-${var.env}"
     Project = var.project_name
     Env     = var.env
-  }
-
-  lifecycle {
-    ignore_changes = [ingress]
   }
 }
 
