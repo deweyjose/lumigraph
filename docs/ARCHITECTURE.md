@@ -1,6 +1,6 @@
 # ARCHITECTURE.md — Lumigraph
-Version: 0.2  
-Last updated: 2026-02-28
+Version: 0.3  
+Last updated: 2026-03-01
 
 ## 0) Purpose
 This document describes Lumigraph’s system architecture and engineering constraints so implementation work stays consistent across humans + AI tools.
@@ -16,7 +16,7 @@ Lumigraph is a multi-user astrophotography platform for:
 ### Components
 - Web App: Next.js (App Router)
 - API: Next.js route handlers (initially), evolving to service modules
-- DB: AWS RDS Postgres (via RDS Proxy for app traffic)
+- DB: AWS RDS Postgres (direct connection with IAM auth; RDS Proxy provisioned for future use)
 - Storage: S3 for artifacts + images; CDN (CloudFront) optional early
 - AI: external LLM provider (TBD); used for writing assistance (never auto-publish)
 - Auth: NextAuth (minimal to start)
@@ -73,8 +73,9 @@ Lumigraph is a multi-user astrophotography platform for:
 ### Infrastructure Access
 - GitHub Actions assumes AWS roles through GitHub OIDC for Terraform deploys.
 - A self-hosted GHA runner (EC2, managed in `infrastructure/bootstrap`) runs inside the VPC with direct access to the RDS instance. Migrations run on this runner as `lumigraph_admin` (password from Secrets Manager). Per-environment runner labels (`lumigraph-runner-dev`, `lumigraph-runner-prod`) route jobs to the correct runner.
-- Vercel assumes a team-scoped AWS role through Vercel OIDC for DB IAM auth (`rds-db:connect`).
-- The RDS Proxy remains `iam_auth = "REQUIRED"` for all external (Vercel) traffic. The runner bypasses the proxy and connects directly to the RDS instance endpoint.
+- Vercel assumes a team-scoped AWS role through Vercel OIDC (`@vercel/oidc-aws-credentials-provider`) to get temporary AWS credentials, then uses `@aws-sdk/rds-signer` to generate a 15-minute IAM auth token for RDS.
+- Vercel connects **directly to the RDS instance** (publicly accessible, IAM auth + TLS enforced). The RDS Proxy is provisioned but not used for Vercel traffic because RDS Proxy endpoints are VPC-only and unreachable from Vercel Hobby. When Vercel is upgraded to Pro/Enterprise (static IPs or VPC peering), traffic can be routed through the proxy.
+- The `getPrisma()` function in `@lumigraph/db` handles both paths: local dev uses `DATABASE_URL` (password-based), Vercel uses IAM auth tokens constructed at runtime.
 
 ### Database Roles
 - `lumigraph_admin`: RDS master user. Runs migrations. Password managed by Secrets Manager.
@@ -106,6 +107,9 @@ Datasets and posts must support:
 See docs/PRODUCT.md for canonical definitions.
 
 ## 6) API Surface (Phase 1)
+### Health
+- GET /api/health (DB connectivity check, public, no auth)
+
 ### Auth
 - handled by NextAuth routes
 

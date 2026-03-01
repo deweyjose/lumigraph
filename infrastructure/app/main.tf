@@ -116,7 +116,7 @@ resource "aws_db_subnet_group" "main" {
 
 resource "aws_security_group" "db" {
   name        = "${var.project_name}-db-${var.env}"
-  description = "PostgreSQL ingress from RDS Proxy"
+  description = "PostgreSQL ingress (proxy, runner, direct)"
   vpc_id      = local.effective_vpc_id
 
   ingress {
@@ -153,6 +153,17 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_runner" {
   to_port                      = var.db_port
   ip_protocol                  = "tcp"
   referenced_security_group_id = var.runner_security_group_id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "db_direct_cidrs" {
+  for_each = toset(var.db_direct_allowed_cidrs)
+
+  security_group_id = aws_security_group.db.id
+  description       = "Direct PostgreSQL access (Vercel / external)"
+  from_port         = var.db_port
+  to_port           = var.db_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = each.value
 }
 
 resource "aws_security_group" "proxy" {
@@ -199,7 +210,7 @@ resource "aws_db_instance" "main" {
   port                                = var.db_port
   db_subnet_group_name                = aws_db_subnet_group.main.name
   vpc_security_group_ids              = [aws_security_group.db.id]
-  publicly_accessible                 = !local.is_prod
+  publicly_accessible                 = true
   storage_encrypted                   = true
   kms_key_id                          = data.aws_kms_key.rds.arn
   iam_database_authentication_enabled = true

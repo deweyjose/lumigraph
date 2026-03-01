@@ -1,9 +1,9 @@
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import type { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
-import { prisma } from "@lumigraph/db";
+import { getPrisma } from "@lumigraph/db";
 
-export function getAuthOptions(): NextAuthOptions {
+export async function getAuthOptions(): Promise<NextAuthOptions> {
   const githubId = process.env.GITHUB_ID;
   const githubSecret = process.env.GITHUB_SECRET;
 
@@ -18,9 +18,11 @@ export function getAuthOptions(): NextAuthOptions {
       ? [GitHubProvider({ clientId: githubId, clientSecret: githubSecret })]
       : [];
 
+  const prisma = await getPrisma();
+
   return {
     adapter: PrismaAdapter(prisma),
     session: { strategy: "database" },
-    providers
+    providers,
   };
 }
