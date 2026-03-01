@@ -138,9 +138,9 @@ jobs:
       group: deploy-terraform-prod
       cancel-in-progress: false
 
-  # ---------- Migrate (per environment, after Terraform) ----------
+  # ---------- Migrate (per environment); runs when prisma/** changes (no Terraform dependency) ----------
   migrate-dev:
-    needs: [resolve, filter, terraform-dev]
+    needs: [resolve, filter]
     if: >
       needs.filter.outputs.run_migrate == 'true' &&
       contains(fromJson(needs.resolve.outputs.environments), 'dev') &&
@@ -155,7 +155,7 @@ jobs:
       cancel-in-progress: false
 
   migrate-prod:
-    needs: [resolve, filter, terraform-prod]
+    needs: [resolve, filter]
     if: >
       needs.filter.outputs.run_migrate == 'true' &&
       contains(fromJson(needs.resolve.outputs.environments), 'prod') &&
