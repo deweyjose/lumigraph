@@ -155,6 +155,15 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_runner" {
   referenced_security_group_id = var.runner_security_group_id
 }
 
+resource "aws_vpc_security_group_ingress_rule" "db_public" {
+  security_group_id = aws_security_group.db.id
+  description       = "Direct PostgreSQL access (Vercel / external)"
+  from_port         = var.db_port
+  to_port           = var.db_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
 resource "aws_security_group" "proxy" {
   name        = "${var.project_name}-db-proxy-${var.env}"
   description = "RDS Proxy ingress"
