@@ -116,22 +116,8 @@ resource "aws_db_subnet_group" "main" {
 
 resource "aws_security_group" "db" {
   name        = "${var.project_name}-db-${var.env}"
-  description = "PostgreSQL ingress from RDS Proxy"
+  description = "PostgreSQL ingress"
   vpc_id      = local.effective_vpc_id
-
-  ingress {
-    from_port       = var.db_port
-    to_port         = var.db_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.proxy.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
   tags = {
     Name    = "${var.project_name}-db-${var.env}"
@@ -140,34 +126,20 @@ resource "aws_security_group" "db" {
   }
 }
 
-resource "aws_security_group" "proxy" {
-  name        = "${var.project_name}-db-proxy-${var.env}"
-  description = "RDS Proxy ingress"
-  vpc_id      = local.effective_vpc_id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name    = "${var.project_name}-db-proxy-${var.env}"
-    Project = var.project_name
-    Env     = var.env
-  }
+resource "aws_vpc_security_group_ingress_rule" "db_from_proxy" {
+  security_group_id            = aws_security_group.db.id
+  description                  = "PostgreSQL from RDS Proxy"
+  from_port                    = var.db_port
+  to_port                      = var.db_port
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.proxy.id
 }
 
-resource "aws_vpc_security_group_ingress_rule" "proxy_cidrs" {
-  for_each = toset(var.proxy_allowed_cidrs)
-
-  security_group_id = aws_security_group.proxy.id
-  description       = "Ingress to RDS Proxy"
-  from_port         = var.db_port
-  to_port           = var.db_port
-  ip_protocol       = "tcp"
-  cidr_ipv4         = each.value
+resource "aws_vpc_security_group_egress_rule" "db_all" {
+  security_group_id = aws_security_group.db.id
+  description       = "Allow all outbound"
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 resource "aws_vpc_security_group_ingress_rule" "db_from_runner" {
@@ -179,6 +151,36 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_runner" {
   to_port                      = var.db_port
   ip_protocol                  = "tcp"
   referenced_security_group_id = var.runner_security_group_id
+}
+
+resource "aws_security_group" "proxy" {
+  name        = "${var.project_name}-db-proxy-${var.env}"
+  description = "RDS Proxy ingress"
+  vpc_id      = local.effective_vpc_id
+
+  tags = {
+    Name    = "${var.project_name}-db-proxy-${var.env}"
+    Project = var.project_name
+    Env     = var.env
+  }
+}
+
+resource "aws_vpc_security_group_egress_rule" "proxy_all" {
+  security_group_id = aws_security_group.proxy.id
+  description       = "Allow all outbound"
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "proxy_cidrs" {
+  for_each = toset(var.proxy_allowed_cidrs)
+
+  security_group_id = aws_security_group.proxy.id
+  description       = "Ingress to RDS Proxy"
+  from_port         = var.db_port
+  to_port           = var.db_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = each.value
 }
 
 resource "aws_db_instance" "main" {
