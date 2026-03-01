@@ -6,8 +6,9 @@
     "dev": "next dev",
     "build": "prisma generate --schema=../../prisma/schema.prisma && next build",
     "start": "next start",
-    "lint": "eslint . --max-warnings 0",
-    "format": "pnpm dlx prettier --check .",
+    "lint": "eslint . --config ../../eslint.config.mjs --max-warnings 0",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
     "test": "vitest run --workspace ../../vitest.workspace.mts --project web",
     "test:integration": "vitest run --workspace ../../vitest.workspace.mts --project web-integration --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"

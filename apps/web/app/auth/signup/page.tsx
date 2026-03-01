@@ -99,11 +99,15 @@ function SignUpContent() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        router.push(`/auth/signin?registered=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+        router.push(
+          `/auth/signin?registered=1&callbackUrl=${encodeURIComponent(callbackUrl)}`
+        );
         return;
       }
       if (res.status === 409 && data.code === "EMAIL_TAKEN") {
-        setSubmitError("An account with this email already exists. Sign in or use a different email.");
+        setSubmitError(
+          "An account with this email already exists. Sign in or use a different email."
+        );
         return;
       }
       if (res.status === 501 && data.code === "NOT_IMPLEMENTED") {
@@ -125,11 +129,7 @@ function SignUpContent() {
       title="Create your account"
       description="Sign up with email and password, or use Google or GitHub. Your account will be created on first sign-in with OAuth."
     >
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-4"
-        noValidate
-      >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         {submitError && (
           <div
             className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
@@ -157,7 +157,8 @@ function SignUpContent() {
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
-            if (fieldErrors.email) setFieldErrors((p) => ({ ...p, email: undefined }));
+            if (fieldErrors.email)
+              setFieldErrors((p) => ({ ...p, email: undefined }));
           }}
           placeholder="you@example.com"
           autoComplete="email"
@@ -172,7 +173,8 @@ function SignUpContent() {
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);
-            if (fieldErrors.password) setFieldErrors((p) => ({ ...p, password: undefined }));
+            if (fieldErrors.password)
+              setFieldErrors((p) => ({ ...p, password: undefined }));
           }}
           placeholder="At least 8 characters"
           autoComplete="new-password"
@@ -228,7 +230,10 @@ export default function SignUpPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[80vh] items-center justify-center" aria-busy="true">
+        <div
+          className="flex min-h-[80vh] items-center justify-center"
+          aria-busy="true"
+        >
           <div
             className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent"
             aria-hidden

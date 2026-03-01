@@ -5,6 +5,9 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
+    "lint": "eslint . --config ../../eslint.config.mjs",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
     "test": "vitest run --workspace ../../vitest.workspace.mts --project db",
     "test:integration": "vitest run --workspace ../../vitest.workspace.mts --project db-integration --passWithNoTests"
   },

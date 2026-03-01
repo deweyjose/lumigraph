@@ -187,7 +187,8 @@ function SignInContent() {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                  if (fieldErrors.email)
+                    setFieldErrors((prev) => ({ ...prev, email: undefined }));
                 }}
                 placeholder="you@example.com"
                 autoComplete="email"
@@ -202,7 +203,11 @@ function SignInContent() {
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
-                    if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                    if (fieldErrors.password)
+                      setFieldErrors((prev) => ({
+                        ...prev,
+                        password: undefined,
+                      }));
                   }}
                   autoComplete="current-password"
                   required
@@ -232,22 +237,22 @@ function SignInContent() {
             )}
 
             {oauthProviders.length > 0 && (
-            <div className="space-y-3">
-              {oauthProviders.map((provider) => (
-                <ProviderButton
-                  key={provider.id}
-                  icon={
-                    provider.id === "google" ? (
-                      <GoogleIcon />
-                    ) : provider.id === "github" ? (
-                      <Github className="size-5" />
-                    ) : null
-                  }
-                  label={`Continue with ${provider.name}`}
-                  onClick={() => signIn(provider.id, { callbackUrl })}
-                />
-              ))}
-            </div>
+              <div className="space-y-3">
+                {oauthProviders.map((provider) => (
+                  <ProviderButton
+                    key={provider.id}
+                    icon={
+                      provider.id === "google" ? (
+                        <GoogleIcon />
+                      ) : provider.id === "github" ? (
+                        <Github className="size-5" />
+                      ) : null
+                    }
+                    label={`Continue with ${provider.name}`}
+                    onClick={() => signIn(provider.id, { callbackUrl })}
+                  />
+                ))}
+              </div>
             )}
 
             {emailProvider && (
@@ -258,7 +263,10 @@ function SignInContent() {
                     className="rounded-lg border border-primary/30 bg-primary/10 p-5 text-center"
                     role="status"
                   >
-                    <Mail className="mx-auto mb-2 size-6 text-primary" aria-hidden />
+                    <Mail
+                      className="mx-auto mb-2 size-6 text-primary"
+                      aria-hidden
+                    />
                     <p className="font-medium">Check your email</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       We sent a sign-in link to{" "}
@@ -296,8 +304,8 @@ function SignInContent() {
 
             {hasNoOAuthOrEmail && (
               <p className="text-center text-xs text-muted-foreground">
-                To enable Google or GitHub sign-in, add the relevant env vars and
-                restart the app.
+                To enable Google or GitHub sign-in, add the relevant env vars
+                and restart the app.
               </p>
             )}
 
@@ -317,7 +325,10 @@ export default function SignInPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[80vh] items-center justify-center" aria-busy="true">
+        <div
+          className="flex min-h-[80vh] items-center justify-center"
+          aria-busy="true"
+        >
           <div
             className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent"
             aria-hidden

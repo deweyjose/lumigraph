@@ -2,10 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { getPrisma } from "@lumigraph/db";
 import * as postRepo from "../repo/post";
 
-export type CreateDraftInput = Omit<
-  Prisma.ImagePostCreateInput,
-  "user"
-> & {
+export type CreateDraftInput = Omit<Prisma.ImagePostCreateInput, "user"> & {
   title: string;
   slug: string;
 };

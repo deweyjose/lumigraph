@@ -22,7 +22,9 @@ function baseUrl(): string {
  */
 export async function requestPasswordReset(email: string): Promise<void> {
   const prisma = await getPrisma();
-  const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+  const user = await prisma.user.findUnique({
+    where: { email: email.trim().toLowerCase() },
+  });
   if (!user) return;
 
   const token = randomBytes(32).toString("hex");

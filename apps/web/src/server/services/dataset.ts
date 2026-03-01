@@ -2,10 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { getPrisma } from "@lumigraph/db";
 import * as datasetRepo from "../repo/dataset";
 
-export type CreateDatasetInput = Omit<
-  Prisma.DatasetCreateInput,
-  "user"
-> & {
+export type CreateDatasetInput = Omit<Prisma.DatasetCreateInput, "user"> & {
   title: string;
 };
 

@@ -14,8 +14,8 @@ export default function HomePage() {
             Lumigraph
           </h1>
           <p className="max-w-xl text-lg text-muted-foreground sm:text-xl">
-            Publish your astrophotography. Share integration data.
-            Document your processing journey.
+            Publish your astrophotography. Share integration data. Document your
+            processing journey.
           </p>
         </div>
 

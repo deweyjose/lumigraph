@@ -42,16 +42,12 @@ describe("artifactService", () => {
     } as unknown as PrismaClient;
     vi.mocked(getPrisma).mockResolvedValue(prisma);
 
-    const result = await artifactService.registerArtifact(
-      "ds-1",
-      "user-1",
-      {
-        filename: "file.fits",
-        fileType: "application/fits",
-        s3Key: "key",
-        sizeBytes: BigInt(1024),
-      }
-    );
+    const result = await artifactService.registerArtifact("ds-1", "user-1", {
+      filename: "file.fits",
+      fileType: "application/fits",
+      s3Key: "key",
+      sizeBytes: BigInt(1024),
+    });
 
     expect(getPrisma).toHaveBeenCalledTimes(1);
     expect(mockCreate).toHaveBeenCalledWith({
@@ -77,16 +73,12 @@ describe("artifactService", () => {
     } as unknown as PrismaClient;
     vi.mocked(getPrisma).mockResolvedValue(prisma);
 
-    const result = await artifactService.registerArtifact(
-      "ds-1",
-      "user-1",
-      {
-        filename: "f",
-        fileType: "t",
-        s3Key: "k",
-        sizeBytes: BigInt(0),
-      }
-    );
+    const result = await artifactService.registerArtifact("ds-1", "user-1", {
+      filename: "f",
+      fileType: "t",
+      s3Key: "k",
+      sizeBytes: BigInt(0),
+    });
 
     expect(result).toBeNull();
     expect(mockCreate).not.toHaveBeenCalled();
@@ -111,16 +103,12 @@ describe("artifactService", () => {
     } as unknown as PrismaClient;
     vi.mocked(getPrisma).mockResolvedValue(prisma);
 
-    const result = await artifactService.registerArtifact(
-      "ds-1",
-      "user-1",
-      {
-        filename: "f",
-        fileType: "t",
-        s3Key: "k",
-        sizeBytes: BigInt(0),
-      }
-    );
+    const result = await artifactService.registerArtifact("ds-1", "user-1", {
+      filename: "f",
+      fileType: "t",
+      s3Key: "k",
+      sizeBytes: BigInt(0),
+    });
 
     expect(result).toBeNull();
     expect(mockCreate).not.toHaveBeenCalled();

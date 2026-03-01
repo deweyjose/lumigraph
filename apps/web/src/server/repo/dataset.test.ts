@@ -76,7 +76,9 @@ describe("datasetRepo", () => {
       },
     } as unknown as PrismaClient;
 
-    const result = await datasetRepo.update(prisma, "ds-1", { title: "Updated Title" });
+    const result = await datasetRepo.update(prisma, "ds-1", {
+      title: "Updated Title",
+    });
 
     expect(prisma.dataset.update).toHaveBeenCalledWith({
       where: { id: "ds-1" },

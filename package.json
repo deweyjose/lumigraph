@@ -4,11 +4,12 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "pnpm -C apps/web dev",
-    "lint": "pnpm -C apps/web lint",
-    "format": "pnpm -C apps/web format",
+    "lint": "pnpm run -r lint",
+    "format": "pnpm run -r format",
+    "format:fix": "pnpm run -r format:fix",
     "test": "pnpm run -r test",
     "test:integration": "pnpm run -r test:integration",
-    "typecheck": "pnpm -C apps/web typecheck",
+    "typecheck": "pnpm run -r typecheck",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -17,8 +18,13 @@
     "dev:db": "docker compose up -d && sleep 5 && pnpm db:migrate"
   },
   "devDependencies": {
+    "@eslint/js": "9.15.0",
     "@prisma/client": "5.22.0",
     "dotenv": "17.3.1",
-    "prisma": "5.22.0"
+    "eslint": "9.39.3",
+    "eslint-config-next": "16.1.6",
+    "prettier": "3.2.5",
+    "prisma": "5.22.0",
+    "typescript-eslint": "8.18.0"
   }
 }

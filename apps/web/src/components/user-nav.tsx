@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,9 +28,7 @@ export function UserNav() {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
-    return (
-      <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-    );
+    return <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />;
   }
 
   if (!session?.user) {

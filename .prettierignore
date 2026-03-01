@@ -1,0 +1,9 @@
+**/node_modules
+**/.next
+**/out
+**/build
+*.config.js
+*.config.mjs
+*.config.mts
+pnpm-lock.yaml
+**/.next-env.d.ts
