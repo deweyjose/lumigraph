@@ -32,6 +32,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Validate schema
+        env:
+          DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
         run: pnpm prisma validate
 
   migrate:
