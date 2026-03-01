@@ -16,12 +16,11 @@ on:
         description: "Apply migrations? (false = dry run)"
         required: true
         default: false
-  push:
+  workflow_run:
+    workflows: ["Terraform"]
+    types: [completed]
     branches:
       - main
-    paths:
-      - "prisma/migrations/**"
-      - ".github/workflows/migrate.yml"
   pull_request:
     paths:
       - "prisma/migrations/**"
@@ -63,42 +62,55 @@ jobs:
             --exit-code \
             || echo "::warning::Migration diff detected — make sure prisma migrate dev was run."
 
-  resolve-runner:
-    if: github.event_name != 'pull_request'
+  resolve-matrix:
+    if: >
+      github.event_name != 'pull_request' &&
+      (
+        github.event_name != 'workflow_run' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push'
+        )
+      )
     runs-on: ubuntu-latest
     outputs:
-      runner_label: ${{ steps.set.outputs.runner_label }}
-      environment: ${{ steps.set.outputs.environment }}
+      environments: ${{ steps.set.outputs.environments }}
       should_apply: ${{ steps.set.outputs.should_apply }}
     steps:
       - id: set
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            ENV="${{ github.event.inputs.environment }}"
+            ENVIRONMENTS='["${{ github.event.inputs.environment }}"]'
             APPLY="${{ github.event.inputs.apply }}"
           else
-            ENV="dev"
+            ENVIRONMENTS='["dev","prod"]'
             APPLY="true"
           fi
-          echo "runner_label=lumigraph-runner-${ENV}" >> "$GITHUB_OUTPUT"
-          echo "environment=${ENV}" >> "$GITHUB_OUTPUT"
+          echo "environments=${ENVIRONMENTS}" >> "$GITHUB_OUTPUT"
           echo "should_apply=${APPLY}" >> "$GITHUB_OUTPUT"
 
   migrate:
-    needs: resolve-runner
-    runs-on: [self-hosted, "${{ needs.resolve-runner.outputs.runner_label }}"]
-    environment: ${{ needs.resolve-runner.outputs.environment }}
+    needs: resolve-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJson(needs.resolve-matrix.outputs.environments) }}
+    runs-on: [self-hosted, "lumigraph-runner-${{ matrix.environment }}"]
+    environment: ${{ matrix.environment }}
     permissions:
       contents: read
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      NODE_OPTIONS: --max-old-space-size=384
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --child-concurrency=2 --network-concurrency=8
 
       - name: Resolve DB connection info
         run: |
@@ -125,12 +137,12 @@ jobs:
 
       - name: Prisma migrate deploy
         if: >
-          github.ref == 'refs/heads/main' ||
-          (github.event_name == 'workflow_dispatch' && needs.resolve-runner.outputs.should_apply == 'true')
+          github.event_name == 'workflow_run' ||
+          (github.event_name == 'workflow_dispatch' && needs.resolve-matrix.outputs.should_apply == 'true')
         run: pnpm prisma migrate deploy
 
       - name: Prisma migrate status (dry run)
         if: >
           github.event_name == 'workflow_dispatch' &&
-          needs.resolve-runner.outputs.should_apply != 'true'
+          needs.resolve-matrix.outputs.should_apply != 'true'
         run: pnpm prisma migrate status
