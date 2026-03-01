@@ -1,35 +1,17 @@
-name: Migrate
+name: Migrate (reusable)
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       environment:
-        type: choice
-        description: "Which environment to run migrations against"
         required: true
-        default: dev
-        options:
-          - dev
-          - prod
+        type: string
       apply:
-        type: boolean
-        description: "Apply migrations? (false = dry run)"
         required: true
-        default: false
-  workflow_run:
-    workflows: ["Terraform"]
-    types: [completed]
-    branches:
-      - main
-  pull_request:
-    paths:
-      - "prisma/migrations/**"
-      - "prisma/schema.prisma"
-      - ".github/workflows/migrate.yml"
+        type: boolean
 
 jobs:
   validate:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,54 +31,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate migration history
+      - name: Validate schema
         env:
           DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
-        run: |
-          echo "Checking Prisma migration files are consistent with schema..."
-          pnpm prisma validate
-          pnpm prisma migrate diff \
-            --from-migrations prisma/migrations \
-            --to-schema-datamodel prisma/schema.prisma \
-            --shadow-database-url "${DATABASE_URL}" \
-            --exit-code \
-            || echo "::warning::Migration diff detected — make sure prisma migrate dev was run."
-
-  resolve-matrix:
-    if: >
-      github.event_name != 'pull_request' &&
-      (
-        github.event_name != 'workflow_run' ||
-        (
-          github.event.workflow_run.conclusion == 'success' &&
-          github.event.workflow_run.event == 'push'
-        )
-      )
-    runs-on: ubuntu-latest
-    outputs:
-      environments: ${{ steps.set.outputs.environments }}
-      should_apply: ${{ steps.set.outputs.should_apply }}
-    steps:
-      - id: set
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            ENVIRONMENTS='["${{ github.event.inputs.environment }}"]'
-            APPLY="${{ github.event.inputs.apply }}"
-          else
-            ENVIRONMENTS='["dev","prod"]'
-            APPLY="true"
-          fi
-          echo "environments=${ENVIRONMENTS}" >> "$GITHUB_OUTPUT"
-          echo "should_apply=${APPLY}" >> "$GITHUB_OUTPUT"
+        run: pnpm prisma validate
 
   migrate:
-    needs: resolve-matrix
-    strategy:
-      fail-fast: false
-      matrix:
-        environment: ${{ fromJson(needs.resolve-matrix.outputs.environments) }}
-    runs-on: [self-hosted, "lumigraph-runner-${{ matrix.environment }}"]
-    environment: ${{ matrix.environment }}
+    needs: validate
+    if: inputs.apply
+    runs-on: [self-hosted, "lumigraph-runner-${{ inputs.environment }}"]
+    environment: ${{ inputs.environment }}
     permissions:
       contents: read
     env:
@@ -106,8 +50,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --child-concurrency=2 --network-concurrency=8
@@ -136,13 +78,4 @@ jobs:
           echo "DATABASE_URL=${DATABASE_URL}" >> "$GITHUB_ENV"
 
       - name: Prisma migrate deploy
-        if: >
-          github.event_name == 'workflow_run' ||
-          (github.event_name == 'workflow_dispatch' && needs.resolve-matrix.outputs.should_apply == 'true')
         run: pnpm prisma migrate deploy
-
-      - name: Prisma migrate status (dry run)
-        if: >
-          github.event_name == 'workflow_dispatch' &&
-          needs.resolve-matrix.outputs.should_apply != 'true'
-        run: pnpm prisma migrate status
