@@ -1,0 +1,7 @@
+# Minimal image for running integration tests in docker-compose.
+# Repo is mounted at /app; this image only provides Node + pnpm.
+FROM node:20-alpine
+
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+WORKDIR /app

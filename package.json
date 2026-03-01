@@ -9,6 +9,7 @@
     "format:fix": "pnpm run -r format:fix",
     "test": "pnpm run -r test",
     "test:integration": "pnpm run -r test:integration",
+    "test:integration:docker": "docker compose run --rm integration",
     "typecheck": "pnpm run -r typecheck",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
