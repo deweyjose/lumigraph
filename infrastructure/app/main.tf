@@ -208,7 +208,10 @@ resource "aws_db_instance" "main" {
   port                                = var.db_port
   db_subnet_group_name                = aws_db_subnet_group.main.name
   vpc_security_group_ids              = [aws_security_group.db.id]
-  publicly_accessible                 = !local.is_prod
+  # publicly_accessible                 = !local.is_prod
+  # Vercel connects directly to the RDS instance (RDS Proxy is VPC-only).
+  # IAM auth + TLS enforced; tighten with Vercel static IPs on Pro upgrade.
+  publicly_accessible                 = true
   storage_encrypted                   = true
   kms_key_id                          = data.aws_kms_key.rds.arn
   iam_database_authentication_enabled = true
