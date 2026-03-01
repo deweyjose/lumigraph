@@ -19,7 +19,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   Verification: "The verification link has expired or has already been used.",
   OAuthSignin: "Could not start the sign-in process. Try again.",
   OAuthCallback: "Could not complete sign-in. Try a different provider.",
-  OAuthCreateAccount: "Could not create your account. Try a different provider.",
+  OAuthCreateAccount:
+    "Could not create your account. Try a different provider.",
   EmailCreateAccount: "Could not create your account with this email.",
   Callback: "Something went wrong during sign-in.",
   OAuthAccountNotLinked:

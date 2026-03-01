@@ -11,6 +11,14 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 
 ---
 
+### 2026-03-01 — Unified lint and format across monorepo
+**Decision:** Single ESLint flat config at repo root (`eslint.config.mjs`) and single Prettier config (`.prettierrc`) at root. Base TypeScript/JS rules apply repo-wide; Next.js rules apply only to `apps/web/**`. Root owns eslint, prettier, typescript-eslint, and @eslint/js as devDependencies. Each package has `lint` and `format` scripts that invoke the root config so `pnpm run -r lint` / `pnpm run -r format` run in all workspaces.  
+**Context:** packages/db had no lint/format; we wanted one source of truth and every package to participate.  
+**Alternatives:** Per-package configs (duplication); root-only scripts that lint/format the whole repo (no per-package runs).  
+**Consequences:** apps/web re-exports root ESLint config for editor resolution; packages/db now has lint/format; format:fix added at root and per-package for auto-fix.
+
+---
+
 ### 2026-02-15 — Docs-first bootstrap
 **Decision:** Start repo with canonical product + architecture docs to feed Codex/AI context.  
 **Context:** AI tools do not share chat history; persistent context must live in repo.  

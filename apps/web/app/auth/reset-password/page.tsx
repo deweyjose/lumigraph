@@ -39,7 +39,9 @@ function ResetPasswordContent() {
     e.preventDefault();
     if (!validate()) return;
     if (!token) {
-      setError("Invalid or missing reset link. Request a new one from the sign-in page.");
+      setError(
+        "Invalid or missing reset link. Request a new one from the sign-in page."
+      );
       return;
     }
     setIsSubmitting(true);
@@ -59,7 +61,9 @@ function ResetPasswordContent() {
         setError("Password reset is not yet available.");
         return;
       }
-      setError(data.message ?? "Failed to reset password. The link may have expired.");
+      setError(
+        data.message ?? "Failed to reset password. The link may have expired."
+      );
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -155,7 +159,10 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[80vh] items-center justify-center" aria-busy="true">
+        <div
+          className="flex min-h-[80vh] items-center justify-center"
+          aria-busy="true"
+        >
           <div
             className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent"
             aria-hidden

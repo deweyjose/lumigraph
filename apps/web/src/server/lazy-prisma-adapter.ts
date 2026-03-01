@@ -26,7 +26,10 @@ export function createLazyPrismaAdapter(): Adapter {
       if (ADAPTER_METHODS.includes(prop as (typeof ADAPTER_METHODS)[number])) {
         return async (...args: unknown[]) => {
           const prisma = await getPrisma();
-          const adapter = PrismaAdapter(prisma) as Record<string, (...a: unknown[]) => unknown>;
+          const adapter = PrismaAdapter(prisma) as Record<
+            string,
+            (...a: unknown[]) => unknown
+          >;
           const fn = adapter[prop];
           if (typeof fn !== "function") return undefined;
           return fn.apply(adapter, args);

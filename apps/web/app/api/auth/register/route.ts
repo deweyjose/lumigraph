@@ -35,7 +35,10 @@ export async function POST(request: Request) {
 
   if (!result.ok) {
     return NextResponse.json(
-      { code: "EMAIL_TAKEN", message: "An account with this email already exists." },
+      {
+        code: "EMAIL_TAKEN",
+        message: "An account with this email already exists.",
+      },
       { status: 409 }
     );
   }

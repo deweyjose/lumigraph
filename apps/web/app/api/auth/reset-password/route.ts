@@ -42,5 +42,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ message: "Password updated. You can sign in now." });
+  return NextResponse.json({
+    message: "Password updated. You can sign in now.",
+  });
 }

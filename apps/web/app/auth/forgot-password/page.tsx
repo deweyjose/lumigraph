@@ -137,7 +137,10 @@ export default function ForgotPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[80vh] items-center justify-center" aria-busy="true">
+        <div
+          className="flex min-h-[80vh] items-center justify-center"
+          aria-busy="true"
+        >
           <div
             className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent"
             aria-hidden

@@ -1,14 +1,3 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  globalIgnores([
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
-
-export default eslintConfig;
+// Re-export root config so editor and scripts use one source of truth.
+import rootConfig from "../../eslint.config.mjs";
+export default rootConfig;

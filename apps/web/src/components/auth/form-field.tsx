@@ -19,7 +19,16 @@ type FormFieldProps = {
   inputClassName?: string;
 } & Omit<
   React.ComponentProps<"input">,
-  "id" | "type" | "name" | "value" | "onChange" | "placeholder" | "required" | "disabled" | "aria-invalid" | "aria-describedby"
+  | "id"
+  | "type"
+  | "name"
+  | "value"
+  | "onChange"
+  | "placeholder"
+  | "required"
+  | "disabled"
+  | "aria-invalid"
+  | "aria-describedby"
 >;
 
 export function FormField({
@@ -40,7 +49,14 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className={required ? "after:content-['*'] after:ml-0.5 after:text-destructive" : undefined}>
+      <Label
+        htmlFor={id}
+        className={
+          required
+            ? "after:content-['*'] after:ml-0.5 after:text-destructive"
+            : undefined
+        }
+      >
         {label}
       </Label>
       <Input

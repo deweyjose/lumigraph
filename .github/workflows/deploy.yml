@@ -1,8 +1,7 @@
-# Orchestrates Terraform and Migrate for each environment.
+# Orchestrates Build (lint, format, test), Terraform, and Migrate.
 #
-# Push to main:  plan + apply Terraform (dev, prod) → apply migrations (dev, prod)
-# Pull request:  plan-only Terraform (dev) + validate migrations
-# Manual:        pick environment, target, and apply flag
+# Push/PR to main:  Build always; Terraform/Migrate only when their paths change
+# Manual:           pick environment, target, and apply flag
 name: Deploy
 
 on:
@@ -32,21 +31,54 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "infrastructure/**"
-      - "prisma/migrations/**"
-      - "prisma/schema.prisma"
-      - ".github/workflows/**"
   pull_request:
-    paths:
-      - "infrastructure/**"
-      - "prisma/migrations/**"
-      - "prisma/schema.prisma"
-      - ".github/workflows/**"
+    branches:
+      - main
 
-# ---------- resolve inputs for all downstream jobs ----------
+# ---------- Build (lint, format, test) ----------
 jobs:
+  build:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build.yml
+
+  # ---------- Path filter: run Terraform/Migrate only when relevant paths change ----------
+  filter:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      run_terraform: ${{ steps.outputs.outputs.run_terraform }}
+      run_migrate: ${{ steps.outputs.outputs.run_migrate }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "run_terraform=true" >> $GITHUB_OUTPUT
+          echo "run_migrate=true" >> $GITHUB_OUTPUT
+
+      - uses: dorny/paths-filter@v3
+        if: github.event_name != 'workflow_dispatch'
+        id: paths
+        with:
+          filters: |
+            infra:
+              - 'infrastructure/**'
+            prisma:
+              - 'prisma/**'
+
+      - id: outputs
+        run: |
+          echo "run_terraform=${{ steps.dispatch.outputs.run_terraform || steps.paths.outputs.infra }}" >> $GITHUB_OUTPUT
+          echo "run_migrate=${{ steps.dispatch.outputs.run_migrate || steps.paths.outputs.prisma }}" >> $GITHUB_OUTPUT
+
+  # ---------- Resolve inputs for Terraform/Migrate ----------
   resolve:
+    needs: [build, filter]
     runs-on: ubuntu-latest
     outputs:
       environments: ${{ steps.set.outputs.environments }}
@@ -71,8 +103,10 @@ jobs:
 
   # ---------- Terraform (per environment) ----------
   terraform-dev:
-    needs: resolve
-    if: contains(fromJson(needs.resolve.outputs.environments), 'dev')
+    needs: [resolve, filter]
+    if: >
+      needs.filter.outputs.run_terraform == 'true' &&
+      contains(fromJson(needs.resolve.outputs.environments), 'dev')
     permissions:
       id-token: write
       contents: read
@@ -87,8 +121,10 @@ jobs:
       cancel-in-progress: false
 
   terraform-prod:
-    needs: resolve
-    if: contains(fromJson(needs.resolve.outputs.environments), 'prod')
+    needs: [resolve, filter]
+    if: >
+      needs.filter.outputs.run_terraform == 'true' &&
+      contains(fromJson(needs.resolve.outputs.environments), 'prod')
     permissions:
       id-token: write
       contents: read
@@ -102,10 +138,25 @@ jobs:
       group: deploy-terraform-prod
       cancel-in-progress: false
 
-  # ---------- Migrate (per environment, after Terraform) ----------
-  migrate-dev:
-    needs: [resolve, terraform-dev]
+  # ---------- Gates: run after Terraform per env so Migrate can run after TF when both TF and prisma change ----------
+  terraform-done-dev:
+    needs: [resolve, filter, terraform-dev]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Terraform dev finished."
+
+  terraform-done-prod:
+    needs: [resolve, filter, terraform-prod]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Terraform prod finished."
+
+  # ---------- Migrate (per environment): after Terraform when both TF and prisma change, else when only prisma changes ----------
+  migrate-dev-after-tf:
+    needs: [resolve, filter, terraform-done-dev]
     if: >
+      needs.filter.outputs.run_migrate == 'true' &&
+      needs.filter.outputs.run_terraform == 'true' &&
       contains(fromJson(needs.resolve.outputs.environments), 'dev') &&
       needs.resolve.outputs.target == 'app'
     uses: ./.github/workflows/migrate.yml
@@ -117,9 +168,43 @@ jobs:
       group: deploy-migrate-dev
       cancel-in-progress: false
 
-  migrate-prod:
-    needs: [resolve, terraform-prod]
+  migrate-dev-no-tf:
+    needs: [resolve, filter]
     if: >
+      needs.filter.outputs.run_migrate == 'true' &&
+      needs.filter.outputs.run_terraform != 'true' &&
+      contains(fromJson(needs.resolve.outputs.environments), 'dev') &&
+      needs.resolve.outputs.target == 'app'
+    uses: ./.github/workflows/migrate.yml
+    with:
+      environment: dev
+      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+    secrets: inherit
+    concurrency:
+      group: deploy-migrate-dev
+      cancel-in-progress: false
+
+  migrate-prod-after-tf:
+    needs: [resolve, filter, terraform-done-prod]
+    if: >
+      needs.filter.outputs.run_migrate == 'true' &&
+      needs.filter.outputs.run_terraform == 'true' &&
+      contains(fromJson(needs.resolve.outputs.environments), 'prod') &&
+      needs.resolve.outputs.target == 'app'
+    uses: ./.github/workflows/migrate.yml
+    with:
+      environment: prod
+      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+    secrets: inherit
+    concurrency:
+      group: deploy-migrate-prod
+      cancel-in-progress: false
+
+  migrate-prod-no-tf:
+    needs: [resolve, filter]
+    if: >
+      needs.filter.outputs.run_migrate == 'true' &&
+      needs.filter.outputs.run_terraform != 'true' &&
       contains(fromJson(needs.resolve.outputs.environments), 'prod') &&
       needs.resolve.outputs.target == 'app'
     uses: ./.github/workflows/migrate.yml

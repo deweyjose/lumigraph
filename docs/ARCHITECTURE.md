@@ -44,6 +44,9 @@ Lumigraph is a multi-user astrophotography platform for:
 - Tracks downloads
 - Provides public content endpoints
 
+### Service and repository layers
+Route handlers do not call the database directly. They validate input (e.g. with Zod), call **service** modules in `apps/web/src/server/services/`, and return responses. Services contain business logic (ownership checks, visibility rules) and call **repository** modules in `apps/web/src/server/repo/`. Repositories perform all Prisma access; they receive a `PrismaClient` (from `getPrisma()` in `@lumigraph/db`) so that services can reuse the same client and, when needed, run transactions. No business logic lives in route handlers or in repositories.
+
 ### Data (DB)
 - Stores metadata and relationships:
   - users

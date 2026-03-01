@@ -15,7 +15,12 @@ const providers = [
     ? [Google]
     : []),
   ...(process.env.EMAIL_SERVER && process.env.EMAIL_FROM
-    ? [Nodemailer({ server: process.env.EMAIL_SERVER, from: process.env.EMAIL_FROM })]
+    ? [
+        Nodemailer({
+          server: process.env.EMAIL_SERVER,
+          from: process.env.EMAIL_FROM,
+        }),
+      ]
     : []),
   Credentials({
     id: "credentials",
@@ -33,7 +38,10 @@ const providers = [
       });
       const user = row as typeof row & { passwordHash?: string | null };
       if (!user?.passwordHash) return null;
-      const valid = await verifyPassword(user.passwordHash, credentials.password as string);
+      const valid = await verifyPassword(
+        user.passwordHash,
+        credentials.password as string
+      );
       if (!valid) return null;
       return {
         id: user.id,

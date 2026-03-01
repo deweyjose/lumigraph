@@ -1,0 +1,3 @@
+# Build output - ignore when running from this package
+.next
+out

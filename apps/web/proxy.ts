@@ -5,7 +5,9 @@ import authConfig from "./auth.config";
 const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
-  const isProtected = req.nextUrl.pathname.startsWith("/dashboard") || req.nextUrl.pathname.startsWith("/posts");
+  const isProtected =
+    req.nextUrl.pathname.startsWith("/dashboard") ||
+    req.nextUrl.pathname.startsWith("/posts");
   if (isProtected && !req.auth) {
     const signInUrl = new URL("/auth/signin", req.nextUrl.origin);
     signInUrl.searchParams.set("callbackUrl", req.nextUrl.href);
