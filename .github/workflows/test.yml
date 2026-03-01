@@ -1,0 +1,50 @@
+# Unit and integration tests. Invoked by Deploy orchestrator.
+# Runs in parallel with Build; both must pass for the workflow to succeed.
+name: Test
+
+on:
+  workflow_call:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Unit tests
+        run: pnpm test
+
+  integration:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Start Postgres and run integration tests
+        run: |
+          docker compose up -d postgres
+          docker compose run --rm integration
+
+      - name: Teardown
+        if: always()
+        run: docker compose down

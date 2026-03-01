@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { registerWithPassword } from "../../../../src/server/user";
+import { registerWithPassword } from "../../../../src/server/services/user";
 
 const RegisterBodySchema = z.object({
   email: z.string().email(),

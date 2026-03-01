@@ -1,6 +1,6 @@
 # ENGINEERING.md — Lumigraph
 Version: 0.1  
-Last updated: 2026-02-15
+Last updated: 2026-03-01
 
 ## 0) Engineering Principles (Guardrails)
 - Prefer boring tech. Optimize for maintainability.
@@ -129,10 +129,30 @@ pnpm dev
 - `pnpm db:migrate` — apply Prisma migrations (requires Postgres running and `DATABASE_URL` in root `.env`)
 - `pnpm dev:db` — start Postgres (docker compose up -d), wait for ready, then run migrations
 - `pnpm lint` — lint
-- `pnpm test` — tests
+- `pnpm test` — unit tests
+- `pnpm test:integration` — integration tests (requires Postgres; use when DB is already up)
+- `pnpm test:integration:docker` — run integration tests via docker-compose (starts Postgres if needed, then runs tests in a container)
+
+### Integration tests (docker-compose)
+
+To run integration tests in the same way as CI (with Postgres in Docker):
+
+```bash
+docker compose up -d postgres   # if not already up
+docker compose run --rm integration
+```
+
+Or use the convenience script:
+
+```bash
+pnpm test:integration:docker
+```
+
+The integration service installs dependencies, generates the Prisma client, applies migrations, and runs the vitest integration projects (`db-integration`, `web-integration`). It uses the same `docker-compose.yml` and `DATABASE_URL` as local dev.
 
 ## 6) Testing Strategy (MVP)
 - Unit test validation + permission checks
+- Integration tests (vitest) against real Postgres via docker-compose; same flow locally and in CI
 - Smoke test upload presign + artifact registration
 - Playwright later for E2E
 
