@@ -13,13 +13,11 @@ const visibilityConfig: Record<
   },
   PRIVATE: {
     label: "Private",
-    className:
-      "bg-muted text-muted-foreground border border-border",
+    className: "bg-muted text-muted-foreground border border-border",
   },
   UNLISTED: {
     label: "Unlisted",
-    className:
-      "bg-secondary text-secondary-foreground border border-border",
+    className: "bg-secondary text-secondary-foreground border border-border",
   },
   PUBLIC: {
     label: "Public",

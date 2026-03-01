@@ -1,10 +1,5 @@
 import Link from "next/link";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VisibilityBadge, type PostVisibility } from "./visibility-badge";
 import { ImageIcon } from "lucide-react";
 
@@ -28,9 +23,10 @@ type PostCardProps = {
 
 export function PostCard({ post, hrefBase = "/posts" }: PostCardProps) {
   const href = `${hrefBase}/${post.slug}`;
-  const subtitle = [post.targetName, post.captureDate?.toLocaleDateString()]
-    .filter(Boolean)
-    .join(" · ") || undefined;
+  const subtitle =
+    [post.targetName, post.captureDate?.toLocaleDateString()]
+      .filter(Boolean)
+      .join(" · ") || undefined;
 
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md">
@@ -41,7 +37,6 @@ export function PostCard({ post, hrefBase = "/posts" }: PostCardProps) {
       >
         <div className="relative aspect-video w-full bg-muted/50">
           {post.finalImageThumbUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- thumb URLs are external (S3/presigned)
             <img
               src={post.finalImageThumbUrl}
               alt=""
