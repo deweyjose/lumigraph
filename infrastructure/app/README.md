@@ -7,7 +7,7 @@ This Terraform stack creates app-facing infrastructure for Lumigraph:
 - RDS Proxy
 - Vercel OIDC provider + IAM role for `rds-db:connect`
 
-## Execution models
+## Execution model
 
 - `infrastructure/app` is executed in GitHub Actions only.
 - Do not run local plan/apply for this stack.
