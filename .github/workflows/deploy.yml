@@ -73,7 +73,7 @@ jobs:
   terraform-dev:
     needs: resolve
     if: contains(fromJson(needs.resolve.outputs.environments), 'dev')
-    uses: ./.github/workflows/terraform-reusable.yml
+    uses: ./.github/workflows/terraform.yml
     with:
       environment: dev
       target: ${{ needs.resolve.outputs.target }}
@@ -86,7 +86,7 @@ jobs:
   terraform-prod:
     needs: resolve
     if: contains(fromJson(needs.resolve.outputs.environments), 'prod')
-    uses: ./.github/workflows/terraform-reusable.yml
+    uses: ./.github/workflows/terraform.yml
     with:
       environment: prod
       target: ${{ needs.resolve.outputs.target }}
@@ -102,7 +102,7 @@ jobs:
     if: >
       contains(fromJson(needs.resolve.outputs.environments), 'dev') &&
       needs.resolve.outputs.target == 'app'
-    uses: ./.github/workflows/migrate-reusable.yml
+    uses: ./.github/workflows/migrate.yml
     with:
       environment: dev
       apply: ${{ fromJson(needs.resolve.outputs.apply) }}
@@ -116,7 +116,7 @@ jobs:
     if: >
       contains(fromJson(needs.resolve.outputs.environments), 'prod') &&
       needs.resolve.outputs.target == 'app'
-    uses: ./.github/workflows/migrate-reusable.yml
+    uses: ./.github/workflows/migrate.yml
     with:
       environment: prod
       apply: ${{ fromJson(needs.resolve.outputs.apply) }}
