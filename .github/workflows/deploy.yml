@@ -48,6 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
     outputs:
       run_terraform: ${{ steps.outputs.outputs.run_terraform }}
       run_migrate: ${{ steps.outputs.outputs.run_migrate }}
