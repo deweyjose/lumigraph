@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
-import {
-  update,
-  InvalidImagePostError,
-} from "@/server/services/dataset";
+import { update, InvalidImagePostError } from "@/server/services/dataset";
 
 const DatasetVisibility = z.enum(["PRIVATE", "UNLISTED", "PUBLIC"]);
 const IdParamSchema = z.object({ id: z.string().uuid() });
@@ -75,7 +72,10 @@ export async function PUT(
     const dataset = await update(session.user.id, id, updateData);
     if (!dataset) {
       return NextResponse.json(
-        { code: "NOT_FOUND", message: "Dataset not found or you do not own it" },
+        {
+          code: "NOT_FOUND",
+          message: "Dataset not found or you do not own it",
+        },
         { status: 404 }
       );
     }
