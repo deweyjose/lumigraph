@@ -2,17 +2,39 @@
 
 ## Local development
 
-Start Postgres with Docker:
+### Get the database running
 
-```bash
-docker compose up -d
-```
+1. **Start Postgres** (matches `docker-compose.yml`: Postgres 16, user `lumigraph`, password `lumigraph`, database `lumigraph_db`, port 5432):
+   ```bash
+   docker compose up -d
+   ```
 
-Copy `.env.example` to `.env` and run migrations:
+2. **Create env files** from examples:
+   ```bash
+   cp .env.example .env
+   cp apps/web/.env.example apps/web/.env
+   ```
+   - Root `.env` — Prisma CLI (`pnpm db:migrate`). Only needs `DATABASE_URL`.
+   - `apps/web/.env` — Next.js app (`pnpm dev`). Needs `DATABASE_URL`, `AUTH_SECRET`, and optionally OAuth/email/AWS vars.
+   - Generate `AUTH_SECRET`: `openssl rand -base64 33`
 
-```bash
-pnpm db:migrate
-```
+3. **Apply migrations**:
+   ```bash
+   pnpm db:migrate
+   ```
+   Or in one step (start Postgres + migrate):
+   ```bash
+   pnpm dev:db
+   ```
+
+4. **Run the app**:
+   ```bash
+   pnpm dev
+   ```
+
+5. **Auth (Auth.js v5)**: `AUTH_SECRET` must be set in `apps/web/.env` (see step 2). Optionally set `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET` and `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` for OAuth providers.
+
+6. **Lint**: ESLint uses the flat config in `apps/web/eslint.config.mjs`. Run `pnpm lint` from the repo root. If your editor linter points at the repo root, ensure it picks up `apps/web` (or run ESLint from `apps/web`).
 
 Infrastructure is managed with Terraform and deployed via GitHub Actions using OIDC (no long-lived AWS keys).
 

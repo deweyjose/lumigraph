@@ -89,13 +89,47 @@ Public can:
 - Parse/validate at boundary, then pass typed objects inward.
 
 ## 5) Local Development
-- Provide `.env.example`
-- Provide `docker compose up` for Postgres (if not using managed locally)
-- Provide scripts:
-  - `pnpm dev`
-  - `pnpm db:migrate`
-  - `pnpm lint`
-  - `pnpm test`
+
+### Database (local)
+
+Postgres runs via Docker. The app connects with `DATABASE_URL` when not on Vercel (see `packages/db` `getPrisma()`). Deployed/Vercel uses IAM auth and is unchanged.
+
+**One-time setup**
+
+1. Start Postgres:
+   ```bash
+   docker compose up -d
+   ```
+2. Create env files from examples:
+   ```bash
+   cp .env.example .env
+   cp apps/web/.env.example apps/web/.env
+   ```
+   - Root `.env` — used by Prisma CLI (`pnpm db:migrate`, `pnpm db:studio`). Only needs `DATABASE_URL`.
+   - `apps/web/.env` — used by Next.js (`pnpm dev`, `pnpm build`). Needs `DATABASE_URL`, `AUTH_SECRET`, and optionally OAuth/email/AWS vars.
+   - Generate `AUTH_SECRET` with `openssl rand -base64 33`.
+3. Apply migrations:
+   ```bash
+   pnpm db:migrate
+   ```
+   Or use the convenience script that starts Postgres and runs migrations:
+   ```bash
+   pnpm dev:db
+   ```
+
+**Run the app**
+
+```bash
+pnpm dev
+```
+
+**Scripts**
+
+- `pnpm dev` — start Next.js dev server
+- `pnpm db:migrate` — apply Prisma migrations (requires Postgres running and `DATABASE_URL` in root `.env`)
+- `pnpm dev:db` — start Postgres (docker compose up -d), wait for ready, then run migrations
+- `pnpm lint` — lint
+- `pnpm test` — tests
 
 ## 6) Testing Strategy (MVP)
 - Unit test validation + permission checks

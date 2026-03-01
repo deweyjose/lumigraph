@@ -78,9 +78,63 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 
 ---
 
+## 2026-03-01 — Auth model: password on User, reset via VerificationToken
+
+**Decision:** Store an optional `password_hash` on the User model (no separate table). Use the existing VerificationToken table for password-reset tokens with a namespaced identifier (`password-reset:${userId}`). Use Argon2 for password hashing.  
+**Context:** MVP needs email+password sign-in and email-based password reset. NextAuth has no built-in password reset; we implement it. One User can have both OAuth Account(s) and a password.  
+**Alternatives:** Separate `password_credentials` table (extra join, no benefit for single-password-per-user); bcrypt (Argon2 is the current OWASP-recommended default for new code); dedicated reset-token table (we reuse VerificationToken to avoid another migration and keep one token store).  
+**Consequences:** User table gains optional `password_hash`; password reset flow creates/consumes VerificationToken rows; hashing and verification live in a small server module used by the Credentials provider and reset API.
+
+---
+
 ## 2026-02-28 — M1-15 Self-hosted GHA runner in bootstrap
 
 **Decision:** Deploy the self-hosted GitHub Actions runner EC2 instance in `infrastructure/bootstrap` rather than `infrastructure/app`.  
 **Context:** The runner is Tier 0 / CI infrastructure — it runs the pipelines that deploy the app stack and execute migrations. Placing it in the app stack creates a chicken-and-egg problem: the runner must exist before GHA can target it, but the app stack is deployed by GHA. The runner also needs direct VPC access to the RDS instance (bypassing the IAM-only proxy) for password-based migration connections.  
 **Alternatives:** Place the runner in `infrastructure/app` (circular dependency, requires manual first apply); use a public DB endpoint (security risk).  
 **Consequences:** Bootstrap is applied locally (existing pattern). The app stack receives only a `runner_security_group_id` variable and one DB SG ingress rule. Runner labels are environment-specific (`lumigraph-runner-dev`, `lumigraph-runner-prod`) so the migrate workflow targets the correct runner per environment. One GitHub PAT stored in Secrets Manager per AWS account.
+
+---
+
+## 2026-03-01 — Local dev database: Docker Postgres + DATABASE_URL
+
+**Decision:** Local development uses the existing `docker-compose.yml` (Postgres 16, user `lumigraph`, password `lumigraph`, database `lumigraph_db`, port 5432). The app connects via `DATABASE_URL` when not on Vercel; no IAM or RDS-specific setup.  
+**Context:** Developers need a one-command way to run Postgres and apply migrations. The same Prisma migrations run locally (as `lumigraph`, which has full privileges) and in CI (as `lumigraph_admin` on RDS); RDS-only steps in migrations are guarded with `IF EXISTS (rds_iam, lumigraph_admin)` so they are no-ops locally.  
+**Alternatives:** Separate local migration path; managed local Postgres.  
+**Consequences:** Connection string is documented as `postgresql://lumigraph:lumigraph@localhost:5432/lumigraph_db`. Root script `pnpm dev:db` starts Postgres and runs migrations. README and ENGINEERING.md describe the local DB workflow.
+
+---
+
+## 2026-03-01 — Upgrade to Next.js 16
+
+**Decision:** Upgrade the web app from Next.js 14 to Next.js 16 (React 19, Turbopack, latest ESLint flat config).  
+**Context:** Stay on supported Next.js and React versions; benefit from Turbopack and improved tooling.  
+**Changes:** (1) NextAuth API route handler updated for async `params` (Next 15+). (2) `next.config.js`: `experimental.typedRoutes` moved to top-level `typedRoutes: false`. (3) Middleware: explicit default export wrapping next-auth (type assertion for next-auth’s `NextRequestWithAuth`). (4) Lint: `next lint` removed in Next 16 — use ESLint 9 flat config; added `eslint.config.mjs`, removed `.eslintrc.json`, lint script runs `eslint . --max-warnings 0`.  
+**Consequences:** Build and typecheck pass. Next-auth and eslint-config-next report peer dependency warnings (next-auth targets Next 14; we accept the mismatch for now). Middleware deprecation warning points to future migration to `proxy.ts`.
+
+---
+
+## 2026-03-01 — Auth.js v5, proxy, and env
+
+**Decision:** Upgrade to Auth.js v5 (next-auth@5 beta), migrate from `middleware.ts` to `proxy.ts`, use `AUTH_*` env vars exclusively (no legacy fallback).  
+**Context:** Align with Next.js 16 (proxy convention), resolve peer dependency warnings, and use latest Auth.js APIs. New project — no backwards-compatibility needed.  
+**Changes:** (1) Replaced next-auth v4 with v5; use `auth.config.ts` (edge-safe) and `auth.ts` (full config with Credentials + Nodemailer + lazy Prisma adapter). (2) Lazy Prisma adapter in `src/server/lazy-prisma-adapter.ts` so Vercel IAM auth (`getPrisma()`) works with the sync adapter API. (3) API route exports `handlers` from `auth`. (4) Removed `middleware.ts`; added `proxy.ts` using `auth()` from auth.config for `/dashboard` and `/posts`. (5) `.env.example` and README document `AUTH_SECRET` and `AUTH_*` provider vars.  
+**Consequences:** Session and sign-in flows unchanged. Only `AUTH_*` env vars are supported (no `NEXTAUTH_*`, `GITHUB_ID`, or `GOOGLE_CLIENT_ID` fallback). ESLint flat config remains in `apps/web/eslint.config.mjs`.
+
+---
+
+## 2026-03-01 — JWT sessions (Auth.js Credentials constraint)
+
+**Decision:** Use JWT session strategy (`session: { strategy: "jwt" }`) for all auth providers. Remove the `Session` Prisma model and drop the `sessions` table.  
+**Context:** Auth.js v5 does not support database sessions with the Credentials provider (`UnsupportedStrategy` error). Since we require email+password sign-in for MVP, JWT is the only option. The `sessions` table was never written to under JWT strategy — dead schema.  
+**Alternatives:** Drop Credentials provider and use magic-link-only (would allow database sessions but worse UX for MVP); keep the unused Session model for future optionality (zero cost but misleading).  
+**Consequences:** Sessions cannot be revoked server-side. If "sign out everywhere" or instant ban enforcement is needed later, we would add a token blocklist or transition auth methods. The `jwt` and `session` callbacks in `auth.config.ts` propagate `user.id` into the session object. Session-related adapter methods removed from the lazy Prisma adapter.
+
+---
+
+## 2026-03-01 — Separate .env files per package
+
+**Decision:** Use separate `.env` files: root `.env` for Prisma CLI, `apps/web/.env` for the Next.js app. No symlinks.  
+**Context:** Next.js loads `.env` from its own project root (`apps/web/`), not the monorepo root. A symlink from `apps/web/.env → ../../.env` was fragile and forced all vars into one file. The Prisma CLI only needs `DATABASE_URL`; the Next.js app needs `DATABASE_URL` plus auth, AWS, and email vars.  
+**Alternatives:** Symlink (implicit, easy to miss); single root `.env` with dotenv-cli or turborepo env passthrough (extra tooling).  
+**Consequences:** Each package owns its env. Some `DATABASE_URL` duplication across both files (intentional — they could diverge, e.g., Prisma CLI as admin vs app as `app_user`). Each has its own `.env.example`. Onboarding docs updated.

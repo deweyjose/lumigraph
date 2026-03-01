@@ -1,13 +1,3 @@
-import { NextRequest } from "next/server";
-import NextAuth from "next-auth";
-import { getAuthOptions } from "../../../../src/server/auth";
+import { handlers } from "auth";
 
-async function handler(
-  req: NextRequest,
-  ctx: { params: { nextauth: string[] } }
-) {
-  const options = await getAuthOptions();
-  return NextAuth(req, ctx, options);
-}
-
-export { handler as GET, handler as POST };
+export const { GET, POST } = handlers;

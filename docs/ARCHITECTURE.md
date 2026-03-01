@@ -14,12 +14,12 @@ Lumigraph is a multi-user astrophotography platform for:
 
 ## 1) System Overview (Phase 1)
 ### Components
-- Web App: Next.js (App Router)
+- Web App: Next.js 16 (App Router)
 - API: Next.js route handlers (initially), evolving to service modules
 - DB: AWS RDS Postgres (direct connection with IAM auth; RDS Proxy provisioned for future use)
 - Storage: S3 for artifacts + images; CDN (CloudFront) optional early
 - AI: external LLM provider (TBD); used for writing assistance (never auto-publish)
-- Auth: NextAuth (minimal to start)
+- Auth: Auth.js v5 (next-auth@5), JWT sessions, Prisma adapter
 
 ### Core Flows
 1) Sign up / sign in
@@ -111,7 +111,11 @@ See docs/PRODUCT.md for canonical definitions.
 - GET /api/health (DB connectivity check, public, no auth)
 
 ### Auth
-- handled by NextAuth routes
+- NextAuth: `/api/auth/*` (sign-in, callbacks, session).
+- Credentials (email + password): same NextAuth sign-in; no separate route.
+- Registration: `POST /api/auth/register` (email, password, optional name).
+- Password reset (custom, not built into NextAuth): `POST /api/auth/forgot-password` (request reset email), `POST /api/auth/reset-password` (submit new password with token). Reset link: `/auth/reset-password?token=...`.
+- Auth UI routes: `/auth/signin`, `/auth/signup`, `/auth/forgot-password`, `/auth/reset-password` (token in query). Cross-links between sign-in and sign-up; “Forgot password?” from sign-in.
 
 ### Image Posts
 - POST /api/image-posts
@@ -131,7 +135,38 @@ See docs/PRODUCT.md for canonical definitions.
 - POST /api/downloads (track event)
 - GET /api/artifacts/:id/download (issues signed URL + tracks)
 
-## 7) S3 Layout
+## 7) Authentication Model (Auth.js v5 + Prisma)
+
+Lumigraph uses Auth.js v5 (next-auth@5) with the Prisma adapter and JWT sessions. The following concepts are important for anyone working on auth or user identity.
+
+### User vs Account
+
+- **User**: The person. One row per human in `users` (id, email, name, image, optional password_hash, etc.). All content (image posts, datasets) is owned by a User.
+- **Account**: One link between a User and an external auth method. Stored in `accounts`. A single User can have multiple Accounts—e.g. the same person signs in with Google and GitHub; both OAuth identities map to one User (same email or after linking).
+- **Why both?** NextAuth separates “who the user is” (User) from “how they proved it” (Account). This allows one user to have several sign-in methods without duplicate profiles or content.
+
+### VerificationToken
+
+- **Purpose**: One-time, time-limited tokens used by NextAuth for **email magic-link sign-in**. When a user requests a sign-in link, NextAuth creates a VerificationToken; the link in the email includes the token; clicking it verifies and signs the user in, then the token is consumed.
+- **Schema**: `identifier` (e.g. email or a namespaced string), `token`, `expires`. Unique on `(identifier, token)`.
+- **Reuse for password reset**: We reuse the same table for **password-reset tokens** by using a namespaced identifier (e.g. `password-reset:${userId}`). The reset flow creates a token, emails a link, and on submit we verify the token, update the user’s password, and delete the token. NextAuth does not provide built-in password reset; we implement it ourselves using this pattern.
+
+### Session strategy (JWT)
+
+- Auth.js v5 **does not support database sessions with the Credentials provider** (`UnsupportedStrategy` error). Since we use email+password sign-in, we must use JWT sessions.
+- The `jwt` and `session` callbacks in `auth.config.ts` attach `user.id` to the token and propagate it to the session object so server code can identify the user.
+- There is no `sessions` table in the database. The `Session` model was removed from the Prisma schema since JWT sessions are purely cookie-based.
+- **Trade-off**: JWTs cannot be revoked server-side. If we need "sign out everywhere" or instant ban enforcement, we would add a token blocklist or switch auth methods.
+
+### Same user, multiple sign-in methods
+
+- A User can have both **Accounts** (e.g. Google, GitHub) and a **password** (stored as `password_hash` on User). Sign-in can be via any configured method; same email maps to the same User.
+
+### Schema note
+
+- **Keep** User, Account, and VerificationToken as-is. They match Auth.js's expected model and support OAuth, magic link, credentials, and our custom password-reset flow without extra tables. Session model removed (JWT sessions don't use it).
+
+## 8) S3 Layout
 Suggested keys (do not hardcode; create helper functions):
 - `users/{userId}/images/{imagePostId}/final/original.ext`
 - `users/{userId}/images/{imagePostId}/final/web.jpg`
@@ -139,7 +174,7 @@ Suggested keys (do not hardcode; create helper functions):
 - `users/{userId}/datasets/{datasetId}/{filename}`
 - (Phase 2) `users/{userId}/workflows/{workflowId}/{filename}`
 
-## 8) Background Jobs (Deferred)
+## 9) Background Jobs (Deferred)
 Not required for MVP but plan for:
 - image derivative generation (thumb/web)
 - FITS header parsing
@@ -150,7 +185,7 @@ Implementation options:
 - AWS Lambda + SQS
 - Dedicated worker (later)
 
-## 9) Technology Choices (initial defaults)
+## 10) Technology Choices (initial defaults)
 - Next.js App Router
 - TypeScript strict mode
 - Postgres + migrations
@@ -158,7 +193,7 @@ Implementation options:
 - Zod for validation
 - No “fat route handlers”: keep logic in services.
 
-## 10) Future Architecture (Phase 2+)
+## 11) Future Architecture (Phase 2+)
 ### Workflows
 - Structured workflow graph with step types
 - Step guardrails must be machine-readable

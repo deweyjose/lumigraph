@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:status": "prisma migrate status",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "dev:db": "docker compose up -d && sleep 5 && pnpm db:migrate"
   },
   "devDependencies": {
     "@prisma/client": "5.22.0",
