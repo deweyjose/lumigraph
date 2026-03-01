@@ -4,9 +4,17 @@
   "version": "0.0.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run --workspace ../../vitest.workspace.mts --project db",
+    "test:integration": "vitest run --workspace ../../vitest.workspace.mts --project db-integration --passWithNoTests"
+  },
   "dependencies": {
     "@aws-sdk/rds-signer": "^3.1000.0",
     "@prisma/client": "5.22.0",
     "@vercel/oidc-aws-credentials-provider": "^3.0.7"
+  },
+  "devDependencies": {
+    "typescript": "5.4.5",
+    "vitest": "1.6.0"
   }
 }
