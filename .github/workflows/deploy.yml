@@ -138,11 +138,25 @@ jobs:
       group: deploy-terraform-prod
       cancel-in-progress: false
 
-  # ---------- Migrate (per environment); runs when prisma/** changes (no Terraform dependency) ----------
-  migrate-dev:
-    needs: [resolve, filter]
+  # ---------- Gates: run after Terraform per env so Migrate can run after TF when both TF and prisma change ----------
+  terraform-done-dev:
+    needs: [resolve, filter, terraform-dev]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Terraform dev finished."
+
+  terraform-done-prod:
+    needs: [resolve, filter, terraform-prod]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Terraform prod finished."
+
+  # ---------- Migrate (per environment): after Terraform when both TF and prisma change, else when only prisma changes ----------
+  migrate-dev-after-tf:
+    needs: [resolve, filter, terraform-done-dev]
     if: >
       needs.filter.outputs.run_migrate == 'true' &&
+      needs.filter.outputs.run_terraform == 'true' &&
       contains(fromJson(needs.resolve.outputs.environments), 'dev') &&
       needs.resolve.outputs.target == 'app'
     uses: ./.github/workflows/migrate.yml
@@ -154,10 +168,43 @@ jobs:
       group: deploy-migrate-dev
       cancel-in-progress: false
 
-  migrate-prod:
+  migrate-dev-no-tf:
     needs: [resolve, filter]
     if: >
       needs.filter.outputs.run_migrate == 'true' &&
+      needs.filter.outputs.run_terraform != 'true' &&
+      contains(fromJson(needs.resolve.outputs.environments), 'dev') &&
+      needs.resolve.outputs.target == 'app'
+    uses: ./.github/workflows/migrate.yml
+    with:
+      environment: dev
+      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+    secrets: inherit
+    concurrency:
+      group: deploy-migrate-dev
+      cancel-in-progress: false
+
+  migrate-prod-after-tf:
+    needs: [resolve, filter, terraform-done-prod]
+    if: >
+      needs.filter.outputs.run_migrate == 'true' &&
+      needs.filter.outputs.run_terraform == 'true' &&
+      contains(fromJson(needs.resolve.outputs.environments), 'prod') &&
+      needs.resolve.outputs.target == 'app'
+    uses: ./.github/workflows/migrate.yml
+    with:
+      environment: prod
+      apply: ${{ fromJson(needs.resolve.outputs.apply) }}
+    secrets: inherit
+    concurrency:
+      group: deploy-migrate-prod
+      cancel-in-progress: false
+
+  migrate-prod-no-tf:
+    needs: [resolve, filter]
+    if: >
+      needs.filter.outputs.run_migrate == 'true' &&
+      needs.filter.outputs.run_terraform != 'true' &&
       contains(fromJson(needs.resolve.outputs.environments), 'prod') &&
       needs.resolve.outputs.target == 'app'
     uses: ./.github/workflows/migrate.yml
