@@ -111,12 +111,6 @@ variable "db_proxy_idle_client_timeout_seconds" {
   default     = 1800
 }
 
-variable "db_direct_allowed_cidrs" {
-  description = "CIDRs allowed to connect directly to the RDS instance (bypassing proxy). Used for Vercel serverless functions which cannot reach the VPC-only proxy."
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
-}
-
 variable "proxy_allowed_cidrs" {
   description = "CIDRs allowed to connect to the RDS Proxy endpoint."
   type        = list(string)
