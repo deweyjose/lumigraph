@@ -73,6 +73,9 @@ jobs:
   terraform-dev:
     needs: resolve
     if: contains(fromJson(needs.resolve.outputs.environments), 'dev')
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/terraform.yml
     with:
       environment: dev
@@ -86,6 +89,9 @@ jobs:
   terraform-prod:
     needs: resolve
     if: contains(fromJson(needs.resolve.outputs.environments), 'prod')
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/terraform.yml
     with:
       environment: prod
