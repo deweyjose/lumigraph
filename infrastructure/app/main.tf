@@ -195,19 +195,19 @@ resource "aws_vpc_security_group_ingress_rule" "proxy_cidrs" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier                          = "${var.project_name}-postgres-${var.env}"
-  engine                              = "postgres"
-  engine_version                      = var.db_engine_version
-  instance_class                      = var.db_instance_class
-  db_name                             = var.db_name
-  username                            = var.db_master_username
-  manage_master_user_password         = true
-  master_user_secret_kms_key_id       = data.aws_kms_key.secretsmanager.arn
-  allocated_storage                   = var.db_allocated_storage_gb
-  max_allocated_storage               = var.db_max_allocated_storage_gb
-  port                                = var.db_port
-  db_subnet_group_name                = aws_db_subnet_group.main.name
-  vpc_security_group_ids              = [aws_security_group.db.id]
+  identifier                    = "${var.project_name}-postgres-${var.env}"
+  engine                        = "postgres"
+  engine_version                = var.db_engine_version
+  instance_class                = var.db_instance_class
+  db_name                       = var.db_name
+  username                      = var.db_master_username
+  manage_master_user_password   = true
+  master_user_secret_kms_key_id = data.aws_kms_key.secretsmanager.arn
+  allocated_storage             = var.db_allocated_storage_gb
+  max_allocated_storage         = var.db_max_allocated_storage_gb
+  port                          = var.db_port
+  db_subnet_group_name          = aws_db_subnet_group.main.name
+  vpc_security_group_ids        = [aws_security_group.db.id]
   # publicly_accessible                 = !local.is_prod
   # Vercel connects directly to the RDS instance (RDS Proxy is VPC-only).
   # IAM auth + TLS enforced; tighten with Vercel static IPs on Pro upgrade.
