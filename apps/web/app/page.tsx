@@ -24,7 +24,7 @@ export default function HomePage() {
             <Link href="/gallery">Browse Gallery</Link>
           </Button>
           <Button asChild variant="secondary" size="lg">
-            <Link href="/api/auth/signin">Get Started</Link>
+            <Link href="/auth/signin">Get Started</Link>
           </Button>
         </div>
       </section>

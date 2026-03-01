@@ -2,17 +2,36 @@
 
 ## Local development
 
-Start Postgres with Docker:
+### Get the database running
 
-```bash
-docker compose up -d
-```
+1. **Start Postgres** (matches `docker-compose.yml`: Postgres 16, user `lumigraph`, password `lumigraph`, database `lumigraph_db`, port 5432):
+   ```bash
+   docker compose up -d
+   ```
 
-Copy `.env.example` to `.env` and run migrations:
+2. **Set `DATABASE_URL`** so the app and Prisma can connect locally. Connection string that matches Docker:
+   ```bash
+   postgresql://lumigraph:lumigraph@localhost:5432/lumigraph_db
+   ```
+   Copy the example env and set it:
+   ```bash
+   cp .env.example .env
+   ```
+   The example already contains this `DATABASE_URL`. Ensure the Next.js app can read it: put a `.env` in the repo root (for `pnpm db:migrate`) and in `apps/web` for `pnpm dev`, e.g. `cp .env apps/web/.env` or `ln -sf ../../.env apps/web/.env`.
 
-```bash
-pnpm db:migrate
-```
+3. **Apply migrations**:
+   ```bash
+   pnpm db:migrate
+   ```
+   Or in one step (start Postgres + migrate):
+   ```bash
+   pnpm dev:db
+   ```
+
+4. **Run the app**:
+   ```bash
+   pnpm dev
+   ```
 
 Infrastructure is managed with Terraform and deployed via GitHub Actions using OIDC (no long-lived AWS keys).
 

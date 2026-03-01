@@ -78,9 +78,27 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 
 ---
 
+## 2026-03-01 — Auth model: password on User, reset via VerificationToken
+
+**Decision:** Store an optional `password_hash` on the User model (no separate table). Use the existing VerificationToken table for password-reset tokens with a namespaced identifier (`password-reset:${userId}`). Use Argon2 for password hashing.  
+**Context:** MVP needs email+password sign-in and email-based password reset. NextAuth has no built-in password reset; we implement it. One User can have both OAuth Account(s) and a password.  
+**Alternatives:** Separate `password_credentials` table (extra join, no benefit for single-password-per-user); bcrypt (Argon2 is the current OWASP-recommended default for new code); dedicated reset-token table (we reuse VerificationToken to avoid another migration and keep one token store).  
+**Consequences:** User table gains optional `password_hash`; password reset flow creates/consumes VerificationToken rows; hashing and verification live in a small server module used by the Credentials provider and reset API.
+
+---
+
 ## 2026-02-28 — M1-15 Self-hosted GHA runner in bootstrap
 
 **Decision:** Deploy the self-hosted GitHub Actions runner EC2 instance in `infrastructure/bootstrap` rather than `infrastructure/app`.  
 **Context:** The runner is Tier 0 / CI infrastructure — it runs the pipelines that deploy the app stack and execute migrations. Placing it in the app stack creates a chicken-and-egg problem: the runner must exist before GHA can target it, but the app stack is deployed by GHA. The runner also needs direct VPC access to the RDS instance (bypassing the IAM-only proxy) for password-based migration connections.  
 **Alternatives:** Place the runner in `infrastructure/app` (circular dependency, requires manual first apply); use a public DB endpoint (security risk).  
 **Consequences:** Bootstrap is applied locally (existing pattern). The app stack receives only a `runner_security_group_id` variable and one DB SG ingress rule. Runner labels are environment-specific (`lumigraph-runner-dev`, `lumigraph-runner-prod`) so the migrate workflow targets the correct runner per environment. One GitHub PAT stored in Secrets Manager per AWS account.
+
+---
+
+## 2026-03-01 — Local dev database: Docker Postgres + DATABASE_URL
+
+**Decision:** Local development uses the existing `docker-compose.yml` (Postgres 16, user `lumigraph`, password `lumigraph`, database `lumigraph_db`, port 5432). The app connects via `DATABASE_URL` when not on Vercel; no IAM or RDS-specific setup.  
+**Context:** Developers need a one-command way to run Postgres and apply migrations. The same Prisma migrations run locally (as `lumigraph`, which has full privileges) and in CI (as `lumigraph_admin` on RDS); RDS-only steps in migrations are guarded with `IF EXISTS (rds_iam, lumigraph_admin)` so they are no-ops locally.  
+**Alternatives:** Separate local migration path; managed local Postgres.  
+**Consequences:** Connection string is documented as `postgresql://lumigraph:lumigraph@localhost:5432/lumigraph_db`. Root script `pnpm dev:db` starts Postgres and runs migrations. README and ENGINEERING.md describe the local DB workflow.

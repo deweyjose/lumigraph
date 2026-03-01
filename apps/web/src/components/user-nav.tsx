@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -34,8 +35,8 @@ export function UserNav() {
 
   if (!session?.user) {
     return (
-      <Button variant="secondary" size="sm" onClick={() => signIn()}>
-        Sign in
+      <Button variant="secondary" size="sm" asChild>
+        <Link href="/auth/signin">Sign in</Link>
       </Button>
     );
   }

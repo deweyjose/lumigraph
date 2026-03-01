@@ -24,6 +24,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   Callback: "Something went wrong during sign-in.",
   OAuthAccountNotLinked:
     "This email is already linked to another sign-in method. Use your original method.",
+  undefined:
+    "No sign-in providers are configured. Add GITHUB_ID/SECRET, GOOGLE_CLIENT_ID/SECRET, or EMAIL_SERVER/FROM to your environment.",
   Default: "An unexpected error occurred.",
 };
 

@@ -2,18 +2,17 @@
 
 import { signIn, getProviders } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Telescope, Github, Mail } from "lucide-react";
+  AuthLayout,
+  AuthDivider,
+  AuthCrossLink,
+  FormField,
+  ProviderButton,
+} from "@/components/auth";
+import { Github, Mail } from "lucide-react";
 
 type Providers = Awaited<ReturnType<typeof getProviders>>;
 
@@ -40,13 +39,25 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
+
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const error = searchParams.get("error");
+  const registered = searchParams.get("registered") === "1";
+  const reset = searchParams.get("reset") === "1";
   const [providers, setProviders] = useState<Providers>(null);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [magicEmail, setMagicEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
 
   useEffect(() => {
     getProviders().then(setProviders);
@@ -58,99 +69,247 @@ function SignInContent() {
   const emailProvider = providers
     ? Object.values(providers).find((p) => p.type === "email")
     : null;
+  const hasCredentialsProvider = providers
+    ? Object.values(providers).some((p) => p.type === "credentials")
+    : false;
+  const hasNoOAuthOrEmail =
+    providers !== null &&
+    Object.keys(providers).filter((k) => providers[k]?.type !== "credentials")
+      .length === 0;
+  const isLoading = providers === null;
 
-  function handleEmailSignIn(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email) return;
-    signIn("email", { email, callbackUrl });
-    setEmailSent(true);
+  function validateCredentials(): boolean {
+    const errors: { email?: string; password?: string } = {};
+    if (!email.trim()) {
+      errors.email = "Email is required.";
+    } else if (!EMAIL_REGEX.test(email.trim())) {
+      errors.email = "Please enter a valid email address.";
+    }
+    if (!password) {
+      errors.password = "Password is required.";
+    } else if (password.length < MIN_PASSWORD_LENGTH) {
+      errors.password = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
   }
 
-  function getProviderIcon(providerId: string) {
-    switch (providerId) {
-      case "github":
-        return <Github className="mr-2 h-4 w-4" />;
-      case "google":
-        return <GoogleIcon className="mr-2 h-4 w-4" />;
-      default:
-        return null;
+  async function handleCredentialsSignIn(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validateCredentials()) return;
+    setIsSubmitting(true);
+    setFieldErrors({});
+    try {
+      const result = await signIn("credentials", {
+        email: email.trim(),
+        password,
+        callbackUrl,
+        redirect: false,
+      });
+      if (result?.error) {
+        setFieldErrors({
+          password: "Invalid email or password. Please try again.",
+        });
+      } else if (result?.url) {
+        window.location.href = result.url;
+        return;
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
+  function handleEmailSignIn(e: React.FormEvent) {
+    e.preventDefault();
+    if (!magicEmail.trim()) return;
+    signIn("email", { email: magicEmail.trim(), callbackUrl });
+    setEmailSent(true);
+  }
+
+  const errorMessage =
+    error === "OAuthAccountNotLinked"
+      ? "This email is already linked to another sign-in method. Use that method instead."
+      : error
+        ? "Something went wrong. Please try again."
+        : null;
+
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Telescope className="h-6 w-6 text-primary" />
+    <AuthLayout
+      title="Sign in to Lumigraph"
+      description="Use your email and password, or sign in with Google or GitHub. You can also use a one-time email link."
+    >
+      {registered && (
+        <div
+          className="mb-6 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground"
+          role="status"
+        >
+          Account created. Sign in below.
+        </div>
+      )}
+      {reset && (
+        <div
+          className="mb-6 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground"
+          role="status"
+        >
+          Password reset. Sign in with your new password.
+        </div>
+      )}
+      {errorMessage && (
+        <div
+          className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          {errorMessage}
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {isLoading && (
+          <div className="flex flex-col gap-4">
+            <div className="h-12 w-full animate-pulse rounded-lg bg-muted/60" />
+            <div className="h-12 w-full animate-pulse rounded-lg bg-muted/60" />
+            <div className="mt-6 h-4 w-8 animate-pulse rounded bg-muted/60" />
           </div>
-          <CardTitle className="text-2xl">Welcome to Lumigraph</CardTitle>
-          <CardDescription>
-            Sign in to publish images and share datasets
-          </CardDescription>
-          {error && (
-            <p className="text-sm text-destructive">
-              {error === "OAuthAccountNotLinked"
-                ? "This email is already associated with another sign-in method."
-                : "Something went wrong. Please try again."}
-            </p>
-          )}
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {oauthProviders.map((provider) => (
-            <Button
-              key={provider.id}
-              variant="outline"
-              className="w-full"
-              onClick={() => signIn(provider.id, { callbackUrl })}
+        )}
+
+        {!isLoading && hasCredentialsProvider && (
+          <>
+            {/* Credentials: email + password */}
+            <form
+              onSubmit={handleCredentialsSignIn}
+              className="flex flex-col gap-4"
+              noValidate
             >
-              {getProviderIcon(provider.id)}
-              Continue with {provider.name}
-            </Button>
-          ))}
-
-          {emailProvider && oauthProviders.length > 0 && (
-            <div className="relative">
-              <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                or
-              </span>
-            </div>
-          )}
-
-          {emailProvider &&
-            (emailSent ? (
-              <div className="rounded-md bg-primary/10 p-4 text-center text-sm">
-                <Mail className="mx-auto mb-2 h-5 w-5 text-primary" />
-                <p className="font-medium">Check your email</p>
-                <p className="mt-1 text-muted-foreground">
-                  We sent a magic link to <strong>{email}</strong>
-                </p>
-              </div>
-            ) : (
-              <form onSubmit={handleEmailSignIn} className="flex flex-col gap-3">
-                <Input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+              <FormField
+                id="email"
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                }}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+                error={fieldErrors.email}
+              />
+              <div className="space-y-2">
+                <FormField
+                  id="password"
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
+                  autoComplete="current-password"
                   required
+                  error={fieldErrors.password}
                 />
-                <Button type="submit" variant="secondary" className="w-full">
-                  <Mail className="mr-2 h-4 w-4" />
-                  Continue with Email
-                </Button>
-              </form>
-            ))}
+                <div className="flex justify-end">
+                  <Link
+                    href="/auth/forgot-password"
+                    className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+              </div>
+              <Button
+                type="submit"
+                size="lg"
+                className="h-12"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Signing in…" : "Sign in"}
+              </Button>
+            </form>
 
-          {!providers && (
-            <div className="flex items-center justify-center py-4">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+            {(oauthProviders.length > 0 || emailProvider) && (
+              <AuthDivider label="or continue with" />
+            )}
+
+            {oauthProviders.length > 0 && (
+            <div className="space-y-3">
+              {oauthProviders.map((provider) => (
+                <ProviderButton
+                  key={provider.id}
+                  icon={
+                    provider.id === "google" ? (
+                      <GoogleIcon />
+                    ) : provider.id === "github" ? (
+                      <Github className="size-5" />
+                    ) : null
+                  }
+                  label={`Continue with ${provider.name}`}
+                  onClick={() => signIn(provider.id, { callbackUrl })}
+                />
+              ))}
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            )}
+
+            {emailProvider && (
+              <>
+                <AuthDivider />
+                {emailSent ? (
+                  <div
+                    className="rounded-lg border border-primary/30 bg-primary/10 p-5 text-center"
+                    role="status"
+                  >
+                    <Mail className="mx-auto mb-2 size-6 text-primary" aria-hidden />
+                    <p className="font-medium">Check your email</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      We sent a sign-in link to{" "}
+                      <strong className="text-foreground">{magicEmail}</strong>
+                    </p>
+                  </div>
+                ) : (
+                  <form
+                    onSubmit={handleEmailSignIn}
+                    className="flex flex-col gap-3"
+                  >
+                    <FormField
+                      id="magic-email"
+                      label="Or continue with email link"
+                      type="email"
+                      value={magicEmail}
+                      onChange={(e) => setMagicEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      required
+                    />
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      size="lg"
+                      className="h-12 w-full border-border/60 bg-card/80 text-base font-medium shadow-sm transition hover:border-primary/30 hover:bg-card"
+                    >
+                      <Mail className="mr-3 size-5 shrink-0" aria-hidden />
+                      Continue with Email
+                    </Button>
+                  </form>
+                )}
+              </>
+            )}
+
+            {hasNoOAuthOrEmail && (
+              <p className="text-center text-xs text-muted-foreground">
+                To enable Google or GitHub sign-in, add the relevant env vars and
+                restart the app.
+              </p>
+            )}
+
+            <AuthCrossLink
+              prompt="Don't have an account?"
+              href="/auth/signup"
+              label="Sign up"
+            />
+          </>
+        )}
+      </div>
+    </AuthLayout>
   );
 }
 
@@ -158,8 +317,11 @@ export default function SignInPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[80vh] items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+        <div className="flex min-h-[80vh] items-center justify-center" aria-busy="true">
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent"
+            aria-hidden
+          />
         </div>
       }
     >
