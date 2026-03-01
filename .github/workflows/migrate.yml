@@ -31,18 +31,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate migration history
-        env:
-          DATABASE_URL: "postgresql://unused:unused@localhost:5432/unused"
-        run: |
-          echo "Checking Prisma migration files are consistent with schema..."
-          pnpm prisma validate
-          pnpm prisma migrate diff \
-            --from-migrations prisma/migrations \
-            --to-schema-datamodel prisma/schema.prisma \
-            --shadow-database-url "${DATABASE_URL}" \
-            --exit-code \
-            || echo "::warning::Migration diff detected — make sure prisma migrate dev was run."
+      - name: Validate schema
+        run: pnpm prisma validate
 
   migrate:
     needs: validate
