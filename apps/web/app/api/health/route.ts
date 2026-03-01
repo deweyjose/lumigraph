@@ -17,11 +17,12 @@ export async function GET() {
 
   try {
     const prisma = await getPrisma();
-    await prisma.$queryRaw`SELECT 1`;
+    const userCount = await prisma.user.count();
 
     return NextResponse.json({
       status: "ok",
       db: "connected",
+      userCount,
       timestamp: new Date().toISOString(),
       debug,
     });
