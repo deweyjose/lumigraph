@@ -68,7 +68,6 @@ jobs:
           filters: |
             infra:
               - 'infrastructure/**'
-              - '.github/workflows/**'
             prisma:
               - 'prisma/**'
 
