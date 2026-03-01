@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DatasetVisibilityBadge, type DatasetVisibility } from "./dataset-visibility-badge";
+import {
+  DatasetVisibilityBadge,
+  type DatasetVisibility,
+} from "./dataset-visibility-badge";
 import { Database } from "lucide-react";
 
 export type DatasetCardDataset = {
@@ -17,7 +20,8 @@ type DatasetCardProps = {
 
 export function DatasetCard({ dataset }: DatasetCardProps) {
   const descriptionSnippet = dataset.description
-    ? dataset.description.slice(0, 120) + (dataset.description.length > 120 ? "…" : "")
+    ? dataset.description.slice(0, 120) +
+      (dataset.description.length > 120 ? "…" : "")
     : null;
 
   return (

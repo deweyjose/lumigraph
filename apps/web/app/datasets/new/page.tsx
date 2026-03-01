@@ -29,10 +29,7 @@ export default async function NewDatasetPage() {
         image post later.
       </p>
       <div className="mt-8">
-        <DatasetForm
-          mode="create"
-          myPosts={formPosts}
-        />
+        <DatasetForm mode="create" myPosts={formPosts} />
       </div>
     </div>
   );

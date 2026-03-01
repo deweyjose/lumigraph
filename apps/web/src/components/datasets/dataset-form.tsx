@@ -63,9 +63,7 @@ export function DatasetForm({
     setIsSubmitting(true);
     try {
       const url =
-        mode === "create"
-          ? "/api/datasets"
-          : `/api/datasets/${datasetId}`;
+        mode === "create" ? "/api/datasets" : `/api/datasets/${datasetId}`;
       const method = mode === "create" ? "POST" : "PUT";
       const body = {
         title: titleTrim,
@@ -85,15 +83,23 @@ export function DatasetForm({
 
       if (!res.ok) {
         if (res.status === 401) {
-          router.push("/auth/signin?callbackUrl=" + encodeURIComponent(window.location.pathname));
+          router.push(
+            "/auth/signin?callbackUrl=" +
+              encodeURIComponent(window.location.pathname)
+          );
           return;
         }
         if (res.status === 404) {
-          setError("Dataset not found or you don't have permission to edit it.");
+          setError(
+            "Dataset not found or you don't have permission to edit it."
+          );
           return;
         }
         if (data.code === "VALIDATION_ERROR") {
-          setFieldErrors((prev) => ({ ...prev, title: data.message ?? "Invalid input" }));
+          setFieldErrors((prev) => ({
+            ...prev,
+            title: data.message ?? "Invalid input",
+          }));
           return;
         }
         setError(data.message ?? "Something went wrong");
@@ -173,8 +179,12 @@ export function DatasetForm({
                 </option>
               ))}
             </Select>
-            <p id="visibility-description" className="text-xs text-muted-foreground">
-              Private: only you. Unlisted: anyone with the link. Public: discoverable.
+            <p
+              id="visibility-description"
+              className="text-xs text-muted-foreground"
+            >
+              Private: only you. Unlisted: anyone with the link. Public:
+              discoverable.
             </p>
           </div>
           {myPosts.length > 0 && (
@@ -194,13 +204,20 @@ export function DatasetForm({
                   </option>
                 ))}
               </Select>
-              <p id="imagePostId-description" className="text-xs text-muted-foreground">
+              <p
+                id="imagePostId-description"
+                className="text-xs text-muted-foreground"
+              >
                 Associate this dataset with an image post.
               </p>
             </div>
           )}
           {error && (
-            <p id="form-error" className="text-sm text-destructive" role="alert">
+            <p
+              id="form-error"
+              className="text-sm text-destructive"
+              role="alert"
+            >
               {error}
             </p>
           )}
