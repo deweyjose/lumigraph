@@ -5,8 +5,8 @@ RUNNER_USER="ec2-user"
 RUNNER_DIR="/home/$RUNNER_USER/actions-runner"
 RUNNER_VERSION="${runner_version}"
 
-# --- Install dependencies ---
-dnf install -y jq libicu tar gzip curl git
+# --- Install dependencies (curl-minimal is pre-installed on AL2023) ---
+dnf install -y jq libicu tar gzip git
 
 # --- Install Node.js 20 + pnpm (needed by migration jobs) ---
 curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
