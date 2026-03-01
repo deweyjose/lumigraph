@@ -69,6 +69,15 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 
 ---
 
+## 2026-03-01 — M1-16 Bypass RDS Proxy for Vercel connectivity (MVP)
+
+**Decision:** Connect Vercel serverless functions directly to the RDS instance (bypassing RDS Proxy) using IAM auth tokens generated via Vercel OIDC. Make the RDS instance `publicly_accessible = true` in both dev and prod.  
+**Context:** RDS Proxy endpoints are VPC-only — they cannot be made publicly accessible. On the Vercel Hobby plan there is no VPC peering or static IP capability, so the proxy is unreachable. The RDS instance supports `publicly_accessible` and IAM database authentication. Security is enforced by: (a) `app_user` authenticates only via IAM tokens (no password), (b) tokens expire after 15 minutes, (c) TLS is required, (d) the DB security group can be tightened to Vercel static IPs when upgrading to Pro.  
+**Alternatives:** Network Load Balancer in front of proxy (added complexity + cost); Vercel Secure Compute with VPC peering (Enterprise-only); keep RDS private and use a tunneling approach.  
+**Consequences:** RDS Proxy remains provisioned for future use. `packages/db` exports `getPrisma()` which generates IAM auth tokens on Vercel and falls back to `DATABASE_URL` locally. A `/api/health` endpoint verifies connectivity. Vercel env vars (`DB_HOST`, `DB_USER`, `AWS_ROLE_ARN`, etc.) replace a static `DATABASE_URL`.
+
+---
+
 ## 2026-02-28 — M1-15 Self-hosted GHA runner in bootstrap
 
 **Decision:** Deploy the self-hosted GitHub Actions runner EC2 instance in `infrastructure/bootstrap` rather than `infrastructure/app`.  
