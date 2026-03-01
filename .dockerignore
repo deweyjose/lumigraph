@@ -4,3 +4,5 @@ apps/web/.next
 .env
 .env.*
 !.env.example
+**/node_modules
+**/.pnpm-store

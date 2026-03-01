@@ -1,6 +1,9 @@
 # Minimal image for running integration tests in docker-compose.
 # Repo is mounted at /app; this image only provides Node + pnpm.
-FROM node:20-alpine
+# Debian-based (not Alpine) so Prisma's native engine and OpenSSL work correctly.
+FROM node:20-slim
+
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
