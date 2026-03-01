@@ -129,3 +129,12 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 **Context:** Auth.js v5 does not support database sessions with the Credentials provider (`UnsupportedStrategy` error). Since we require email+password sign-in for MVP, JWT is the only option. The `sessions` table was never written to under JWT strategy — dead schema.  
 **Alternatives:** Drop Credentials provider and use magic-link-only (would allow database sessions but worse UX for MVP); keep the unused Session model for future optionality (zero cost but misleading).  
 **Consequences:** Sessions cannot be revoked server-side. If "sign out everywhere" or instant ban enforcement is needed later, we would add a token blocklist or transition auth methods. The `jwt` and `session` callbacks in `auth.config.ts` propagate `user.id` into the session object. Session-related adapter methods removed from the lazy Prisma adapter.
+
+---
+
+## 2026-03-01 — Separate .env files per package
+
+**Decision:** Use separate `.env` files: root `.env` for Prisma CLI, `apps/web/.env` for the Next.js app. No symlinks.  
+**Context:** Next.js loads `.env` from its own project root (`apps/web/`), not the monorepo root. A symlink from `apps/web/.env → ../../.env` was fragile and forced all vars into one file. The Prisma CLI only needs `DATABASE_URL`; the Next.js app needs `DATABASE_URL` plus auth, AWS, and email vars.  
+**Alternatives:** Symlink (implicit, easy to miss); single root `.env` with dotenv-cli or turborepo env passthrough (extra tooling).  
+**Consequences:** Each package owns its env. Some `DATABASE_URL` duplication across both files (intentional — they could diverge, e.g., Prisma CLI as admin vs app as `app_user`). Each has its own `.env.example`. Onboarding docs updated.

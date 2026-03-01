@@ -100,13 +100,14 @@ Postgres runs via Docker. The app connects with `DATABASE_URL` when not on Verce
    ```bash
    docker compose up -d
    ```
-2. Set `DATABASE_URL` for local (matches `docker-compose.yml`: user `lumigraph`, password `lumigraph`, database `lumigraph_db`, port 5432):
+2. Create env files from examples:
    ```bash
    cp .env.example .env
-   # Edit .env if needed; DATABASE_URL should be:
-   # postgresql://lumigraph:lumigraph@localhost:5432/lumigraph_db
+   cp apps/web/.env.example apps/web/.env
    ```
-   So the Next.js app can connect when you run `pnpm dev`, ensure the app sees the same env: use a `.env` in `apps/web` (e.g. copy from root or symlink: `ln -sf ../../.env apps/web/.env`).
+   - Root `.env` — used by Prisma CLI (`pnpm db:migrate`, `pnpm db:studio`). Only needs `DATABASE_URL`.
+   - `apps/web/.env` — used by Next.js (`pnpm dev`, `pnpm build`). Needs `DATABASE_URL`, `AUTH_SECRET`, and optionally OAuth/email/AWS vars.
+   - Generate `AUTH_SECRET` with `openssl rand -base64 33`.
 3. Apply migrations:
    ```bash
    pnpm db:migrate
