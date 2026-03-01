@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
-import { createDraft } from "@/server/services/image-post";
+import { createDraft, listMyPosts } from "@/server/services/image-post";
 
 const PostVisibility = z.enum(["DRAFT", "PRIVATE", "UNLISTED", "PUBLIC"]);
 const TargetType = z.enum([
@@ -31,6 +31,18 @@ const CreateImagePostBodySchema = z.object({
 });
 
 export type CreateImagePostBody = z.infer<typeof CreateImagePostBodySchema>;
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { code: "UNAUTHORIZED", message: "Sign in to list your posts" },
+      { status: 401 }
+    );
+  }
+  const posts = await listMyPosts(session.user.id);
+  return NextResponse.json(posts);
+}
 
 export async function POST(request: Request) {
   const session = await auth();

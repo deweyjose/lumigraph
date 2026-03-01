@@ -30,3 +30,4 @@ coverage/
 
 .tool-versions
 .pnpm-store
+.vercel
