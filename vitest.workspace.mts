@@ -21,6 +21,9 @@ export default defineWorkspace([
       include: ["src/**/*.integration.test.{ts,tsx}"],
       exclude: ["**/node_modules/**"],
       passWithNoTests: true,
+      setupFiles: [
+        path.resolve(repoRoot, "apps/web/vitest.integration.setup.ts"),
+      ],
     },
   },
   {

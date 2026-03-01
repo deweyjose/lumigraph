@@ -49,4 +49,23 @@ describe("image-post service (integration)", () => {
     });
     expect(foundAfter?.title).toBe("Updated Title");
   });
+
+  it("createDraft throws when slug is duplicate for same user", async () => {
+    const reg = await registerWithPassword(email, "password123", "Test");
+    expect(reg.ok).toBe(true);
+    if (!reg.ok) return;
+    userId = reg.userId;
+
+    const slug = `dup-slug-${unique}`;
+    const first = await createDraft(userId, {
+      title: "First",
+      slug,
+      visibility: "DRAFT",
+    });
+    expect(first).not.toBeNull();
+
+    await expect(
+      createDraft(userId, { title: "Second", slug, visibility: "DRAFT" })
+    ).rejects.toThrow();
+  });
 });

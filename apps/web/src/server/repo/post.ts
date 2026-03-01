@@ -37,3 +37,14 @@ export async function findManyByUserId(
     orderBy: { updatedAt: "desc" },
   });
 }
+
+export async function findManyPublic(
+  prisma: PrismaClient,
+  options?: { limit?: number }
+) {
+  return prisma.imagePost.findMany({
+    where: { visibility: "PUBLIC" },
+    orderBy: { updatedAt: "desc" },
+    take: options?.limit ?? 50,
+  });
+}

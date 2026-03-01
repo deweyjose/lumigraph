@@ -20,6 +20,7 @@ out/
 .env
 .env.*
 !.env.example
+!.env.integration.example
 
 # OS
 .DS_Store
@@ -29,3 +30,4 @@ coverage/
 
 .tool-versions
 .pnpm-store
+.vercel
