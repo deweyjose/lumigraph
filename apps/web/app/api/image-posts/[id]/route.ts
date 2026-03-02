@@ -12,6 +12,8 @@ const TargetType = z.enum([
   "OTHER",
 ]);
 
+const urlOptionalNullable = z.string().url().max(2048).optional().nullable();
+
 const UpdateImagePostBodySchema = z.object({
   title: z.string().min(1).max(500).optional(),
   slug: z
@@ -29,8 +31,8 @@ const UpdateImagePostBodySchema = z.object({
   targetType: TargetType.optional().nullable(),
   captureDate: z.string().datetime().optional().nullable(),
   bortle: z.number().int().min(1).max(9).optional().nullable(),
-  finalImageUrl: z.string().url().max(2048).optional().nullable(),
-  finalImageThumbUrl: z.string().url().max(2048).optional().nullable(),
+  finalImageUrl: urlOptionalNullable,
+  finalImageThumbUrl: urlOptionalNullable,
 });
 
 export type UpdateImagePostBody = z.infer<typeof UpdateImagePostBodySchema>;

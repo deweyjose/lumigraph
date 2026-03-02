@@ -52,20 +52,20 @@ describe("imagePostService", () => {
     expect(result).toEqual(created);
   });
 
-  it("createDraft passes finalImageUrl and finalImageThumbUrl to repo", async () => {
+  it("createDraft passes finalImageUrl and finalImageThumbUrl when provided", async () => {
     const created = {
-      id: "post-1",
+      id: "post-2",
       userId: "user-1",
-      slug: "my-slug",
-      title: "My Post",
+      slug: "with-images",
+      title: "Post With Images",
       description: null,
       visibility: "DRAFT",
       targetName: null,
       targetType: null,
       captureDate: null,
       bortle: null,
-      finalImageUrl: "https://example.com/final.jpg",
-      finalImageThumbUrl: "https://example.com/thumb.jpg",
+      finalImageUrl: "https://cdn.example.com/final.jpg",
+      finalImageThumbUrl: "https://cdn.example.com/thumb.jpg",
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -76,78 +76,25 @@ describe("imagePostService", () => {
     vi.mocked(getPrisma).mockResolvedValue(prisma);
 
     const result = await imagePostService.createDraft("user-1", {
-      slug: "my-slug",
-      title: "My Post",
-      finalImageUrl: "https://example.com/final.jpg",
-      finalImageThumbUrl: "https://example.com/thumb.jpg",
+      slug: "with-images",
+      title: "Post With Images",
+      finalImageUrl: "https://cdn.example.com/final.jpg",
+      finalImageThumbUrl: "https://cdn.example.com/thumb.jpg",
     });
 
     expect(mockCreate).toHaveBeenCalledWith({
       data: {
-        slug: "my-slug",
-        title: "My Post",
-        finalImageUrl: "https://example.com/final.jpg",
-        finalImageThumbUrl: "https://example.com/thumb.jpg",
+        slug: "with-images",
+        title: "Post With Images",
         user: { connect: { id: "user-1" } },
+        finalImageUrl: "https://cdn.example.com/final.jpg",
+        finalImageThumbUrl: "https://cdn.example.com/thumb.jpg",
       },
     });
-    expect(result).toEqual(created);
-  });
-
-  it("updateDraft passes finalImageUrl and finalImageThumbUrl to repo", async () => {
-    const updated = {
-      id: "post-1",
-      userId: "user-1",
-      slug: "my-slug",
-      title: "My Post",
-      description: null,
-      visibility: "DRAFT",
-      targetName: null,
-      targetType: null,
-      captureDate: null,
-      bortle: null,
-      finalImageUrl: "https://example.com/new.jpg",
-      finalImageThumbUrl: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const mockUpdate = vi.fn().mockResolvedValue(updated);
-    const prisma = {
-      imagePost: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: "post-1",
-          userId: "user-1",
-          slug: "my-slug",
-          title: "My Post",
-          description: null,
-          visibility: "DRAFT",
-          targetName: null,
-          targetType: null,
-          captureDate: null,
-          bortle: null,
-          finalImageUrl: null,
-          finalImageThumbUrl: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
-        update: mockUpdate,
-      },
-    } as unknown as PrismaClient;
-    vi.mocked(getPrisma).mockResolvedValue(prisma);
-
-    const result = await imagePostService.updateDraft("user-1", "post-1", {
-      finalImageUrl: "https://example.com/new.jpg",
-      finalImageThumbUrl: null,
-    });
-
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "post-1" },
-      data: {
-        finalImageUrl: "https://example.com/new.jpg",
-        finalImageThumbUrl: null,
-      },
-    });
-    expect(result).toEqual(updated);
+    expect(result?.finalImageUrl).toBe("https://cdn.example.com/final.jpg");
+    expect(result?.finalImageThumbUrl).toBe(
+      "https://cdn.example.com/thumb.jpg"
+    );
   });
 
   it("updateDraft returns null when post not found", async () => {
@@ -196,5 +143,64 @@ describe("imagePostService", () => {
 
     expect(result).toBeNull();
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("updateDraft passes finalImageUrl and finalImageThumbUrl when provided", async () => {
+    const updated = {
+      id: "post-1",
+      userId: "user-1",
+      slug: "my-slug",
+      title: "Updated",
+      description: null,
+      visibility: "DRAFT",
+      targetName: null,
+      targetType: null,
+      captureDate: null,
+      bortle: null,
+      finalImageUrl: "https://cdn.example.com/new-final.jpg",
+      finalImageThumbUrl: "https://cdn.example.com/new-thumb.jpg",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockUpdate = vi.fn().mockResolvedValue(updated);
+    const prisma = {
+      imagePost: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "post-1",
+          userId: "user-1",
+          slug: "my-slug",
+          title: "My Post",
+          description: null,
+          visibility: "DRAFT",
+          targetName: null,
+          targetType: null,
+          captureDate: null,
+          bortle: null,
+          finalImageUrl: null,
+          finalImageThumbUrl: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+        update: mockUpdate,
+      },
+    } as unknown as PrismaClient;
+    vi.mocked(getPrisma).mockResolvedValue(prisma);
+
+    const result = await imagePostService.updateDraft("user-1", "post-1", {
+      finalImageUrl: "https://cdn.example.com/new-final.jpg",
+      finalImageThumbUrl: "https://cdn.example.com/new-thumb.jpg",
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: "post-1" },
+      data: {
+        finalImageUrl: "https://cdn.example.com/new-final.jpg",
+        finalImageThumbUrl: "https://cdn.example.com/new-thumb.jpg",
+      },
+    });
+    expect(result?.finalImageUrl).toBe("https://cdn.example.com/new-final.jpg");
+    expect(result?.finalImageThumbUrl).toBe(
+      "https://cdn.example.com/new-thumb.jpg"
+    );
   });
 });

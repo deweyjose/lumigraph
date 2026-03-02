@@ -121,8 +121,8 @@ See docs/PRODUCT.md for canonical definitions.
 - Auth UI routes: `/auth/signin`, `/auth/signup`, `/auth/forgot-password`, `/auth/reset-password` (token in query). Cross-links between sign-in and sign-up; “Forgot password?” from sign-in.
 
 ### Image Posts
-- POST /api/image-posts — body may include optional `finalImageUrl`, `finalImageThumbUrl` (URLs, max 2048 chars); response returns created post with these fields.
-- PUT /api/image-posts/:id — body may include optional nullable `finalImageUrl`, `finalImageThumbUrl`; response returns updated post.
+- POST /api/image-posts — create draft; body may include `finalImageUrl`, `finalImageThumbUrl` (optional URLs); response returns full post including those fields.
+- PUT /api/image-posts/:id — update draft; body may include `finalImageUrl`, `finalImageThumbUrl` (optional, nullable URLs); response returns updated post.
 - POST /api/image-posts/:id/publish
 - GET /api/public/image-posts/:slug
 - GET /api/public/gallery
@@ -131,7 +131,7 @@ See docs/PRODUCT.md for canonical definitions.
 - GET /api/datasets — list current user's datasets (auth required)
 - POST /api/datasets — create dataset (auth required; body: title, optional description, visibility, imagePostId)
 - PUT /api/datasets/:id — update dataset (auth required, owner only; body: optional title, description, visibility, imagePostId)
-- POST /api/datasets/:id/artifacts/presign
+- POST /api/datasets/:id/artifacts/presign — issue presigned PUT URL for artifact upload (auth required, owner only; body: filename, contentType from allowlist, contentLength; returns { uploadUrl, key }; S3 key: users/{userId}/datasets/{datasetId}/{filename})
 - POST /api/datasets/:id/artifacts/complete
 - GET /api/public/datasets/:id (or by post slug)
 

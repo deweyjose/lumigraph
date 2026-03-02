@@ -46,20 +46,26 @@ export default async function PostDetailPage({ params }: Props) {
         </p>
       )}
 
-      {(post.finalImageUrl ?? post.finalImageThumbUrl) ? (
+      {(post.finalImageUrl ?? post.finalImageThumbUrl) && (
         <figure className="mt-6 overflow-hidden rounded-lg border bg-muted/30">
-          <img
-            src={post.finalImageUrl ?? post.finalImageThumbUrl ?? ""}
-            alt={`Final image: ${post.title}`}
-            className="max-h-[70vh] w-full object-contain"
-          />
+          <div className="relative flex min-h-[200px] items-center justify-center">
+            <img
+              src={post.finalImageUrl ?? post.finalImageThumbUrl ?? ""}
+              alt={post.title}
+              className="max-h-[70vh] w-full object-contain"
+            />
+          </div>
         </figure>
-      ) : (
+      )}
+      {!post.finalImageUrl && !post.finalImageThumbUrl && (
         <div
-          className="mt-6 flex aspect-video w-full items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20"
+          className="mt-6 flex min-h-[200px] items-center justify-center rounded-lg border border-dashed bg-muted/20"
           aria-hidden
         >
-          <ImageIcon className="h-16 w-16 text-muted-foreground" strokeWidth={1.25} />
+          <ImageIcon
+            className="h-16 w-16 text-muted-foreground/50"
+            strokeWidth={1}
+          />
         </div>
       )}
 

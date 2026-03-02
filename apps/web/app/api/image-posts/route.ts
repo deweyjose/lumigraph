@@ -12,6 +12,8 @@ const TargetType = z.enum([
   "OTHER",
 ]);
 
+const urlOptional = z.string().url().max(2048).optional();
+
 const CreateImagePostBodySchema = z.object({
   title: z.string().min(1).max(500),
   slug: z
@@ -28,8 +30,8 @@ const CreateImagePostBodySchema = z.object({
   targetType: TargetType.optional(),
   captureDate: z.string().datetime().optional(),
   bortle: z.number().int().min(1).max(9).optional(),
-  finalImageUrl: z.string().url().max(2048).optional(),
-  finalImageThumbUrl: z.string().url().max(2048).optional(),
+  finalImageUrl: urlOptional,
+  finalImageThumbUrl: urlOptional,
 });
 
 export type CreateImagePostBody = z.infer<typeof CreateImagePostBodySchema>;
