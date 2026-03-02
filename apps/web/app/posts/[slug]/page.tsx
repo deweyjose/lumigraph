@@ -6,6 +6,7 @@ import { getPostBySlugForView } from "@/server/services/image-post";
 import { VisibilityBadge } from "@/components/gallery/visibility-badge";
 import { PublishButton } from "@/components/posts/publish-button";
 import { Button } from "@/components/ui/button";
+import { ImageIcon } from "lucide-react";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -43,6 +44,29 @@ export default async function PostDetailPage({ params }: Props) {
         <p className="mt-4 whitespace-pre-wrap text-muted-foreground">
           {post.description}
         </p>
+      )}
+
+      {(post.finalImageUrl ?? post.finalImageThumbUrl) && (
+        <figure className="mt-6 overflow-hidden rounded-lg border bg-muted/30">
+          <div className="relative flex min-h-[200px] items-center justify-center">
+            <img
+              src={post.finalImageUrl ?? post.finalImageThumbUrl ?? ""}
+              alt={post.title}
+              className="max-h-[70vh] w-full object-contain"
+            />
+          </div>
+        </figure>
+      )}
+      {!post.finalImageUrl && !post.finalImageThumbUrl && (
+        <div
+          className="mt-6 flex min-h-[200px] items-center justify-center rounded-lg border border-dashed bg-muted/20"
+          aria-hidden
+        >
+          <ImageIcon
+            className="h-16 w-16 text-muted-foreground/50"
+            strokeWidth={1}
+          />
+        </div>
       )}
 
       {isOwner && isDraft && (

@@ -9,7 +9,10 @@ export default defineWorkspace([
     test: {
       name: "web",
       root: path.resolve(repoRoot, "apps/web"),
-      include: ["src/**/*.{test,spec}.{ts,tsx}"],
+      include: [
+        "src/**/*.{test,spec}.{ts,tsx}",
+        "app/**/*.{test,spec}.{ts,tsx}",
+      ],
       exclude: ["**/node_modules/**", "**/*.integration.test.{ts,tsx}"],
       passWithNoTests: true,
     },

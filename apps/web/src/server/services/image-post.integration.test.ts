@@ -50,6 +50,48 @@ describe("image-post service (integration)", () => {
     expect(foundAfter?.title).toBe("Updated Title");
   });
 
+  it("createDraft and updateDraft persist and return finalImageUrl and finalImageThumbUrl", async () => {
+    const reg = await registerWithPassword(email, "password123", "Test");
+    expect(reg.ok).toBe(true);
+    if (!reg.ok) return;
+    userId = reg.userId;
+
+    const slug = `img-urls-${unique}`;
+    const finalUrl = "https://example.com/final.jpg";
+    const thumbUrl = "https://example.com/thumb.jpg";
+    const created = await createDraft(userId, {
+      title: "Post With Final Image",
+      slug,
+      visibility: "DRAFT",
+      finalImageUrl: finalUrl,
+      finalImageThumbUrl: thumbUrl,
+    });
+    expect(created).not.toBeNull();
+    expect(created?.finalImageUrl).toBe(finalUrl);
+    expect(created?.finalImageThumbUrl).toBe(thumbUrl);
+
+    const prisma = await getPrisma();
+    const found = await prisma.imagePost.findUnique({
+      where: { id: created!.id },
+    });
+    expect(found?.finalImageUrl).toBe(finalUrl);
+    expect(found?.finalImageThumbUrl).toBe(thumbUrl);
+
+    const newFinal = "https://example.com/final-v2.jpg";
+    const updated = await updateDraft(userId, created!.id, {
+      finalImageUrl: newFinal,
+      finalImageThumbUrl: null,
+    });
+    expect(updated?.finalImageUrl).toBe(newFinal);
+    expect(updated?.finalImageThumbUrl).toBeNull();
+
+    const foundAfter = await prisma.imagePost.findUnique({
+      where: { id: created!.id },
+    });
+    expect(foundAfter?.finalImageUrl).toBe(newFinal);
+    expect(foundAfter?.finalImageThumbUrl).toBeNull();
+  });
+
   it("createDraft throws when slug is duplicate for same user", async () => {
     const reg = await registerWithPassword(email, "password123", "Test");
     expect(reg.ok).toBe(true);
