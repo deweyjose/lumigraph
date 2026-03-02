@@ -28,6 +28,8 @@ const CreateImagePostBodySchema = z.object({
   targetType: TargetType.optional(),
   captureDate: z.string().datetime().optional(),
   bortle: z.number().int().min(1).max(9).optional(),
+  finalImageUrl: z.string().url().max(2048).optional(),
+  finalImageThumbUrl: z.string().url().max(2048).optional(),
 });
 
 export type CreateImagePostBody = z.infer<typeof CreateImagePostBodySchema>;

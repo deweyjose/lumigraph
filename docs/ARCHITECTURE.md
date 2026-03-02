@@ -121,8 +121,8 @@ See docs/PRODUCT.md for canonical definitions.
 - Auth UI routes: `/auth/signin`, `/auth/signup`, `/auth/forgot-password`, `/auth/reset-password` (token in query). Cross-links between sign-in and sign-up; “Forgot password?” from sign-in.
 
 ### Image Posts
-- POST /api/image-posts
-- PUT /api/image-posts/:id
+- POST /api/image-posts — body may include optional `finalImageUrl`, `finalImageThumbUrl` (URLs, max 2048 chars); response returns created post with these fields.
+- PUT /api/image-posts/:id — body may include optional nullable `finalImageUrl`, `finalImageThumbUrl`; response returns updated post.
 - POST /api/image-posts/:id/publish
 - GET /api/public/image-posts/:slug
 - GET /api/public/gallery

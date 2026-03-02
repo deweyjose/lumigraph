@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "auth";
+import { ImageIcon } from "lucide-react";
 import { getPostBySlugForView } from "@/server/services/image-post";
 import { VisibilityBadge } from "@/components/gallery/visibility-badge";
 import { PublishButton } from "@/components/posts/publish-button";
@@ -43,6 +44,23 @@ export default async function PostDetailPage({ params }: Props) {
         <p className="mt-4 whitespace-pre-wrap text-muted-foreground">
           {post.description}
         </p>
+      )}
+
+      {(post.finalImageUrl ?? post.finalImageThumbUrl) ? (
+        <figure className="mt-6 overflow-hidden rounded-lg border bg-muted/30">
+          <img
+            src={post.finalImageUrl ?? post.finalImageThumbUrl ?? ""}
+            alt={`Final image: ${post.title}`}
+            className="max-h-[70vh] w-full object-contain"
+          />
+        </figure>
+      ) : (
+        <div
+          className="mt-6 flex aspect-video w-full items-center justify-center rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20"
+          aria-hidden
+        >
+          <ImageIcon className="h-16 w-16 text-muted-foreground" strokeWidth={1.25} />
+        </div>
       )}
 
       {isOwner && isDraft && (

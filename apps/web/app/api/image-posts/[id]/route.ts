@@ -29,6 +29,8 @@ const UpdateImagePostBodySchema = z.object({
   targetType: TargetType.optional().nullable(),
   captureDate: z.string().datetime().optional().nullable(),
   bortle: z.number().int().min(1).max(9).optional().nullable(),
+  finalImageUrl: z.string().url().max(2048).optional().nullable(),
+  finalImageThumbUrl: z.string().url().max(2048).optional().nullable(),
 });
 
 export type UpdateImagePostBody = z.infer<typeof UpdateImagePostBodySchema>;
