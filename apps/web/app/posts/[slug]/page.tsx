@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "auth";
+import { ImageIcon } from "lucide-react";
 import { getPostBySlugForView } from "@/server/services/image-post";
 import { VisibilityBadge } from "@/components/gallery/visibility-badge";
 import { PublishButton } from "@/components/posts/publish-button";
 import { Button } from "@/components/ui/button";
-import { ImageIcon } from "lucide-react";
 
 type Props = { params: Promise<{ slug: string }> };
 
