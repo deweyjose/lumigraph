@@ -7,7 +7,8 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const isProtected =
     req.nextUrl.pathname.startsWith("/dashboard") ||
-    req.nextUrl.pathname.startsWith("/posts");
+    req.nextUrl.pathname.startsWith("/posts") ||
+    req.nextUrl.pathname.startsWith("/drafts");
   if (isProtected && !req.auth) {
     const signInUrl = new URL("/auth/signin", req.nextUrl.origin);
     signInUrl.searchParams.set("callbackUrl", req.nextUrl.href);
@@ -17,5 +18,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/posts/:path*"],
+  matcher: ["/dashboard/:path*", "/posts/:path*", "/drafts", "/drafts/:path*"],
 };
