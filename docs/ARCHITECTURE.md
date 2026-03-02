@@ -132,7 +132,7 @@ See docs/PRODUCT.md for canonical definitions.
 - POST /api/datasets — create dataset (auth required; body: title, optional description, visibility, imagePostId)
 - PUT /api/datasets/:id — update dataset (auth required, owner only; body: optional title, description, visibility, imagePostId)
 - POST /api/datasets/:id/artifacts/presign — issue presigned PUT URL for artifact upload (auth required, owner only; body: filename, contentType from allowlist, contentLength; returns { uploadUrl, key }; S3 key: users/{userId}/datasets/{datasetId}/{filename})
-- POST /api/datasets/:id/artifacts/complete
+- POST /api/datasets/:id/artifacts/complete — register artifact metadata after upload (auth required, owner only; body: filename, fileType from allowlist, s3Key, sizeBytes, optional checksum; returns 201 + created artifact; 404 if dataset not found or not owned)
 - GET /api/public/datasets/:id (or by post slug)
 
 ### Downloads
