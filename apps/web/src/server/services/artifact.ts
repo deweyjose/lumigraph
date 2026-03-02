@@ -81,3 +81,55 @@ export async function registerArtifact(
     checksum: payload.checksum ?? undefined,
   });
 }
+
+export type PresignedDownloadResult = {
+  downloadUrl: string;
+  filename: string;
+};
+
+/**
+ * Lists artifacts for a dataset. Caller must ensure the requester is allowed to see the dataset
+ * (e.g. owner on dataset detail page, or visibility check on post page).
+ */
+export async function listArtifactsByDatasetId(datasetId: string) {
+  const prisma = await getPrisma();
+  return artifactRepo.findManyByDatasetId(prisma, datasetId);
+}
+
+/**
+ * Returns a presigned download URL for a dataset artifact if the requester is allowed.
+ * - PRIVATE: only the dataset owner can download.
+ * - UNLISTED / PUBLIC: anyone can download (link-only or public).
+ * Returns null if artifact not found or access denied.
+ */
+export async function getPresignedDownloadForArtifact(
+  artifactId: string,
+  userId: string | null
+): Promise<PresignedDownloadResult | null> {
+  const prisma = await getPrisma();
+  const artifactWithDataset = await artifactRepo.findByIdWithDataset(
+    prisma,
+    artifactId
+  );
+  if (!artifactWithDataset) return null;
+
+  const { dataset } = artifactWithDataset;
+  if (dataset.visibility === "PRIVATE" && dataset.userId !== userId) {
+    return null;
+  }
+  // UNLISTED and PUBLIC: allow any requester (userId may be null for public)
+
+  const bucket = s3.getS3Bucket();
+  const safeFilename = artifactWithDataset.filename.replace(/"/g, "'");
+  const downloadUrl = await s3.createPresignedDownloadUrl(
+    bucket,
+    artifactWithDataset.s3Key,
+    {
+      responseContentDisposition: `attachment; filename="${safeFilename}"`,
+    }
+  );
+  return {
+    downloadUrl,
+    filename: artifactWithDataset.filename,
+  };
+}

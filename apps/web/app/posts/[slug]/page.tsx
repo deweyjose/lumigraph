@@ -2,13 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "auth";
-import { ImageIcon } from "lucide-react";
-import { getPostBySlugForView } from "@/server/services/image-post";
+import { Download, ImageIcon } from "lucide-react";
+import {
+  canDownloadFromDataset,
+  getPostBySlugForView,
+} from "@/server/services/image-post";
 import { VisibilityBadge } from "@/components/gallery/visibility-badge";
 import { PublishButton } from "@/components/posts/publish-button";
 import { Button } from "@/components/ui/button";
 
 type Props = { params: Promise<{ slug: string }> };
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${Number((bytes / Math.pow(k, i)).toFixed(1))} ${["B", "KB", "MB", "GB"][i]}`;
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -23,6 +33,9 @@ export default async function PostDetailPage({ params }: Props) {
 
   const isOwner = session?.user?.id === post.userId;
   const isDraft = post.visibility === "DRAFT";
+  const userId = session?.user?.id ?? null;
+  const downloadableDatasets =
+    post.datasets?.filter((d) => canDownloadFromDataset(d, userId)) ?? [];
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
@@ -77,6 +90,51 @@ export default async function PostDetailPage({ params }: Props) {
           </p>
           <PublishButton postId={post.id} className="mt-4" />
         </div>
+      )}
+
+      {downloadableDatasets.length > 0 && (
+        <section className="mt-8" aria-labelledby="datasets-heading">
+          <h2 id="datasets-heading" className="text-lg font-semibold">
+            Datasets
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Download integration files (FITS, stacks, etc.) for this post.
+          </p>
+          <div className="mt-4 space-y-6">
+            {downloadableDatasets.map((dataset) => (
+              <div key={dataset.id}>
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  {dataset.title}
+                </h3>
+                <ul className="mt-2 space-y-2" role="list">
+                  {dataset.artifacts.map((artifact) => (
+                    <li
+                      key={artifact.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-4 py-3"
+                    >
+                      <span className="min-w-0 truncate font-medium">
+                        {artifact.filename}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {formatBytes(Number(artifact.sizeBytes))}
+                      </span>
+                      <Button asChild size="sm" variant="outline">
+                        <Link
+                          href={`/api/artifacts/${artifact.id}/download`}
+                          download
+                          className="inline-flex items-center gap-2"
+                        >
+                          <Download className="size-4" aria-hidden />
+                          Download
+                        </Link>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <div className="mt-10 flex gap-3">
