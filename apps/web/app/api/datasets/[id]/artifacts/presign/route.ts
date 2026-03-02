@@ -28,7 +28,10 @@ export async function POST(
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json(
-      { code: "UNAUTHORIZED", message: "Sign in to request a presigned upload" },
+      {
+        code: "UNAUTHORIZED",
+        message: "Sign in to request a presigned upload",
+      },
       { status: 401 }
     );
   }

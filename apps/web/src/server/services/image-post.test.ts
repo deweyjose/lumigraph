@@ -92,7 +92,9 @@ describe("imagePostService", () => {
       },
     });
     expect(result?.finalImageUrl).toBe("https://cdn.example.com/final.jpg");
-    expect(result?.finalImageThumbUrl).toBe("https://cdn.example.com/thumb.jpg");
+    expect(result?.finalImageThumbUrl).toBe(
+      "https://cdn.example.com/thumb.jpg"
+    );
   });
 
   it("updateDraft returns null when post not found", async () => {
