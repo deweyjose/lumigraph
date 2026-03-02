@@ -26,6 +26,20 @@ export async function findBySlug(prisma: PrismaClient, slug: string) {
   return prisma.imagePost.findUnique({ where: { slug } });
 }
 
+export async function findBySlugWithDatasets(
+  prisma: PrismaClient,
+  slug: string
+) {
+  return prisma.imagePost.findUnique({
+    where: { slug },
+    include: {
+      datasets: {
+        include: { artifacts: true },
+      },
+    },
+  });
+}
+
 export async function findManyByUserId(
   prisma: PrismaClient,
   userId: string,

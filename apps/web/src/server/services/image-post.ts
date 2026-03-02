@@ -40,20 +40,32 @@ export async function listPublicPosts(options?: { limit?: number }) {
 }
 
 /**
- * Returns a post by slug if the viewer is allowed to see it: public posts, or
- * any post owned by the given userId. Otherwise null.
+ * Returns a post by slug with linked datasets and their artifacts if the viewer
+ * is allowed to see it: public posts, or any post owned by the given userId. Otherwise null.
  */
 export async function getPostBySlugForView(
   slug: string,
   userId?: string | null
 ) {
   const prisma = await getPrisma();
-  const post = await postRepo.findBySlug(prisma, slug);
+  const post = await postRepo.findBySlugWithDatasets(prisma, slug);
   if (!post) return null;
   if (post.visibility === "PUBLIC") return post;
   if (post.visibility === "UNLISTED") return post; // link-only: anyone with link can view
   if (userId && post.userId === userId) return post; // owner can always view
   return null;
+}
+
+/**
+ * True if the current user can download from this dataset.
+ * PRIVATE = owner only; UNLISTED/PUBLIC = anyone.
+ */
+export function canDownloadFromDataset(
+  dataset: { visibility: string; userId: string },
+  userId: string | null
+): boolean {
+  if (dataset.visibility !== "PRIVATE") return true;
+  return userId !== null && dataset.userId === userId;
 }
 
 /**

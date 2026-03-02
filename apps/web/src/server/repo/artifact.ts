@@ -13,6 +13,13 @@ export async function findById(prisma: PrismaClient, id: string) {
   return prisma.datasetArtifact.findUnique({ where: { id } });
 }
 
+export async function findByIdWithDataset(prisma: PrismaClient, id: string) {
+  return prisma.datasetArtifact.findUnique({
+    where: { id },
+    include: { dataset: true },
+  });
+}
+
 export async function findManyByDatasetId(
   prisma: PrismaClient,
   datasetId: string
