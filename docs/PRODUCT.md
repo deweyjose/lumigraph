@@ -144,6 +144,16 @@ Represents an uploaded file in S3.
 
 ---
 
+### 3.5 Top-level navigation (Phase 1)
+
+- **Datasets** — `/datasets`. The user’s datasets; auth required. Create and manage datasets, upload artifacts.
+- **Drafts** — `/drafts`. The user’s posts (drafts and published); auth required. Create and manage image posts.
+- **Gallery** — `/gallery`. Public discovery only; no “your posts” on this page. Community content.
+
+Drafts and the public gallery are kept separate so “my work” and “public discovery” have clear entry points.
+
+---
+
 ## 4. Multi-Environment Deployment Model
 
 Lumigraph runs across:

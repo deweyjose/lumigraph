@@ -11,6 +11,14 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 
 ---
 
+### 2026-03-02 — Top-level nav: Datasets | Drafts | Gallery; Gallery public-only
+**Decision:** Top-level navigation is Datasets, Drafts, Gallery. Gallery shows only public/community posts. Drafts is a dedicated route (`/drafts`) for the current user’s posts (all visibilities); auth required.  
+**Context:** Users need a clear split between “my work” (datasets, drafts) and “public discovery” (gallery).  
+**Alternatives:** Keep “Your posts” on the Gallery page; single “Posts” nav that mixed draft and public.  
+**Consequences:** Nav order and links updated in site header; `/drafts` added; Gallery page no longer shows “Your posts”. Proxy protects `/drafts` (auth redirect). See docs/PRODUCT.md §3.5.
+
+---
+
 ### 2026-03-01 — Unified lint and format across monorepo
 **Decision:** Single ESLint flat config at repo root (`eslint.config.mjs`) and single Prettier config (`.prettierrc`) at root. Base TypeScript/JS rules apply repo-wide; Next.js rules apply only to `apps/web/**`. Root owns eslint, prettier, typescript-eslint, and @eslint/js as devDependencies. Each package has `lint` and `format` scripts that invoke the root config so `pnpm run -r lint` / `pnpm run -r format` run in all workspaces.  
 **Context:** packages/db had no lint/format; we wanted one source of truth and every package to participate.  

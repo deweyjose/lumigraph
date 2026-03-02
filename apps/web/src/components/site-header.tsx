@@ -13,16 +13,22 @@ export function SiteHeader() {
           </Link>
           <nav className="hidden items-center gap-4 text-sm md:flex">
             <Link
-              href="/gallery"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Gallery
-            </Link>
-            <Link
               href="/datasets"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               Datasets
+            </Link>
+            <Link
+              href="/drafts"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Drafts
+            </Link>
+            <Link
+              href="/gallery"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Gallery
             </Link>
           </nav>
         </div>

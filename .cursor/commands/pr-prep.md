@@ -1,4 +1,4 @@
-# prepush
+# pr-prep
 
 pnpm format:fix
 pnpm typecheck
