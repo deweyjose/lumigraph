@@ -368,3 +368,25 @@ resource "aws_iam_role_policy_attachment" "vercel_db_connect" {
   role       = aws_iam_role.vercel_db_connect.name
   policy_arn = aws_iam_policy.vercel_db_connect.arn
 }
+
+# S3 artifacts bucket: presigned upload/download URLs from Vercel
+data "aws_iam_policy_document" "vercel_s3_artifacts" {
+  statement {
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject"
+    ]
+    resources = ["${aws_s3_bucket.artifacts.arn}/*"]
+  }
+}
+
+resource "aws_iam_policy" "vercel_s3_artifacts" {
+  name   = "${var.project_name}-vercel-s3-artifacts-${var.env}"
+  policy = data.aws_iam_policy_document.vercel_s3_artifacts.json
+}
+
+resource "aws_iam_role_policy_attachment" "vercel_s3_artifacts" {
+  role       = aws_iam_role.vercel_db_connect.name
+  policy_arn = aws_iam_policy.vercel_s3_artifacts.arn
+}
