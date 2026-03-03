@@ -84,8 +84,8 @@ Represents a final astrophotography image.
 - `targetType` (Galaxy, Nebula, etc.)
 - `captureDate`
 - `bortle` (int)
-- `finalImageUrl`
-- `finalImageThumbUrl`
+- `finalImageUrl` — URL or S3 key (when uploaded via app: `users/{userId}/images/{postId}/final/…`; display via GET `/api/image-posts/:id/image`)
+- `finalImageThumbUrl` — URL or S3 key (when uploaded via app; display via GET `/api/image-posts/:id/thumb`)
 - `createdAt`
 - `updatedAt`
 
