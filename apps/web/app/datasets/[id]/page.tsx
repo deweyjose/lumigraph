@@ -7,6 +7,7 @@ import { getById } from "@/server/services/dataset";
 import { listArtifactsByDatasetId } from "@/server/services/artifact";
 import { listMyPosts } from "@/server/services/image-post";
 import { DatasetVisibilityBadge } from "@/components/datasets/dataset-visibility-badge";
+import { DatasetArtifactUpload } from "@/components/datasets/dataset-artifact-upload";
 import { DatasetForm } from "@/components/datasets/dataset-form";
 import { Button } from "@/components/ui/button";
 
@@ -93,6 +94,9 @@ export default async function DatasetDetailPage({ params }: Props) {
 
       {isOwner && (
         <>
+          <div className="mt-8">
+            <DatasetArtifactUpload datasetId={dataset.id} />
+          </div>
           <div className="mt-8">
             <h2 className="text-lg font-semibold">Edit dataset</h2>
             <p className="mt-1 text-sm text-muted-foreground">
