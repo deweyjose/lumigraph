@@ -18,8 +18,7 @@ type AllowedContentType = (typeof ALLOWED_CONTENT_TYPES)[number];
 function mapFileToContentType(file: File): AllowedContentType | null {
   const name = file.name.toLowerCase();
   if (name.endsWith(".zip")) return "application/zip";
-  if (name.endsWith(".fits") || name.endsWith(".fit"))
-    return "image/fits";
+  if (name.endsWith(".fits") || name.endsWith(".fit")) return "image/fits";
   if (ALLOWED_CONTENT_TYPES.includes(file.type as AllowedContentType))
     return file.type as AllowedContentType;
   return null;
@@ -35,7 +34,9 @@ type DatasetArtifactUploadProps = {
   datasetId: string;
 };
 
-export function DatasetArtifactUpload({ datasetId }: DatasetArtifactUploadProps) {
+export function DatasetArtifactUpload({
+  datasetId,
+}: DatasetArtifactUploadProps) {
   const router = useRouter();
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -49,7 +50,9 @@ export function DatasetArtifactUpload({ datasetId }: DatasetArtifactUploadProps)
       const file = files[i];
       const contentType = mapFileToContentType(file);
       if (!contentType) {
-        setDropError(`"${file.name}" has an unsupported type. Use .zip or .fits files.`);
+        setDropError(
+          `"${file.name}" has an unsupported type. Use .zip or .fits files.`
+        );
         continue;
       }
       newEntries.push({ file, status: "pending" });
@@ -70,7 +73,9 @@ export function DatasetArtifactUpload({ datasetId }: DatasetArtifactUploadProps)
       if (!contentType) return;
 
       setEntries((prev) =>
-        prev.map((e, i) => (i === index ? { ...e, status: "uploading" as const } : e))
+        prev.map((e, i) =>
+          i === index ? { ...e, status: "uploading" as const } : e
+        )
       );
 
       try {
@@ -89,7 +94,9 @@ export function DatasetArtifactUpload({ datasetId }: DatasetArtifactUploadProps)
 
         if (!presignRes.ok) {
           const data = await presignRes.json().catch(() => ({}));
-          throw new Error(data.message ?? `Presign failed: ${presignRes.status}`);
+          throw new Error(
+            data.message ?? `Presign failed: ${presignRes.status}`
+          );
         }
 
         const { uploadUrl, key } = (await presignRes.json()) as {
@@ -123,11 +130,15 @@ export function DatasetArtifactUpload({ datasetId }: DatasetArtifactUploadProps)
 
         if (!completeRes.ok) {
           const data = await completeRes.json().catch(() => ({}));
-          throw new Error(data.message ?? `Complete failed: ${completeRes.status}`);
+          throw new Error(
+            data.message ?? `Complete failed: ${completeRes.status}`
+          );
         }
 
         setEntries((prev) =>
-          prev.map((e, i) => (i === index ? { ...e, status: "done" as const } : e))
+          prev.map((e, i) =>
+            i === index ? { ...e, status: "done" as const } : e
+          )
         );
         router.refresh();
       } catch (err) {
@@ -272,7 +283,10 @@ export function DatasetArtifactUpload({ datasetId }: DatasetArtifactUploadProps)
                       className="h-4 w-4 text-destructive"
                       aria-hidden
                     />
-                    <span className="text-sm text-destructive" title={entry.error}>
+                    <span
+                      className="text-sm text-destructive"
+                      title={entry.error}
+                    >
                       {entry.error}
                     </span>
                   </>
