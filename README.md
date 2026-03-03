@@ -36,6 +36,36 @@
 
 6. **Lint**: ESLint uses the flat config in `apps/web/eslint.config.mjs`. Run `pnpm lint` from the repo root. If your editor linter points at the repo root, ensure it picks up `apps/web` (or run ESLint from `apps/web`).
 
+### Testing dataset upload (Add files) locally
+
+The **Add files** UI on a dataset detail page uses presigned S3 uploads. To test it locally you need a bucket and credentials.
+
+**Option A — LocalStack (no AWS account)**
+
+1. Start Postgres and LocalStack:
+   ```bash
+   docker compose up -d postgres localstack
+   ```
+2. Create a bucket (one-time). Install [awslocal](https://github.com/localstack/awscli-local) or use AWS CLI with `--endpoint-url http://localhost:4566`:
+   ```bash
+   aws --endpoint-url http://localhost:4566 s3 mb s3://lumigraph-dev-local
+   ```
+3. In `apps/web/.env` add:
+   ```env
+   AWS_S3_ENDPOINT=http://localhost:4566
+   AWS_S3_BUCKET=lumigraph-dev-local
+   AWS_REGION=us-east-1
+   AWS_ACCESS_KEY_ID=test
+   AWS_SECRET_ACCESS_KEY=test
+   ```
+4. Run the app (`pnpm dev`), sign in, go to **Datasets** → create or open a dataset. Use **Add files**: drag-and-drop or click to select `.zip` or `.fits`/`.fit` files, then click **Upload N file(s)**. The artifact list should update after each upload.
+
+**Option B — Real AWS**
+
+Set `AWS_S3_BUCKET` (your dev bucket name), `AWS_REGION`, and credentials (e.g. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) in `apps/web/.env`. Then run the app and follow the same UI steps as above.
+
+**Automated tests:** `pnpm test:integration` runs against Postgres + LocalStack when `AWS_S3_ENDPOINT` is set (e.g. in the integration Docker service). See `docs/ENGINEERING.md` and `docker-compose.yml`.
+
 Infrastructure is managed with Terraform and deployed via GitHub Actions using OIDC (no long-lived AWS keys).
 
 ## One-time bootstrap (per account)
