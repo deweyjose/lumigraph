@@ -22,10 +22,9 @@ const PresignBodySchema = z
     contentType: z.enum(ALLOWED_ARTIFACT_CONTENT_TYPES),
     contentLength: z.number().int().nonnegative(),
   })
-  .refine(
-    (data) => data.contentLength <= getMaxArtifactSizeBytes(),
-    { message: getFileSizeExceededMessage() }
-  );
+  .refine((data) => data.contentLength <= getMaxArtifactSizeBytes(), {
+    message: getFileSizeExceededMessage(),
+  });
 
 export type PresignArtifactBody = z.infer<typeof PresignBodySchema>;
 
