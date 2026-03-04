@@ -133,11 +133,9 @@ describe("artifactService", () => {
       process.env = originalEnv;
     });
 
-    it("returns default 1GB when ARTIFACT_MAX_SIZE_BYTES is unset", () => {
+    it("returns default 20MB when ARTIFACT_MAX_SIZE_BYTES is unset", () => {
       delete process.env.ARTIFACT_MAX_SIZE_BYTES;
-      expect(artifactService.getMaxArtifactSizeBytes()).toBe(
-        1024 * 1024 * 1024
-      );
+      expect(artifactService.getMaxArtifactSizeBytes()).toBe(20 * 1024 * 1024);
     });
 
     it("returns env value when ARTIFACT_MAX_SIZE_BYTES is set", () => {
@@ -147,9 +145,7 @@ describe("artifactService", () => {
 
     it("returns default when ARTIFACT_MAX_SIZE_BYTES is invalid", () => {
       process.env.ARTIFACT_MAX_SIZE_BYTES = "not-a-number";
-      expect(artifactService.getMaxArtifactSizeBytes()).toBe(
-        1024 * 1024 * 1024
-      );
+      expect(artifactService.getMaxArtifactSizeBytes()).toBe(20 * 1024 * 1024);
     });
   });
 

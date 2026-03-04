@@ -13,9 +13,9 @@ export const ALLOWED_ARTIFACT_CONTENT_TYPES = [
 export type AllowedArtifactContentType =
   (typeof ALLOWED_ARTIFACT_CONTENT_TYPES)[number];
 
-const DEFAULT_MAX_ARTIFACT_SIZE_BYTES = 1024 * 1024 * 1024; // 1 GB
+const DEFAULT_MAX_ARTIFACT_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 
-/** Max artifact size in bytes. From env ARTIFACT_MAX_SIZE_BYTES or default 1GB. */
+/** Max artifact size in bytes. From env ARTIFACT_MAX_SIZE_BYTES or default 20MB. */
 export function getMaxArtifactSizeBytes(): number {
   const raw = process.env.ARTIFACT_MAX_SIZE_BYTES;
   if (raw == null || raw === "") return DEFAULT_MAX_ARTIFACT_SIZE_BYTES;
