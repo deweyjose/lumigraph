@@ -11,6 +11,14 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 
 ---
 
+### 2026-03-03 — Final image upload: S3 key in URL columns + proxy routes
+**Decision:** Store final image and thumbnail in existing `finalImageUrl` / `finalImageThumbUrl` columns as either an external URL or an S3 key (string starting with `users/`). When the value is an S3 key, the app serves it via GET `/api/image-posts/:id/image` and `/thumb`, which redirect to presigned S3 URLs. No new DB columns; UI uses `getFinalImageDisplayUrl()` to choose proxy route vs raw URL.  
+**Context:** M1 requires “upload final image (original + web derivative)”. We already had presign/complete for dataset artifacts; same pattern for image posts.  
+**Alternatives:** New columns `final_image_s3_key` / `final_image_thumb_s3_key` (migration, two sources of truth); storing only full URLs and generating presigned at write time (shorter expiry, harder to rotate).  
+**Consequences:** Presign/complete API under `/api/image-posts/:id/final-image/*`; image/thumb GET routes enforce visibility (PUBLIC/UNLISTED = anyone, DRAFT/PRIVATE = owner). Cards and post detail use proxy URLs when value is S3 key. See ARCHITECTURE.md § Image Posts, PRODUCT.md § ImagePost.
+
+---
+
 ### 2026-03-02 — Top-level nav: Datasets | Drafts | Gallery; Gallery public-only
 **Decision:** Top-level navigation is Datasets, Drafts, Gallery. Gallery shows only public/community posts. Drafts is a dedicated route (`/drafts`) for the current user’s posts (all visibilities); auth required.  
 **Context:** Users need a clear split between “my work” (datasets, drafts) and “public discovery” (gallery).  

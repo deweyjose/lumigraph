@@ -121,9 +121,13 @@ See docs/PRODUCT.md for canonical definitions.
 - Auth UI routes: `/auth/signin`, `/auth/signup`, `/auth/forgot-password`, `/auth/reset-password` (token in query). Cross-links between sign-in and sign-up; “Forgot password?” from sign-in.
 
 ### Image Posts
-- POST /api/image-posts — create draft; body may include `finalImageUrl`, `finalImageThumbUrl` (optional URLs); response returns full post including those fields.
-- PUT /api/image-posts/:id — update draft; body may include `finalImageUrl`, `finalImageThumbUrl` (optional, nullable URLs); response returns updated post.
+- POST /api/image-posts — create draft; body may include `finalImageUrl`, `finalImageThumbUrl` (optional URLs or S3 keys); response returns full post including those fields.
+- PUT /api/image-posts/:id — update draft; body may include `finalImageUrl`, `finalImageThumbUrl` (optional, nullable); response returns updated post.
 - POST /api/image-posts/:id/publish
+- POST /api/image-posts/:id/final-image/presign — issue presigned PUT URL for final image or thumb (auth required, owner only; body: filename, contentType from allowlist, contentLength; returns { uploadUrl, key }).
+- POST /api/image-posts/:id/final-image/complete — register uploaded final image or thumb (auth required, owner only; body: key, role "image" | "thumb"; updates post and returns it).
+- GET /api/image-posts/:id/image — redirect to presigned S3 URL for the post’s final image when stored as S3 key; visibility rules apply (PUBLIC/UNLISTED = anyone, DRAFT/PRIVATE = owner only).
+- GET /api/image-posts/:id/thumb — redirect to presigned S3 URL for the post’s thumbnail when stored as S3 key; same visibility rules.
 - GET /api/public/image-posts/:slug
 - GET /api/public/gallery
 
