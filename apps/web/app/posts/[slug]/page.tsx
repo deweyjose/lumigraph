@@ -162,7 +162,7 @@ export default async function PostDetailPage({ params }: Props) {
 
       <div className="mt-10 flex gap-3">
         <Button asChild variant="secondary">
-          <Link href="/gallery">Back to Gallery</Link>
+          <Link href="/gallery">Back to Posts</Link>
         </Button>
         {isOwner && (
           <Button asChild variant="outline">

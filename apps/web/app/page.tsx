@@ -21,7 +21,7 @@ export default function HomePage() {
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="lg">
-            <Link href="/gallery">Browse Gallery</Link>
+            <Link href="/gallery">Browse Posts</Link>
           </Button>
           <Button asChild variant="secondary" size="lg">
             <Link href="/auth/signin">Get Started</Link>
