@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "auth";
 import { Button } from "@/components/ui/button";
 import { Telescope, Upload, Eye } from "lucide-react";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth();
+  if (session) {
+    redirect("/gallery");
+  }
+
   return (
     <div className="flex flex-col">
       <section className="relative flex min-h-[70vh] flex-col items-center justify-center gap-8 px-4 text-center">
