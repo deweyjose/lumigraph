@@ -133,9 +133,9 @@ describe("artifactService", () => {
       process.env = originalEnv;
     });
 
-    it("returns default 500MB when ARTIFACT_MAX_SIZE_BYTES is unset", () => {
+    it("returns default 20MB when ARTIFACT_MAX_SIZE_BYTES is unset", () => {
       delete process.env.ARTIFACT_MAX_SIZE_BYTES;
-      expect(artifactService.getMaxArtifactSizeBytes()).toBe(500 * 1024 * 1024);
+      expect(artifactService.getMaxArtifactSizeBytes()).toBe(20 * 1024 * 1024);
     });
 
     it("returns env value when ARTIFACT_MAX_SIZE_BYTES is set", () => {
@@ -145,7 +145,33 @@ describe("artifactService", () => {
 
     it("returns default when ARTIFACT_MAX_SIZE_BYTES is invalid", () => {
       process.env.ARTIFACT_MAX_SIZE_BYTES = "not-a-number";
-      expect(artifactService.getMaxArtifactSizeBytes()).toBe(500 * 1024 * 1024);
+      expect(artifactService.getMaxArtifactSizeBytes()).toBe(20 * 1024 * 1024);
+    });
+  });
+
+  describe("formatMaxSizeForDisplay", () => {
+    it("formats bytes as GB when >= 1GB", () => {
+      expect(artifactService.formatMaxSizeForDisplay(1024 * 1024 * 1024)).toBe(
+        "1 GB"
+      );
+      expect(
+        artifactService.formatMaxSizeForDisplay(2 * 1024 * 1024 * 1024)
+      ).toBe("2 GB");
+    });
+
+    it("formats bytes as MB when >= 1MB and < 1GB", () => {
+      expect(artifactService.formatMaxSizeForDisplay(500 * 1024 * 1024)).toBe(
+        "500 MB"
+      );
+      expect(artifactService.formatMaxSizeForDisplay(1024 * 1024)).toBe("1 MB");
+    });
+
+    it("formats bytes as KB when >= 1KB and < 1MB", () => {
+      expect(artifactService.formatMaxSizeForDisplay(1024)).toBe("1 KB");
+    });
+
+    it("formats bytes as B when < 1KB", () => {
+      expect(artifactService.formatMaxSizeForDisplay(100)).toBe("100 B");
     });
   });
 

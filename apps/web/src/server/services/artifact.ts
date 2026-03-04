@@ -13,13 +13,26 @@ export const ALLOWED_ARTIFACT_CONTENT_TYPES = [
 export type AllowedArtifactContentType =
   (typeof ALLOWED_ARTIFACT_CONTENT_TYPES)[number];
 
-/** Max artifact size in bytes. From env ARTIFACT_MAX_SIZE_BYTES or default 500MB. */
+const DEFAULT_MAX_ARTIFACT_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+
+/** Max artifact size in bytes. From env ARTIFACT_MAX_SIZE_BYTES or default 20MB. */
 export function getMaxArtifactSizeBytes(): number {
   const raw = process.env.ARTIFACT_MAX_SIZE_BYTES;
-  if (raw == null || raw === "") return 500 * 1024 * 1024;
+  if (raw == null || raw === "") return DEFAULT_MAX_ARTIFACT_SIZE_BYTES;
   const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 0) return 500 * 1024 * 1024;
+  if (!Number.isFinite(n) || n < 0) return DEFAULT_MAX_ARTIFACT_SIZE_BYTES;
   return n;
+}
+
+/** Returns human-readable size for error messages (e.g. "1 GB", "500 MB"). */
+export function formatMaxSizeForDisplay(bytes: number): string {
+  const gb = bytes / (1024 * 1024 * 1024);
+  if (gb >= 1) return `${Math.round(gb)} GB`;
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) return `${Math.round(mb)} MB`;
+  const kb = bytes / 1024;
+  if (kb >= 1) return `${Math.round(kb)} KB`;
+  return `${bytes} B`;
 }
 
 export type PresignArtifactInput = {

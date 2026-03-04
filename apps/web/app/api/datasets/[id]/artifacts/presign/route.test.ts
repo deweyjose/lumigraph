@@ -5,6 +5,8 @@ vi.mock("auth", () => ({
   auth: vi.fn(),
 }));
 
+const MOCK_MAX_SIZE = 500 * 1024 * 1024;
+
 vi.mock("@/server/services/artifact", () => ({
   createPresignedUploadForArtifact: vi.fn(),
   ALLOWED_ARTIFACT_CONTENT_TYPES: [
@@ -13,6 +15,10 @@ vi.mock("@/server/services/artifact", () => ({
     "image/fits",
   ],
   getMaxArtifactSizeBytes: () => 500 * 1024 * 1024,
+  formatMaxSizeForDisplay: (bytes: number) =>
+    bytes >= 1024 * 1024 * 1024
+      ? `${Math.round(bytes / (1024 * 1024 * 1024))} GB`
+      : `${Math.round(bytes / (1024 * 1024))} MB`,
 }));
 
 const auth = (await import("auth")).auth as ReturnType<typeof vi.fn>;
@@ -126,6 +132,34 @@ describe("POST /api/datasets/[id]/artifacts/presign", () => {
     expect(res.status).toBe(404);
     const json = await res.json();
     expect(json.code).toBe("NOT_FOUND");
+  });
+
+  it("returns 400 when contentLength exceeds maximum allowed", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { id: "user-1" } });
+
+    const res = await POST(
+      new Request(
+        "http://localhost/api/datasets/123e4567-e89b-12d3-a456-426614174000/artifacts/presign",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            filename: "large.fits",
+            contentType: "application/x-fits",
+            contentLength: MOCK_MAX_SIZE + 1,
+          }),
+        }
+      ),
+      {
+        params: Promise.resolve({ id: "123e4567-e89b-12d3-a456-426614174000" }),
+      }
+    );
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.code).toBe("VALIDATION_ERROR");
+    expect(json.message).toContain("limit:");
+    expect(json.message).toContain("Reduce file size or contact support");
+    expect(createPresignedUploadForArtifact).not.toHaveBeenCalled();
   });
 
   it("returns 200 with uploadUrl and key when service returns result", async () => {

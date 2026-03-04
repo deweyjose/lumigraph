@@ -29,6 +29,7 @@ Phase 4: cloud execution using open tools first.
 - Workflow: structured steps + intent + guardrails (Phase 2)
 
 ## What you (the AI) should do when implementing
+- Read .specify/memory/constitution.md first.
 - Read docs/PRODUCT.md and docs/ARCHITECTURE.md first.
 - Implement minimal, testable increments.
 - Update docs when changing scope or architecture.

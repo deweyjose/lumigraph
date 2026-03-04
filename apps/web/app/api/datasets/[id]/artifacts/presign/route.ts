@@ -5,19 +5,26 @@ import {
   createPresignedUploadForArtifact,
   ALLOWED_ARTIFACT_CONTENT_TYPES,
   getMaxArtifactSizeBytes,
+  formatMaxSizeForDisplay,
 } from "@/server/services/artifact";
 
 const IdParamSchema = z.object({ id: z.string().uuid() });
 
-const PresignBodySchema = z.object({
-  filename: z.string().min(1).max(500),
-  contentType: z.enum(ALLOWED_ARTIFACT_CONTENT_TYPES),
-  contentLength: z
-    .number()
-    .int()
-    .nonnegative()
-    .max(getMaxArtifactSizeBytes(), "File size exceeds maximum allowed"),
-});
+function getFileSizeExceededMessage(): string {
+  const max = getMaxArtifactSizeBytes();
+  const limit = formatMaxSizeForDisplay(max);
+  return `File size exceeds maximum allowed (limit: ${limit}). Reduce file size or contact support for higher limits.`;
+}
+
+const PresignBodySchema = z
+  .object({
+    filename: z.string().min(1).max(500),
+    contentType: z.enum(ALLOWED_ARTIFACT_CONTENT_TYPES),
+    contentLength: z.number().int().nonnegative(),
+  })
+  .refine((data) => data.contentLength <= getMaxArtifactSizeBytes(), {
+    message: getFileSizeExceededMessage(),
+  });
 
 export type PresignArtifactBody = z.infer<typeof PresignBodySchema>;
 

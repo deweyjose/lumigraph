@@ -2,30 +2,22 @@
 alwaysApply: true
 ---
 
-# Lumigraph — Constitutional Meta Rules
+# Lumigraph Guidance Source of Truth
 
-Before implementing anything:
+Use Spec Kit + constitution as the canonical policy stack.
 
-1. Read docs/AI_CONTEXT.md
-2. Read docs/PRODUCT.md
-3. Read docs/ARCHITECTURE.md
-4. Read docs/ENGINEERING.md
+## Canonical Sources (priority order)
 
-## Implementation Philosophy
+1. `.specify/memory/constitution.md` (normative rules)
+2. `docs/AI_CONTEXT.md` (quick orientation)
+3. `docs/PRODUCT.md` (product behavior and scope)
+4. `docs/ARCHITECTURE.md` (system design and boundaries)
+5. `docs/ENGINEERING.md` (engineering guardrails and DoD)
+6. `docs/DECISIONS.md` (non-trivial decisions)
 
-- Prefer small, verifiable increments.
-- Do not introduce new abstractions unless necessary.
-- Do not refactor unrelated areas unless explicitly requested.
-- If a task implies an architectural change, update docs.
-- If something is ambiguous, choose a reasonable default and document it.
-- Always list:
-  - files changed
-  - migrations added
-  - how to test locally
+## Cursor Rule Policy
 
-## Forbidden Behavior
-
-- No silent schema changes.
-- No business logic inside route handlers.
-- No skipping validation at API boundaries.
-- No committing secrets or hardcoding environment values.
+- Keep `.cursor/rules` minimal.
+- Do not duplicate constitutional or docs policy in additional rule files.
+- If a rule conflicts with constitution/docs, constitution/docs win.
+- Treat `.cursor/agents/*` as optional role prompts, not product truth.
