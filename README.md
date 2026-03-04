@@ -1,110 +1,156 @@
 # Lumigraph
 
-## Local development
+**A structured astrophotography journal and dataset platform.**  
+Publish your images. Share your integration data. Document your processing journey.
 
-### Get the database running
+---
 
-1. **Start Postgres** (matches `docker-compose.yml`: Postgres 16, user `lumigraph`, password `lumigraph`, database `lumigraph_db`, port 5432):
-   ```bash
-   docker compose up -d
-   ```
+## The Story
 
-2. **Create env files** from examples:
-   ```bash
-   cp .env.example .env
-   cp apps/web/.env.example apps/web/.env
-   ```
-   - Root `.env` — Prisma CLI (`pnpm db:migrate`). Only needs `DATABASE_URL`.
-   - `apps/web/.env` — Next.js app (`pnpm dev`). Needs `DATABASE_URL`, `AUTH_SECRET`, and optionally OAuth/email/AWS vars.
-   - Generate `AUTH_SECRET`: `openssl rand -base64 33`
+Astrophotography is patience, precision, and wonder—hours under the stars, stacking frames, chasing photons from galaxies millions of light-years away. But the journey doesn't end when the final image is processed. The real value lives in the *how*: the acquisition details, the calibration frames, the workflow that turned raw data into something worth sharing.
 
-3. **Apply migrations**:
-   ```bash
-   pnpm db:migrate
-   ```
-   Or in one step (start Postgres + migrate):
-   ```bash
-   pnpm dev:db
-   ```
+**Lumigraph** is built for that. It's not just a gallery. It's a place to:
 
-4. **Run the app**:
-   ```bash
-   pnpm dev
-   ```
+- **Publish** final images with rich metadata—targets, Bortle class, acquisition notes
+- **Share** integration data (FITS, stacks, masters) so others can learn and build on your work
+- **Document** your processing workflows with guardrails and intent
+- **Discover** what the community is capturing and how they're doing it
 
-5. **Auth (Auth.js v5)**: `AUTH_SECRET` must be set in `apps/web/.env` (see step 2). Optionally set `AUTH_GITHUB_ID`/`AUTH_GITHUB_SECRET` and `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` for OAuth providers.
+Today, Lumigraph is an astro journal and dataset platform. Tomorrow, it will grow into workflow construction, an AI copilot for PixInsight, and eventually cloud execution—so you spend less time on infrastructure and more time under the sky.
 
-6. **Lint**: ESLint uses the flat config in `apps/web/eslint.config.mjs`. Run `pnpm lint` from the repo root. If your editor linter points at the repo root, ensure it picks up `apps/web` (or run ESLint from `apps/web`).
+---
 
-### Testing dataset upload (Add files) locally
+## Run Locally
 
-The **Add files** UI on a dataset detail page uses presigned S3 uploads. To test it locally you need a bucket and credentials.
+**Prerequisites:** Node.js 20+, pnpm, Docker
 
-**Option A — LocalStack (no AWS account)**
-
-1. Start Postgres and LocalStack:
-   ```bash
-   docker compose up -d postgres localstack
-   ```
-2. Create a bucket (one-time). Install [awslocal](https://github.com/localstack/awscli-local) or use AWS CLI with `--endpoint-url http://localhost:4566`:
-   ```bash
-   aws --endpoint-url http://localhost:4566 s3 mb s3://lumigraph-dev-local
-   ```
-3. In `apps/web/.env` add:
-   ```env
-   AWS_S3_ENDPOINT=http://localhost:4566
-   AWS_S3_BUCKET=lumigraph-dev-local
-   AWS_REGION=us-east-1
-   AWS_ACCESS_KEY_ID=test
-   AWS_SECRET_ACCESS_KEY=test
-   ```
-4. Run the app (`pnpm dev`), sign in, go to **Datasets** → create or open a dataset. Use **Add files**: drag-and-drop or click to select `.zip` or `.fits`/`.fit` files, then click **Upload N file(s)**. The artifact list should update after each upload.
-
-**Option B — Real AWS**
-
-Set `AWS_S3_BUCKET` (your dev bucket name), `AWS_REGION`, and credentials (e.g. `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`) in `apps/web/.env`. Then run the app and follow the same UI steps as above.
-
-**Automated tests:** `pnpm test:integration` runs against Postgres + LocalStack when `AWS_S3_ENDPOINT` is set (e.g. in the integration Docker service). See `docs/ENGINEERING.md` and `docker-compose.yml`.
-
-Infrastructure is managed with Terraform and deployed via GitHub Actions using OIDC (no long-lived AWS keys).
-
-## One-time bootstrap (per account)
-
-The bootstrap stack creates the Terraform state bucket, DynamoDB lock table, GitHub OIDC provider, and the GitHub Actions IAM role.
-
-Run this once per AWS account (and per region if you want separate state per region). For example: `lumigraph-dev` and `lumigraph-prod`.
+### 1. Start the database
 
 ```bash
-cd infrastructure/bootstrap
-terraform init
-terraform plan -var="aws_region=us-east-1"
-terraform apply -var="aws_region=us-east-1"
+docker compose up -d postgres
 ```
 
-Capture outputs:
+Postgres 16 runs on port 5432 (`lumigraph` / `lumigraph` / `lumigraph_db`).
+
+### 2. Configure environment
 
 ```bash
-terraform output -raw role_arn
-terraform output -raw tf_state_bucket_name
-terraform output -raw tf_lock_table_name
+cp .env.example .env
+cp apps/web/.env.example apps/web/.env
 ```
 
-## Required GitHub secrets (GitHub Environments)
+- **Root `.env`** — Prisma. Needs `DATABASE_URL` (default matches docker-compose).
+- **`apps/web/.env`** — Next.js. Needs `DATABASE_URL`, `AUTH_SECRET`, and optionally OAuth/AWS.
 
-Create GitHub Environments named `dev` and `prod`, then add these secrets to each:
-- `AWS_ROLE_ARN` = output from `role_arn`
-- `AWS_REGION` = the region you deployed into (e.g. `us-east-1`)
+Generate `AUTH_SECRET`:
 
-If you **override** the default state bucket or lock table names, also add:
-- `TF_STATE_BUCKET`
-- `TF_LOCK_TABLE`
+```bash
+openssl rand -base64 33
+```
 
-## Deploy app infrastructure via CI
+### 3. Migrate and run
 
-- Push to `main` triggers the app Terraform workflow automatically.
-- Manual runs are available via Actions → `Terraform` → `Run workflow`.
-  - Pick the `environment` (`dev` or `prod`) when you run it manually.
+```bash
+pnpm dev:db    # Start Postgres (if needed), wait, apply migrations
+pnpm dev       # Start Next.js
+```
 
-For local runs, see:
-- `infrastructure/bootstrap/README.md`
-- `infrastructure/app/README.md`
+Open [http://localhost:3000](http://localhost:3000).
+
+### Optional: Home Astro Hub (daily canvas + chatbot)
+
+Add to `apps/web/.env`:
+
+```env
+OPENAI_API_KEY=sk-...           # Required for daily canvas and chatbot
+NASA_API_KEY=...                 # Optional; improves NASA API rate limit
+```
+
+### Optional: Dataset uploads (S3)
+
+**LocalStack (no AWS account):**
+
+```bash
+docker compose up -d postgres localstack
+aws --endpoint-url http://localhost:4566 s3 mb s3://lumigraph-dev-local
+```
+
+In `apps/web/.env`:
+
+```env
+AWS_S3_ENDPOINT=http://localhost:4566
+AWS_S3_BUCKET=lumigraph-dev-local
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+```
+
+**Real AWS:** Set `AWS_S3_BUCKET`, `AWS_REGION`, and credentials in `apps/web/.env`.
+
+---
+
+## Stack
+
+| Layer | Tech |
+|-------|------|
+| **App** | Next.js 16 (App Router), React 19, TypeScript 5 (strict) |
+| **Auth** | Auth.js v5 (next-auth), JWT sessions, Prisma adapter |
+| **Data** | PostgreSQL, Prisma, migrations |
+| **Storage** | S3 (presigned uploads/downloads) |
+| **AI** | OpenAI (daily canvas synthesis, astrophotography chatbot) |
+| **Infra** | Vercel, Terraform, GitHub Actions (OIDC) |
+
+**Monorepo:** `apps/web` (Next.js), `packages/db` (Prisma client), `infrastructure/` (Terraform).
+
+---
+
+## Spec Kit
+
+Lumigraph uses **Spec Kit**—a lightweight spec-driven workflow for features. Cursor commands drive the flow:
+
+| Command | Purpose |
+|---------|---------|
+| `/speckit.specify` | Create a feature spec from a natural-language description |
+| `/speckit.clarify` | Resolve ambiguities with targeted questions |
+| `/speckit.plan` | Generate implementation plan, research, data model, contracts |
+| `/speckit.tasks` | Break the plan into dependency-ordered tasks |
+| `/speckit.implement` | Execute tasks and mark progress |
+
+**Flow:** `specify` → `clarify` (optional) → `plan` → `tasks` → `implement`.
+
+Specs live in `specs/<branch>/` (e.g. `specs/001-home-astro-hub/`). The constitution (`.specify/memory/constitution.md`) defines architecture guardrails. See `docs/AI_CONTEXT.md` for orientation.
+
+---
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start Next.js dev server |
+| `pnpm dev:db` | Start Postgres + run migrations |
+| `pnpm db:migrate` | Apply migrations |
+| `pnpm db:studio` | Open Prisma Studio |
+| `pnpm typecheck` | TypeScript check |
+| `pnpm lint` | ESLint |
+| `pnpm format:fix` | Prettier |
+| `pnpm test` | Unit tests |
+| `pnpm test:integration` | Integration tests (Postgres + optional S3) |
+| `pnpm test:integration:docker` | Run integration tests in Docker |
+
+---
+
+## Infrastructure
+
+- **Bootstrap** (once per AWS account): `infrastructure/bootstrap/` — Terraform state, OIDC, IAM.
+- **App** (CI): `infrastructure/app/` — RDS, S3, Vercel OIDC. Deployed via GitHub Actions.
+- **Secrets:** GitHub Environments `dev` and `prod` need `AWS_ROLE_ARN`, `AWS_REGION`.
+
+See `infrastructure/bootstrap/README.md` and `infrastructure/app/README.md` for details.
+
+---
+
+## Docs
+
+- [PRODUCT.md](docs/PRODUCT.md) — Vision, phases, domain concepts
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — System design, API surface, security
+- [ENGINEERING.md](docs/ENGINEERING.md) — Conventions, local dev, testing

@@ -141,3 +141,11 @@ model DatasetArtifact {
   @@index([datasetId])
   @@map("dataset_artifacts")
 }
+
+model DailyCanvas {
+  date      DateTime @id @db.Date
+  content   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("daily_canvas")
+}
