@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Users } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Gallery",
+  title: "Posts",
   description: "Browse public astrophotography from the Lumigraph community.",
 };
 
@@ -19,19 +19,16 @@ export default async function GalleryPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
       <header className="mb-10">
-        <h1 className="text-3xl font-bold tracking-tight">Gallery</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Posts</h1>
         <p className="mt-2 text-muted-foreground">
           Public astrophotography from the Lumigraph community.
         </p>
       </header>
 
-      <section aria-labelledby="community-heading">
-        <h2 id="community-heading" className="text-xl font-semibold">
-          Community
+      <section aria-labelledby="posts-heading">
+        <h2 id="posts-heading" className="sr-only">
+          Post cards
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Public posts from everyone on Lumigraph.
-        </p>
         {publicPosts.length > 0 ? (
           <ul className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {publicPosts.map((post: PostCardPost) => (

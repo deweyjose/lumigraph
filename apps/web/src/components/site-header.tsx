@@ -28,7 +28,7 @@ export function SiteHeader() {
               href="/gallery"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
-              Gallery
+              Posts
             </Link>
           </nav>
         </div>
