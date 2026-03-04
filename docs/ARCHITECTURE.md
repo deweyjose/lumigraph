@@ -69,7 +69,7 @@ Route handlers do not call the database directly. They validate input (e.g. with
 - Server validates:
   - user is authenticated
   - content-type allowlist
-  - max file size constraints
+  - max file size constraints (default 1GB; configurable via `ARTIFACT_MAX_SIZE_BYTES`)
   - per-user quotas (later)
 - Complete upload requires server-side “register artifact” call.
 
