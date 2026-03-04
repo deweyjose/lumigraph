@@ -196,7 +196,7 @@ Deployment model:
 ## 6. Non-Goals (Phase 1)
 
 - No workflow construction yet
-- No AI copilot yet
+- No PixInsight/workflow AI copilot yet (home astro assistant + daily canvas are in scope)
 - No cloud execution yet
 - No monetization features
 - No advanced search
