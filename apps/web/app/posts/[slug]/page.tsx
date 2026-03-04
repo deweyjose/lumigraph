@@ -7,8 +7,10 @@ import {
   canDownloadFromDataset,
   getPostBySlugForView,
 } from "@/server/services/image-post";
+import { getFinalImageDisplayUrl } from "@/lib/image-url";
 import { VisibilityBadge } from "@/components/gallery/visibility-badge";
 import { PublishButton } from "@/components/posts/publish-button";
+import { FinalImageUpload } from "@/components/posts/final-image-upload";
 import { Button } from "@/components/ui/button";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -37,6 +39,18 @@ export default async function PostDetailPage({ params }: Props) {
   const downloadableDatasets =
     post.datasets?.filter((d) => canDownloadFromDataset(d, userId)) ?? [];
 
+  const imageDisplayUrl = getFinalImageDisplayUrl(
+    post.id,
+    post.finalImageUrl,
+    "image"
+  );
+  const thumbDisplayUrl = getFinalImageDisplayUrl(
+    post.id,
+    post.finalImageThumbUrl,
+    "thumb"
+  );
+  const primaryImageUrl = imageDisplayUrl ?? thumbDisplayUrl;
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
       <div className="mb-6 flex items-center gap-2">
@@ -59,18 +73,18 @@ export default async function PostDetailPage({ params }: Props) {
         </p>
       )}
 
-      {(post.finalImageUrl ?? post.finalImageThumbUrl) && (
+      {primaryImageUrl && (
         <figure className="mt-6 overflow-hidden rounded-lg border bg-muted/30">
           <div className="relative flex min-h-[200px] items-center justify-center">
             <img
-              src={post.finalImageUrl ?? post.finalImageThumbUrl ?? ""}
+              src={primaryImageUrl}
               alt={post.title}
               className="max-h-[70vh] w-full object-contain"
             />
           </div>
         </figure>
       )}
-      {!post.finalImageUrl && !post.finalImageThumbUrl && (
+      {!primaryImageUrl && (
         <div
           className="mt-6 flex min-h-[200px] items-center justify-center rounded-lg border border-dashed bg-muted/20"
           aria-hidden
@@ -80,6 +94,15 @@ export default async function PostDetailPage({ params }: Props) {
             strokeWidth={1}
           />
         </div>
+      )}
+
+      {isOwner && (
+        <FinalImageUpload
+          postId={post.id}
+          currentImageKey={post.finalImageUrl}
+          currentThumbKey={post.finalImageThumbUrl}
+          className="mt-6"
+        />
       )}
 
       {isOwner && isDraft && (

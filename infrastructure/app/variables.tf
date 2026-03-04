@@ -40,15 +40,15 @@ variable "allowed_localhost_origins" {
 }
 
 variable "allowed_vercel_preview_origins" {
-  description = "Allowed Vercel preview origins for CORS."
+  description = "Allowed Vercel preview origins for CORS. Default allows all *.vercel.app subdomains for presigned uploads."
   type        = list(string)
-  default     = []
+  default     = ["https://*.vercel.app"]
 }
 
 variable "allowed_vercel_prod_origins" {
-  description = "Allowed Vercel production origins for CORS."
+  description = "Allowed Vercel production origins for CORS. Default allows all *.vercel.app subdomains."
   type        = list(string)
-  default     = []
+  default     = ["https://*.vercel.app"]
 }
 
 variable "db_name" {

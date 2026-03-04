@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "auth";
 import { listMyPosts } from "@/server/services/image-post";
+import { getFinalImageDisplayUrl } from "@/lib/image-url";
 import { PostCard, type PostCardPost } from "@/components/gallery/post-card";
 import { Button } from "@/components/ui/button";
 import { FileImage, Plus } from "lucide-react";
@@ -50,7 +51,12 @@ export default async function DraftsPage() {
                   slug: post.slug,
                   title: post.title,
                   visibility: post.visibility,
-                  finalImageThumbUrl: post.finalImageThumbUrl,
+                  finalImageThumbUrl:
+                    getFinalImageDisplayUrl(
+                      post.id,
+                      post.finalImageThumbUrl,
+                      "thumb"
+                    ) ?? post.finalImageThumbUrl,
                   targetName: post.targetName,
                   targetType: post.targetType,
                   captureDate: post.captureDate,
