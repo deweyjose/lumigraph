@@ -1,0 +1,75 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { auth } from "auth";
+import { streamChatCompletion } from "@/server/services/chat";
+
+const MessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]),
+  content: z.string(),
+});
+
+const BodySchema = z.object({
+  messages: z.array(MessageSchema).min(1).max(50),
+});
+
+export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { code: "UNAUTHORIZED", message: "Sign in to use the chatbot" },
+      { status: 401 }
+    );
+  }
+
+  let body: z.infer<typeof BodySchema>;
+  try {
+    const raw = await request.json();
+    body = BodySchema.parse(raw);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      const message = err.issues.map((e) => e.message).join("; ");
+      return NextResponse.json(
+        { code: "VALIDATION_ERROR", message },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { code: "INVALID_JSON", message: "Invalid request body" },
+      { status: 400 }
+    );
+  }
+
+  try {
+    const stream = streamChatCompletion(body.messages);
+
+    return new Response(
+      new ReadableStream({
+        async start(controller) {
+          const encoder = new TextEncoder();
+          try {
+            for await (const chunk of stream) {
+              controller.enqueue(encoder.encode(chunk));
+            }
+          } catch (err) {
+            const msg =
+              err instanceof Error
+                ? err.message
+                : "Chat temporarily unavailable. Please try again.";
+            controller.enqueue(encoder.encode(`\n\n[Error: ${msg}]`));
+          } finally {
+            controller.close();
+          }
+        },
+      }),
+      {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Transfer-Encoding": "chunked",
+        },
+      }
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Chat service unavailable";
+    return NextResponse.json({ code: "CHAT_ERROR", message }, { status: 503 });
+  }
+}

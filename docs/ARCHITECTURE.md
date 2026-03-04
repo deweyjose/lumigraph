@@ -18,7 +18,7 @@ Lumigraph is a multi-user astrophotography platform for:
 - API: Next.js route handlers (initially), evolving to service modules
 - DB: AWS RDS Postgres (direct connection with IAM auth; RDS Proxy provisioned for future use)
 - Storage: S3 for artifacts + images; CDN (CloudFront) optional early
-- AI: external LLM provider (TBD); used for writing assistance (never auto-publish)
+- AI: OpenAI for daily canvas synthesis (NASA/Open Notify/SpaceX → GPT) and astrophotography chatbot; used for writing assistance (never auto-publish)
 - Auth: Auth.js v5 (next-auth@5), JWT sessions, Prisma adapter
 
 ### Core Flows
@@ -53,6 +53,7 @@ Route handlers do not call the database directly. They validate input (e.g. with
   - image_posts
   - datasets
   - dataset_artifacts
+  - daily_canvas (cached GenAI-synthesized astro content per day)
   - (future) workflows, steps, workflow_artifacts
 - Does NOT store large blobs
 
@@ -139,6 +140,9 @@ See docs/PRODUCT.md for canonical definitions.
 - POST /api/datasets/:id/artifacts/complete — register artifact metadata after upload (auth required, owner only; body: filename, fileType from allowlist, s3Key, sizeBytes, optional checksum; returns 201 + created artifact; 404 if dataset not found or not owned)
 - GET /api/public/datasets/:id (or by post slug)
 
+### Home Astro Hub
+- POST /api/chat — streaming chat with astrophotography assistant (auth required; body: messages array; returns text stream)
+
 ### Downloads
 - POST /api/downloads (track event)
 - GET /api/artifacts/:id/download (issues signed URL + tracks)
@@ -174,7 +178,12 @@ Lumigraph uses Auth.js v5 (next-auth@5) with the Prisma adapter and JWT sessions
 
 - **Keep** User, Account, and VerificationToken as-is. They match Auth.js's expected model and support OAuth, magic link, credentials, and our custom password-reset flow without extra tables. Session model removed (JWT sessions don't use it).
 
-## 8) S3 Layout
+## 8) Home Astro Hub (Daily Canvas + Chatbot)
+- **Daily canvas**: Fetches NASA APOD, Open Notify ISS, SpaceX latest; synthesizes via OpenAI; caches in `daily_canvas` table by date. Generated on first request of day; fallback to prior day or static placeholder on failure.
+- **Chatbot**: POST /api/chat streams OpenAI responses. Auth required. System prompt focuses on astrophotography/astronomy. Stateless (client holds conversation).
+- **External APIs**: NASA (api.nasa.gov), Open Notify (iss-now), SpaceX v4 (launches). OPENAI_API_KEY and optional NASA_API_KEY in env.
+
+## 9) S3 Layout (unchanged)
 Suggested keys (do not hardcode; create helper functions):
 - `users/{userId}/images/{imagePostId}/final/original.ext`
 - `users/{userId}/images/{imagePostId}/final/web.jpg`
@@ -182,7 +191,7 @@ Suggested keys (do not hardcode; create helper functions):
 - `users/{userId}/datasets/{datasetId}/{filename}`
 - (Phase 2) `users/{userId}/workflows/{workflowId}/{filename}`
 
-## 9) Background Jobs (Deferred)
+## 10) Background Jobs (Deferred)
 Not required for MVP but plan for:
 - image derivative generation (thumb/web)
 - FITS header parsing
@@ -193,7 +202,7 @@ Implementation options:
 - AWS Lambda + SQS
 - Dedicated worker (later)
 
-## 10) Technology Choices (initial defaults)
+## 11) Technology Choices (initial defaults)
 - Next.js App Router
 - TypeScript strict mode
 - Postgres + migrations
@@ -201,7 +210,7 @@ Implementation options:
 - Zod for validation
 - No “fat route handlers”: keep logic in services.
 
-## 11) Future Architecture (Phase 2+)
+## 12) Future Architecture (Phase 2+)
 ### Workflows
 - Structured workflow graph with step types
 - Step guardrails must be machine-readable

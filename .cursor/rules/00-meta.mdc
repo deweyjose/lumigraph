@@ -25,6 +25,8 @@ Use Spec Kit + constitution as the canonical policy stack.
 ## Active Technologies
 - TypeScript 5.x (strict mode) + Next.js 16 (App Router), React, Auth.js v5, Prisma, Zod (001-improve-gallery-ux)
 - PostgreSQL (existing); no schema changes for this feature (001-improve-gallery-ux)
+- TypeScript 5.x (strict mode) + Next.js 16 (App Router), React, Auth.js v5, Prisma, Zod, OpenAI SDK (001-home-astro-hub)
+- PostgreSQL (existing + new `daily_canvas` table) (001-home-astro-hub)
 
 ## Recent Changes
 - 001-improve-gallery-ux: Added TypeScript 5.x (strict mode) + Next.js 16 (App Router), React, Auth.js v5, Prisma, Zod
