@@ -3,19 +3,27 @@
 import {
   type ReactElement,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, FolderOpen, Loader2 } from "lucide-react";
+import {
+  Upload,
+  FolderOpen,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Clock3,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type UploadEntry = {
   clientId: string;
   file: File;
   relativePath: string;
-  status: "pending" | "uploading" | "done" | "error";
+  status: "pending" | "uploading" | "uploaded" | "error";
   error?: string;
 };
 
@@ -111,11 +119,16 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [entries, setEntries] = useState<UploadEntry[]>([]);
+  const [displayAssets, setDisplayAssets] = useState<AssetRow[]>(assets);
   const [isUploading, setIsUploading] = useState(false);
 
+  useEffect(() => {
+    setDisplayAssets(assets);
+  }, [assets]);
+
   const tree = useMemo(
-    () => buildTree(assets.map((asset) => asset.relativePath)),
-    [assets]
+    () => buildTree(displayAssets.map((asset) => asset.relativePath)),
+    [displayAssets]
   );
 
   const addFiles = useCallback(
@@ -179,12 +192,6 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
         { ok: boolean; uploadUrl?: string; assetId?: string; error?: string }
       >(presignData.results.map((result) => [result.clientId, result]));
 
-      const completeItems: Array<{
-        clientId: string;
-        assetId: string;
-        sizeBytes: number;
-      }> = [];
-
       for (const entry of pending) {
         const item = map.get(entry.clientId);
         if (!item || !item.ok || !item.uploadUrl || !item.assetId) {
@@ -220,43 +227,75 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           );
           continue;
         }
-        completeItems.push({
-          clientId: entry.clientId,
-          assetId: item.assetId,
-          sizeBytes: entry.file.size,
-        });
-      }
-
-      if (completeItems.length > 0) {
         const completeRes = await fetch("/api/uploads/complete-batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items: completeItems }),
+          body: JSON.stringify({
+            items: [
+              {
+                clientId: entry.clientId,
+                assetId: item.assetId,
+                sizeBytes: entry.file.size,
+              },
+            ],
+          }),
         });
         const completeData = (await completeRes.json()) as {
           message?: string;
           results: BatchCompleteResult[];
         };
         if (!completeRes.ok) {
-          throw new Error(completeData.message ?? "Complete failed");
+          setEntries((prev) =>
+            prev.map((existing) =>
+              existing.clientId === entry.clientId
+                ? {
+                    ...existing,
+                    status: "error" as const,
+                    error: completeData.message ?? "Complete failed",
+                  }
+                : existing
+            )
+          );
+          continue;
         }
-        const doneMap = new Map<string, { ok: boolean; error?: string }>(
-          completeData.results.map((result) => [result.clientId, result])
+        const done = completeData.results.find(
+          (result) => result.clientId === entry.clientId
         );
+        if (!done || !done.ok) {
+          setEntries((prev) =>
+            prev.map((existing) =>
+              existing.clientId === entry.clientId
+                ? {
+                    ...existing,
+                    status: "error" as const,
+                    error: done?.error ?? "Complete failed",
+                  }
+                : existing
+            )
+          );
+          continue;
+        }
+
         setEntries((prev) =>
           prev.map((entry) => {
-            const done = doneMap.get(entry.clientId);
-            if (!done) return entry;
-            if (!done.ok) {
-              return {
-                ...entry,
-                status: "error" as const,
-                error: done.error ?? "Complete failed",
-              };
-            }
-            return { ...entry, status: "done" as const, error: undefined };
+            if (entry.clientId !== done.clientId) return entry;
+            return { ...entry, status: "uploaded" as const, error: undefined };
           })
         );
+
+        const uploadedAsset: AssetRow = {
+          id: done.assetId,
+          relativePath: entry.relativePath,
+          filename: entry.file.name,
+          contentType: getContentType(entry.file),
+          sizeBytes: entry.file.size,
+          kind: "INTEGRATION",
+          createdAt: new Date().toISOString(),
+        };
+        setDisplayAssets((prev) => {
+          if (prev.some((asset) => asset.id === uploadedAsset.id)) return prev;
+          return [...prev, uploadedAsset];
+        });
       }
       router.refresh();
     } catch (err) {
@@ -275,12 +314,20 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
 
   const topFolders = useMemo(() => {
     const map = new Map<string, number>();
-    for (const asset of assets) {
+    for (const asset of displayAssets) {
       const top = asset.relativePath.split("/")[0] ?? asset.relativePath;
       map.set(top, (map.get(top) ?? 0) + 1);
     }
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [assets]);
+  }, [displayAssets]);
+
+  const counts = useMemo(() => {
+    const result = { pending: 0, uploading: 0, uploaded: 0, error: 0 };
+    for (const entry of entries) {
+      result[entry.status] += 1;
+    }
+    return result;
+  }, [entries]);
 
   return (
     <section className="space-y-4">
@@ -341,6 +388,11 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
       {entries.length > 0 && (
         <div className="rounded border p-3">
           <h3 className="mb-2 text-sm font-semibold">Upload queue</h3>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Uploaded {counts.uploaded} / {entries.length}
+            {counts.uploading > 0 ? ` • ${counts.uploading} uploading` : ""}
+            {counts.error > 0 ? ` • ${counts.error} failed` : ""}
+          </p>
           <ul className="space-y-1 text-sm">
             {entries.map((entry) => (
               <li
@@ -348,9 +400,21 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
                 className="flex items-center justify-between"
               >
                 <span className="font-mono">{entry.relativePath}</span>
-                <span className="text-muted-foreground">
-                  {entry.status}
-                  {entry.error ? ` (${entry.error})` : ""}
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  {entry.status === "pending" && <Clock3 className="h-4 w-4" />}
+                  {entry.status === "uploading" && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {entry.status === "uploaded" && (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  )}
+                  {entry.status === "error" && (
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                  )}
+                  <span>
+                    {entry.status === "uploaded" ? "uploaded" : entry.status}
+                    {entry.error ? ` (${entry.error})` : ""}
+                  </span>
                 </span>
               </li>
             ))}
@@ -379,7 +443,7 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
       <div className="rounded border p-3">
         <h3 className="mb-2 text-sm font-semibold">Files</h3>
         <ul className="space-y-1 text-sm">
-          {assets.map((asset) => (
+          {displayAssets.map((asset) => (
             <li
               key={asset.id}
               className="flex items-center justify-between gap-2"
