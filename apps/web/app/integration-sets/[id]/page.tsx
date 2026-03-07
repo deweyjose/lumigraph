@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { listMyPosts } from "@/server/services/posts";
 import { getIntegrationSetForOwner } from "@/server/services/integration-sets";
 import { listAssetsByIntegrationSetForOwner } from "@/server/services/assets";
+import { listDownloadJobsForIntegrationSetForOwner } from "@/server/services/download-jobs";
 import { IntegrationSetForm } from "@/components/integration-sets/integration-set-form";
 import { IntegrationAssetUpload } from "@/components/integration-sets/integration-asset-upload";
 
@@ -24,12 +25,13 @@ export default async function IntegrationSetDetailPage({ params }: Props) {
     redirect(`/auth/signin?callbackUrl=/integration-sets/${id}`);
   }
 
-  const [set, posts, assets] = await Promise.all([
+  const [set, posts, assets, downloadJobs] = await Promise.all([
     getIntegrationSetForOwner(id, session.user.id),
     listMyPosts(session.user.id),
     listAssetsByIntegrationSetForOwner(id, session.user.id),
+    listDownloadJobsForIntegrationSetForOwner(id, session.user.id),
   ]);
-  if (!set || !assets) notFound();
+  if (!set || !assets || !downloadJobs) notFound();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -58,6 +60,7 @@ export default async function IntegrationSetDetailPage({ params }: Props) {
             kind: asset.kind,
             createdAt: asset.createdAt.toISOString(),
           }))}
+          downloadJobs={downloadJobs}
         />
 
         <IntegrationSetForm

@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  type ReactElement,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { type NodeApi, type NodeRendererProps, Tree } from "react-arborist";
 import {
   Upload,
   FolderOpen,
@@ -16,6 +10,12 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock3,
+  Folder,
+  File,
+  ChevronRight,
+  Download,
+  Archive,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -37,9 +37,25 @@ type AssetRow = {
   createdAt: string;
 };
 
+type DownloadJobRow = {
+  id: string;
+  status: "PENDING" | "RUNNING" | "READY" | "FAILED";
+  selectedPaths: string[];
+  outputS3Key: string | null;
+  outputSizeBytes: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  expiresAt: string | null;
+  downloadUrl?: string;
+  isExpired?: boolean;
+};
+
 type Props = {
   integrationSetId: string;
   assets: AssetRow[];
+  downloadJobs: DownloadJobRow[];
 };
 
 type BatchPresignResult =
@@ -69,39 +85,31 @@ type BatchCompleteResult =
       error: string;
     };
 
-function buildTree(paths: string[]) {
-  const root: Record<string, unknown> = {};
-  for (const path of paths) {
-    const parts = path.split("/").filter(Boolean);
-    let cursor: Record<string, unknown> = root;
-    for (const part of parts) {
-      if (!cursor[part]) cursor[part] = {};
-      cursor = cursor[part] as Record<string, unknown>;
-    }
-  }
-  return root;
-}
+type ExplorerFileNode = {
+  id: string;
+  kind: "file";
+  name: string;
+  path: string;
+  assetId: string;
+  sizeBytes: number;
+};
 
-function renderTree(
-  node: Record<string, unknown>,
-  prefix = ""
-): ReactElement[] {
-  return Object.keys(node)
-    .sort((a, b) => a.localeCompare(b))
-    .map((key) => {
-      const value = node[key] as Record<string, unknown>;
-      const full = prefix ? `${prefix}/${key}` : key;
-      const childKeys = Object.keys(value);
-      return (
-        <li key={full} className="ml-4 list-disc">
-          <span className="font-mono text-sm">{key}</span>
-          {childKeys.length > 0 && (
-            <ul className="mt-1">{renderTree(value, full)}</ul>
-          )}
-        </li>
-      );
-    });
-}
+type ExplorerFolderNode = {
+  id: string;
+  kind: "folder";
+  name: string;
+  path: string;
+  children: ExplorerNode[];
+};
+
+type ExplorerNode = ExplorerFileNode | ExplorerFolderNode;
+
+type BuilderFolder = {
+  name: string;
+  path: string;
+  folders: Map<string, BuilderFolder>;
+  files: ExplorerFileNode[];
+};
 
 function getContentType(file: File): string {
   if (file.type) return file.type;
@@ -119,29 +127,257 @@ function isIgnoredUploadPath(relativePath: string): boolean {
   return parts.some((part) => part.toLowerCase() === ".ds_store");
 }
 
-export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
+function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let n = value;
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i += 1;
+  }
+  return `${n.toFixed(n >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function buildTreeNodes(assets: AssetRow[]): ExplorerNode[] {
+  const root: BuilderFolder = {
+    name: "",
+    path: "",
+    folders: new Map(),
+    files: [],
+  };
+
+  for (const asset of assets) {
+    const parts = asset.relativePath.split("/").filter(Boolean);
+    if (parts.length === 0) continue;
+
+    let cursor = root;
+    for (let i = 0; i < parts.length; i += 1) {
+      const part = parts[i]!;
+      const currentPath = parts.slice(0, i + 1).join("/");
+      const isFile = i === parts.length - 1;
+
+      if (isFile) {
+        cursor.files.push({
+          id: `file:${asset.id}`,
+          kind: "file",
+          name: part,
+          path: asset.relativePath,
+          assetId: asset.id,
+          sizeBytes: asset.sizeBytes,
+        });
+        continue;
+      }
+
+      let folder = cursor.folders.get(part);
+      if (!folder) {
+        folder = {
+          name: part,
+          path: currentPath,
+          folders: new Map(),
+          files: [],
+        };
+        cursor.folders.set(part, folder);
+      }
+      cursor = folder;
+    }
+  }
+
+  const toNodes = (folder: BuilderFolder): ExplorerNode[] => {
+    const folderNodes = Array.from(folder.folders.values())
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map<ExplorerFolderNode>((child) => ({
+        id: `folder:${child.path}`,
+        kind: "folder",
+        name: child.name,
+        path: child.path,
+        children: toNodes(child),
+      }));
+
+    const fileNodes = [...folder.files]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map<ExplorerFileNode>((file) => ({ ...file }));
+
+    return [...folderNodes, ...fileNodes];
+  };
+
+  return toNodes(root);
+}
+
+function collectNodeMap(
+  nodes: ExplorerNode[],
+  map = new Map<string, ExplorerNode>()
+) {
+  for (const node of nodes) {
+    map.set(node.id, node);
+    if (node.kind === "folder") collectNodeMap(node.children, map);
+  }
+  return map;
+}
+
+function deriveSelectedAssets(
+  selectedPaths: string[],
+  assets: AssetRow[]
+): { fileCount: number; totalBytes: number } {
+  const selected = new Set<string>();
+  for (const asset of assets) {
+    for (const path of selectedPaths) {
+      if (
+        asset.relativePath === path ||
+        asset.relativePath.startsWith(`${path}/`)
+      ) {
+        selected.add(asset.id);
+        break;
+      }
+    }
+  }
+
+  let totalBytes = 0;
+  for (const asset of assets) {
+    if (selected.has(asset.id)) totalBytes += asset.sizeBytes;
+  }
+  return { fileCount: selected.size, totalBytes };
+}
+
+function statusTone(status: DownloadJobRow["status"]): string {
+  if (status === "READY") return "text-green-500";
+  if (status === "FAILED") return "text-red-500";
+  if (status === "RUNNING") return "text-blue-500";
+  return "text-muted-foreground";
+}
+
+function NodeRow({ node, style, dragHandle }: NodeRendererProps<ExplorerNode>) {
+  const data = node.data;
+
+  return (
+    <div
+      ref={dragHandle}
+      style={style}
+      className={`flex items-center justify-between gap-2 rounded px-2 text-sm ${
+        node.isSelected ? "bg-muted" : ""
+      }`}
+      onClick={() => node.selectMulti()}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {data.kind === "folder" ? (
+          <button
+            type="button"
+            className="inline-flex h-5 w-5 items-center justify-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              node.toggle();
+            }}
+          >
+            <ChevronRight
+              className={`h-4 w-4 transition-transform ${
+                node.isOpen ? "rotate-90" : ""
+              }`}
+            />
+          </button>
+        ) : (
+          <span className="inline-flex h-5 w-5" />
+        )}
+
+        {data.kind === "folder" ? (
+          <Folder className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <File className="h-4 w-4 text-muted-foreground" />
+        )}
+
+        <span className="truncate font-mono">{data.name}</span>
+      </div>
+
+      {data.kind === "file" && (
+        <a
+          href={`/api/assets/${data.assetId}/download`}
+          className="shrink-0 text-primary hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          Download
+        </a>
+      )}
+    </div>
+  );
+}
+
+export function IntegrationAssetUpload({
+  integrationSetId,
+  assets,
+  downloadJobs,
+}: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const treeContainerRef = useRef<HTMLDivElement>(null);
+
   const [entries, setEntries] = useState<UploadEntry[]>([]);
   const [displayAssets, setDisplayAssets] = useState<AssetRow[]>(assets);
+  const [displayJobs, setDisplayJobs] =
+    useState<DownloadJobRow[]>(downloadJobs);
   const [isUploading, setIsUploading] = useState(false);
+  const [isStartingExport, setIsStartingExport] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [treeWidth, setTreeWidth] = useState(800);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const [treeResetToken, setTreeResetToken] = useState(0);
 
   useEffect(() => {
     setDisplayAssets(assets);
   }, [assets]);
 
-  const tree = useMemo(
-    () => buildTree(displayAssets.map((asset) => asset.relativePath)),
+  useEffect(() => {
+    setDisplayJobs(downloadJobs);
+  }, [downloadJobs]);
+
+  useEffect(() => {
+    if (!treeContainerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width && width > 0) setTreeWidth(Math.floor(width));
+    });
+    observer.observe(treeContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const treeData = useMemo(
+    () => buildTreeNodes(displayAssets),
     [displayAssets]
   );
+
+  const nodeMap = useMemo(() => collectNodeMap(treeData), [treeData]);
+
+  const selectedNodes = useMemo(
+    () =>
+      selectedNodeIds
+        .map((id) => nodeMap.get(id))
+        .filter((node): node is ExplorerNode => Boolean(node)),
+    [nodeMap, selectedNodeIds]
+  );
+
+  const selectedPaths = useMemo(
+    () => Array.from(new Set(selectedNodes.map((node) => node.path))),
+    [selectedNodes]
+  );
+
+  const selectedSummary = useMemo(
+    () => deriveSelectedAssets(selectedPaths, displayAssets),
+    [displayAssets, selectedPaths]
+  );
+
+  const singleSelectedFileAssetId = useMemo(() => {
+    if (selectedNodes.length !== 1) return null;
+    const node = selectedNodes[0];
+    if (!node || node.kind !== "file") return null;
+    return node.assetId;
+  }, [selectedNodes]);
 
   const addFiles = useCallback(
     (files: FileList | null, fromFolder: boolean) => {
       if (!files || files.length === 0) return;
       const next: UploadEntry[] = [];
-      for (let i = 0; i < files.length; i++) {
+      for (let i = 0; i < files.length; i += 1) {
         const file = files[i];
+        if (!file) continue;
         const relativePath =
           fromFolder && file.webkitRelativePath
             ? file.webkitRelativePath
@@ -159,9 +395,76 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
     []
   );
 
+  const refreshJob = useCallback(
+    async (jobId: string) => {
+      const res = await fetch(
+        `/api/integration-sets/${integrationSetId}/export-jobs/${jobId}`
+      );
+      const data = (await res.json()) as {
+        job?: DownloadJobRow;
+        message?: string;
+      };
+      if (!res.ok || !data.job) {
+        throw new Error(data.message ?? "Failed to refresh export job");
+      }
+      setDisplayJobs((prev) =>
+        prev.map((job) => (job.id === data.job?.id ? data.job : job))
+      );
+    },
+    [integrationSetId]
+  );
+
+  useEffect(() => {
+    const activeJobIds = displayJobs
+      .filter((job) => job.status === "PENDING" || job.status === "RUNNING")
+      .map((job) => job.id);
+
+    if (activeJobIds.length === 0) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      const results = await Promise.all(
+        activeJobIds.map(async (jobId) => {
+          try {
+            const res = await fetch(
+              `/api/integration-sets/${integrationSetId}/export-jobs/${jobId}`
+            );
+            const data = (await res.json()) as { job?: DownloadJobRow };
+            return data.job ?? null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      if (cancelled) return;
+      const jobs = results.filter((job): job is DownloadJobRow => Boolean(job));
+      const byId = new Map(jobs.map((job) => [job.id, job]));
+      if (byId.size === 0) return;
+
+      setDisplayJobs((prev) =>
+        prev.map((job) => {
+          const updated = byId.get(job.id);
+          return updated ?? job;
+        })
+      );
+    };
+
+    void tick();
+    const timer = setInterval(() => {
+      void tick();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [displayJobs, integrationSetId]);
+
   const uploadAll = useCallback(async () => {
     const pending = entries.filter((entry) => entry.status === "pending");
     if (pending.length === 0) return;
+
     setIsUploading(true);
     try {
       setEntries((prev) =>
@@ -190,8 +493,9 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
         message?: string;
         results: BatchPresignResult[];
       };
-      if (!presignRes.ok)
+      if (!presignRes.ok) {
         throw new Error(presignData.message ?? "Presign failed");
+      }
 
       const map = new Map<
         string,
@@ -214,11 +518,13 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           );
           continue;
         }
+
         const uploadRes = await fetch(item.uploadUrl, {
           method: "PUT",
           body: entry.file,
           headers: { "Content-Type": getContentType(entry.file) },
         });
+
         if (!uploadRes.ok) {
           setEntries((prev) =>
             prev.map((existing) =>
@@ -233,6 +539,7 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           );
           continue;
         }
+
         const completeRes = await fetch("/api/uploads/complete-batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -246,10 +553,12 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
             ],
           }),
         });
+
         const completeData = (await completeRes.json()) as {
           message?: string;
           results: BatchCompleteResult[];
         };
+
         if (!completeRes.ok) {
           setEntries((prev) =>
             prev.map((existing) =>
@@ -264,6 +573,7 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           );
           continue;
         }
+
         const done = completeData.results.find(
           (result) => result.clientId === entry.clientId
         );
@@ -283,10 +593,11 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
         }
 
         setEntries((prev) =>
-          prev.map((entry) => {
-            if (entry.clientId !== done.clientId) return entry;
-            return { ...entry, status: "uploaded" as const, error: undefined };
-          })
+          prev.map((existing) =>
+            existing.clientId === done.clientId
+              ? { ...existing, status: "uploaded" as const, error: undefined }
+              : existing
+          )
         );
 
         const uploadedAsset: AssetRow = {
@@ -303,6 +614,7 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           return [...prev, uploadedAsset];
         });
       }
+
       router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Upload failed";
@@ -318,20 +630,46 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
     }
   }, [entries, integrationSetId, router]);
 
-  const topFolders = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const asset of displayAssets) {
-      const top = asset.relativePath.split("/")[0] ?? asset.relativePath;
-      map.set(top, (map.get(top) ?? 0) + 1);
+  const startExport = useCallback(async () => {
+    if (selectedPaths.length === 0) return;
+
+    setExportError(null);
+    setIsStartingExport(true);
+    try {
+      const res = await fetch(
+        `/api/integration-sets/${integrationSetId}/export-jobs`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selectedPaths }),
+        }
+      );
+      const data = (await res.json()) as {
+        message?: string;
+        job?: DownloadJobRow;
+      };
+      if (!res.ok || !data.job) {
+        throw new Error(data.message ?? "Failed to start export");
+      }
+
+      setDisplayJobs((prev) => [
+        data.job!,
+        ...prev.filter((job) => job.id !== data.job!.id),
+      ]);
+      setTreeResetToken((x) => x + 1);
+      setSelectedNodeIds([]);
+    } catch (err) {
+      setExportError(
+        err instanceof Error ? err.message : "Failed to start export"
+      );
+    } finally {
+      setIsStartingExport(false);
     }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [displayAssets]);
+  }, [integrationSetId, selectedPaths]);
 
   const counts = useMemo(() => {
     const result = { pending: 0, uploading: 0, uploaded: 0, error: 0 };
-    for (const entry of entries) {
-      result[entry.status] += 1;
-    }
+    for (const entry of entries) result[entry.status] += 1;
     return result;
   }, [entries]);
 
@@ -403,9 +741,9 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
             {entries.map((entry) => (
               <li
                 key={entry.clientId}
-                className="flex items-center justify-between"
+                className="flex items-center justify-between gap-2"
               >
-                <span className="font-mono">{entry.relativePath}</span>
+                <span className="truncate font-mono">{entry.relativePath}</span>
                 <span className="flex items-center gap-2 text-muted-foreground">
                   {entry.status === "pending" && <Clock3 className="h-4 w-4" />}
                   {entry.status === "uploading" && (
@@ -428,42 +766,155 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded border p-3">
-          <h3 className="mb-2 text-sm font-semibold">Top folders</h3>
-          <ul className="space-y-1 text-sm">
-            {topFolders.map(([name, count]) => (
-              <li key={name} className="flex justify-between">
-                <span className="font-mono">{name}</span>
-                <span className="text-muted-foreground">{count}</span>
-              </li>
-            ))}
-          </ul>
+      <div className="rounded border p-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold">Explorer</h3>
+            <p className="text-xs text-muted-foreground">
+              Selected {selectedSummary.fileCount} file
+              {selectedSummary.fileCount === 1 ? "" : "s"}
+              {selectedSummary.fileCount > 0
+                ? ` • ${formatBytes(selectedSummary.totalBytes)}`
+                : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {singleSelectedFileAssetId && (
+              <Button asChild variant="outline" size="sm">
+                <a href={`/api/assets/${singleSelectedFileAssetId}/download`}>
+                  <Download className="mr-2 h-4 w-4" /> Download file
+                </a>
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setTreeResetToken((x) => x + 1);
+                setSelectedNodeIds([]);
+              }}
+            >
+              Clear selection
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={selectedPaths.length === 0 || isStartingExport}
+              onClick={() => void startExport()}
+            >
+              {isStartingExport ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Starting export...
+                </>
+              ) : (
+                <>
+                  <Archive className="mr-2 h-4 w-4" /> Export selected as ZIP
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-        <div className="rounded border p-3">
-          <h3 className="mb-2 text-sm font-semibold">Folder tree</h3>
-          <ul>{renderTree(tree)}</ul>
+
+        {exportError && (
+          <p className="mb-3 text-sm text-red-500" role="alert">
+            {exportError}
+          </p>
+        )}
+
+        <div
+          ref={treeContainerRef}
+          className="h-[360px] overflow-hidden rounded border"
+        >
+          {treeData.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              No files uploaded yet.
+            </div>
+          ) : (
+            <Tree
+              key={treeResetToken}
+              data={treeData}
+              width={treeWidth}
+              height={360}
+              rowHeight={32}
+              indent={20}
+              openByDefault={false}
+              overscanCount={8}
+              onSelect={(nodes: NodeApi<ExplorerNode>[]) => {
+                setSelectedNodeIds(nodes.map((node) => String(node.id)));
+              }}
+            >
+              {(props) => <NodeRow {...props} />}
+            </Tree>
+          )}
         </div>
       </div>
 
       <div className="rounded border p-3">
-        <h3 className="mb-2 text-sm font-semibold">Files</h3>
-        <ul className="space-y-1 text-sm">
-          {displayAssets.map((asset) => (
-            <li
-              key={asset.id}
-              className="flex items-center justify-between gap-2"
-            >
-              <span className="truncate font-mono">{asset.relativePath}</span>
-              <a
-                href={`/api/assets/${asset.id}/download`}
-                className="text-primary hover:underline"
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Exports</h3>
+          <span className="text-xs text-muted-foreground">
+            {displayJobs.length} jobs
+          </span>
+        </div>
+
+        {displayJobs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No exports yet.</p>
+        ) : (
+          <ul className="space-y-2 text-sm">
+            {displayJobs.map((job) => (
+              <li
+                key={job.id}
+                className="flex flex-col gap-2 rounded border p-2 lg:flex-row lg:items-center lg:justify-between"
               >
-                Download
-              </a>
-            </li>
-          ))}
-        </ul>
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-xs">{job.id}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(job.createdAt).toLocaleString()} •{" "}
+                    {job.selectedPaths.length} selected path
+                    {job.selectedPaths.length === 1 ? "" : "s"}
+                  </p>
+                  {job.errorMessage && (
+                    <p className="mt-1 text-xs text-red-500">
+                      {job.errorMessage}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`text-xs font-medium ${statusTone(job.status)}`}
+                  >
+                    {job.status}
+                    {job.isExpired ? " (expired)" : ""}
+                  </span>
+
+                  {(job.status === "PENDING" || job.status === "RUNNING") && (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
+                  {job.status === "READY" && job.downloadUrl ? (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={job.downloadUrl}>
+                        <Download className="mr-2 h-4 w-4" /> Download ZIP
+                      </a>
+                    </Button>
+                  ) : job.status === "READY" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void refreshJob(job.id)}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" /> Prepare download
+                    </Button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );

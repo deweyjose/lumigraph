@@ -140,3 +140,40 @@ variable "runner_security_group_id" {
   type        = string
   default     = ""
 }
+
+variable "download_zip_lambda_arn" {
+  description = "Optional external Lambda ARN used for async ZIP export jobs. If null, this stack provisions one."
+  type        = string
+  default     = null
+}
+
+variable "download_callback_secret" {
+  description = "Shared secret used by Lambda callbacks to sign status updates."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "download_zip_lambda_timeout_seconds" {
+  description = "Timeout for the managed ZIP export Lambda."
+  type        = number
+  default     = 900
+}
+
+variable "download_zip_lambda_memory_mb" {
+  description = "Memory size for the managed ZIP export Lambda."
+  type        = number
+  default     = 2048
+}
+
+variable "download_zip_lambda_reserved_concurrency" {
+  description = "Reserved concurrency for the managed ZIP export Lambda."
+  type        = number
+  default     = 5
+}
+
+variable "download_exports_expiration_days" {
+  description = "Expiration in days for generated export ZIP artifacts in S3."
+  type        = number
+  default     = 1
+}

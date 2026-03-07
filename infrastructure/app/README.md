@@ -44,6 +44,12 @@ Use `.github/workflows/terraform.yml`:
 - `vercel_project_name` (default: `lumigraph`)
 - `vercel_oidc_subjects` (default: `owner:<team>:project:<project>:environment:*`)
 - `db_iam_app_username` (default: `app_user`)
+- `download_zip_lambda_arn` (default: `null`; optional external Lambda ARN. If null, this stack provisions the ZIP export Lambda.)
+- `download_callback_secret` (required when provisioning managed Lambda; shared secret for callback signing)
+- `download_zip_lambda_timeout_seconds` (default: `900`)
+- `download_zip_lambda_memory_mb` (default: `2048`)
+- `download_zip_lambda_reserved_concurrency` (default: `5`)
+- `download_exports_expiration_days` (default: `1`; expires S3 objects tagged `lumigraph-kind=export`)
 
 ## Outputs
 - `artifacts_bucket_name`
@@ -55,3 +61,5 @@ Use `.github/workflows/terraform.yml`:
 - `db_iam_app_username`
 - `vercel_db_connect_role_arn`
 - `vercel_oidc_provider_arn`
+- `download_zip_lambda_arn`
+- `download_zip_lambda_name`

@@ -84,6 +84,8 @@ AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED
 AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED
+DOWNLOAD_JOB_PROCESSOR=local
+DOWNLOAD_EXPORT_TTL_HOURS=24
 ```
 
 `docker-compose` now auto-creates `lumigraph-dev-local` and applies dev CORS on LocalStack startup.
@@ -104,6 +106,13 @@ aws --endpoint-url http://localhost:4566 s3api put-bucket-cors \
 ```
 
 **Real AWS:** Set `AWS_S3_BUCKET`, `AWS_REGION`, and credentials in `apps/web/.env`.
+For async ZIP exports in cloud, also set:
+
+```env
+DOWNLOAD_JOB_PROCESSOR=lambda
+DOWNLOAD_ZIP_LAMBDA_NAME=<terraform-output-download_zip_lambda_name>
+DOWNLOAD_CALLBACK_SECRET=<same-value-as-TF_VAR_download_callback_secret>
+```
 
 ---
 

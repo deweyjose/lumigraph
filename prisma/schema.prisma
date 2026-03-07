@@ -45,6 +45,15 @@ enum AssetStatus {
   @@map("asset_status")
 }
 
+enum DownloadJobStatus {
+  PENDING
+  RUNNING
+  READY
+  FAILED
+
+  @@map("download_job_status")
+}
+
 model User {
   id            String    @id @default(uuid()) @db.Uuid
   email         String    @unique
@@ -59,6 +68,7 @@ model User {
   posts           Post[]
   integrationSets IntegrationSet[]
   assets          Asset[]
+  downloadJobs    DownloadJob[]
 
   @@map("users")
 }
@@ -137,6 +147,7 @@ model IntegrationSet {
   user      User     @relation(fields: [userId], references: [id])
   post      Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
   assets    Asset[]
+  downloadJobs DownloadJob[]
 
   @@index([userId])
   @@index([postId])
@@ -170,6 +181,29 @@ model Asset {
   @@index([postId, kind])
   @@index([s3Key])
   @@map("assets")
+}
+
+model DownloadJob {
+  id                String            @id @default(uuid()) @db.Uuid
+  userId            String            @db.Uuid @map("user_id")
+  integrationSetId  String            @db.Uuid @map("integration_set_id")
+  selectedPathsJson Json              @map("selected_paths_json")
+  status            DownloadJobStatus @default(PENDING)
+  outputS3Key       String?           @map("output_s3_key")
+  outputSizeBytes   BigInt?           @map("output_size_bytes")
+  errorMessage      String?           @map("error_message")
+  completedAt       DateTime?         @map("completed_at")
+  expiresAt         DateTime?         @map("expires_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  integrationSet IntegrationSet @relation(fields: [integrationSetId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([integrationSetId, createdAt])
+  @@index([status, createdAt])
+  @@map("download_jobs")
 }
 
 model DailyCanvas {

@@ -42,3 +42,13 @@ output "vercel_oidc_provider_arn" {
   description = "OIDC provider ARN for Vercel team tokens."
   value       = aws_iam_openid_connect_provider.vercel.arn
 }
+
+output "download_zip_lambda_arn" {
+  description = "ARN of the ZIP export Lambda used by integration set download jobs."
+  value       = local.effective_download_zip_lambda_arn
+}
+
+output "download_zip_lambda_name" {
+  description = "Name of the managed ZIP export Lambda, or null when using an external ARN."
+  value       = local.create_download_zip_lambda ? aws_lambda_function.download_zip[0].function_name : null
+}
