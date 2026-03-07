@@ -306,7 +306,9 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ec2:DescribeNetworkInterfaces",
       "ec2:CreateTags",
       "ec2:DeleteTags",
-      "ec2:DescribeTags"
+      "ec2:DescribeTags",
+      "ec2:DetachNetworkInterface",
+      "ec2:AttachNetworkInterface"
     ]
     resources = ["*"]
   }
@@ -374,6 +376,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:DetachRolePolicy",
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
+      "iam:ListInstanceProfilesForRole",
       "iam:GetPolicy",
       "iam:GetPolicyVersion",
       "iam:ListPolicyVersions",
