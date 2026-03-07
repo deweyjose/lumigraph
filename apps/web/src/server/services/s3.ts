@@ -119,24 +119,24 @@ export async function createPresignedDownloadUrl(
 
 /**
  * Key for a final image file under an image post.
- * e.g. users/{userId}/images/{imagePostId}/final/original.ext
+ * e.g. users/{userId}/posts/{postId}/final/original.ext
  */
 export function imageFinalKey(
   userId: string,
-  imagePostId: string,
+  postId: string,
   filename: string
 ): string {
-  return `users/${userId}/images/${imagePostId}/final/${filename}`;
+  return `users/${userId}/posts/${postId}/final/${filename}`;
 }
 
 /**
- * Key for a dataset artifact file.
- * e.g. users/{userId}/datasets/{datasetId}/{filename}
+ * Key for an integration set file.
+ * e.g. users/{userId}/integration-sets/{integrationSetId}/{relativePath}
  */
-export function datasetArtifactKey(
+export function integrationSetAssetKey(
   userId: string,
-  datasetId: string,
-  filename: string
+  integrationSetId: string,
+  relativePath: string
 ): string {
-  return `users/${userId}/datasets/${datasetId}/${filename}`;
+  return `users/${userId}/integration-sets/${integrationSetId}/${relativePath}`;
 }

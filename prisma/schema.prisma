@@ -7,21 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum DatasetVisibility {
-  PRIVATE
-  UNLISTED
-  PUBLIC
-
-  @@map("dataset_visibility")
-}
-
-enum PostVisibility {
+enum PostStatus {
   DRAFT
-  PRIVATE
-  UNLISTED
-  PUBLIC
+  PUBLISHED
 
-  @@map("post_visibility")
+  @@map("post_status")
 }
 
 enum TargetType {
@@ -34,6 +24,27 @@ enum TargetType {
   @@map("target_type")
 }
 
+enum IntegrationSetVisibility {
+  PRIVATE
+
+  @@map("integration_set_visibility")
+}
+
+enum AssetKind {
+  INTEGRATION
+  FINAL_IMAGE
+  FINAL_THUMB
+
+  @@map("asset_kind")
+}
+
+enum AssetStatus {
+  PRESIGNED
+  UPLOADED
+
+  @@map("asset_status")
+}
+
 model User {
   id            String    @id @default(uuid()) @db.Uuid
   email         String    @unique
@@ -44,9 +55,10 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  accounts   Account[]
-  imagePosts ImagePost[]
-  datasets   Dataset[]
+  accounts        Account[]
+  posts           Post[]
+  integrationSets IntegrationSet[]
+  assets          Asset[]
 
   @@map("users")
 }
@@ -84,62 +96,80 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-model ImagePost {
+model Post {
   id                 String         @id @default(uuid()) @db.Uuid
   userId             String         @db.Uuid @map("user_id")
   slug               String         @unique
   title              String
   description        String?
-  visibility         PostVisibility @default(DRAFT)
+  status             PostStatus     @default(DRAFT)
   targetName         String?        @map("target_name")
   targetType         TargetType?    @map("target_type")
   captureDate        DateTime?      @map("capture_date")
   bortle             Int?
-  finalImageUrl      String?        @map("final_image_url")
-  finalImageThumbUrl String?        @map("final_image_thumb_url")
+  finalImageAssetId  String?        @db.Uuid @map("final_image_asset_id")
+  finalThumbAssetId  String?        @db.Uuid @map("final_thumb_asset_id")
+  publishedAt        DateTime?      @map("published_at")
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
 
-  user     User      @relation(fields: [userId], references: [id])
-  datasets Dataset[]
+  user             User             @relation(fields: [userId], references: [id])
+  integrationSets  IntegrationSet[]
+  assets           Asset[]          @relation("PostAssets")
+  finalImageAsset  Asset?           @relation("PostFinalImage", fields: [finalImageAssetId], references: [id], onDelete: SetNull)
+  finalThumbAsset  Asset?           @relation("PostFinalThumb", fields: [finalThumbAssetId], references: [id], onDelete: SetNull)
 
   @@index([userId])
-  @@map("image_posts")
+  @@index([status, createdAt])
+  @@map("posts")
 }
 
-model Dataset {
+model IntegrationSet {
   id          String            @id @default(uuid()) @db.Uuid
   userId      String            @db.Uuid @map("user_id")
-  imagePostId String?           @db.Uuid @map("image_post_id")
+  postId      String?           @db.Uuid @map("post_id")
   title       String
-  description String?
-  visibility  DatasetVisibility @default(PRIVATE)
+  notes       String?
+  visibility  IntegrationSetVisibility @default(PRIVATE)
   createdAt   DateTime          @default(now()) @map("created_at")
   updatedAt   DateTime          @updatedAt @map("updated_at")
 
-  user       User       @relation(fields: [userId], references: [id])
-  imagePost  ImagePost? @relation(fields: [imagePostId], references: [id])
-  artifacts  DatasetArtifact[]
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: SetNull)
+  assets    Asset[]
 
   @@index([userId])
-  @@index([imagePostId])
-  @@map("datasets")
+  @@index([postId])
+  @@map("integration_sets")
 }
 
-model DatasetArtifact {
-  id        String   @id @default(uuid()) @db.Uuid
-  datasetId String   @db.Uuid @map("dataset_id")
+model Asset {
+  id               String      @id @default(uuid()) @db.Uuid
+  userId           String      @db.Uuid @map("user_id")
+  integrationSetId String?     @db.Uuid @map("integration_set_id")
+  postId           String?     @db.Uuid @map("post_id")
+  kind             AssetKind
+  relativePath     String      @map("relative_path")
   filename  String
-  fileType  String   @map("file_type")
-  s3Key     String   @map("s3_key")
-  sizeBytes BigInt   @map("size_bytes")
-  checksum  String?
-  createdAt DateTime @default(now()) @map("created_at")
+  contentType String
+  sizeBytes        BigInt      @map("size_bytes")
+  s3Key            String      @map("s3_key")
+  status           AssetStatus @default(PRESIGNED)
+  checksum         String?
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
 
-  dataset Dataset @relation(fields: [datasetId], references: [id])
+  user             User            @relation(fields: [userId], references: [id])
+  integrationSet   IntegrationSet? @relation(fields: [integrationSetId], references: [id], onDelete: Cascade)
+  post             Post?           @relation("PostAssets", fields: [postId], references: [id], onDelete: Cascade)
+  finalImageForPost Post[]         @relation("PostFinalImage")
+  finalThumbForPost Post[]         @relation("PostFinalThumb")
 
-  @@index([datasetId])
-  @@map("dataset_artifacts")
+  @@index([userId])
+  @@index([integrationSetId, relativePath])
+  @@index([postId, kind])
+  @@index([s3Key])
+  @@map("assets")
 }
 
 model DailyCanvas {

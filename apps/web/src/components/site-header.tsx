@@ -13,10 +13,10 @@ export function SiteHeader() {
           </Link>
           <nav className="hidden items-center gap-4 text-sm md:flex">
             <Link
-              href="/datasets"
+              href="/integration-sets"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
-              Datasets
+              Integration Sets
             </Link>
             <Link
               href="/drafts"

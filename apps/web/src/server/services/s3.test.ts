@@ -30,18 +30,22 @@ describe("s3 service", () => {
   });
 
   describe("imageFinalKey", () => {
-    it("returns path users/{userId}/images/{imagePostId}/final/{filename}", () => {
+    it("returns path users/{userId}/posts/{postId}/final/{filename}", () => {
       expect(s3Service.imageFinalKey("user-1", "post-1", "original.tif")).toBe(
-        "users/user-1/images/post-1/final/original.tif"
+        "users/user-1/posts/post-1/final/original.tif"
       );
     });
   });
 
-  describe("datasetArtifactKey", () => {
-    it("returns path users/{userId}/datasets/{datasetId}/{filename}", () => {
+  describe("integrationSetAssetKey", () => {
+    it("returns path users/{userId}/integration-sets/{integrationSetId}/{relativePath}", () => {
       expect(
-        s3Service.datasetArtifactKey("user-1", "ds-1", "master.fits")
-      ).toBe("users/user-1/datasets/ds-1/master.fits");
+        s3Service.integrationSetAssetKey(
+          "user-1",
+          "set-1",
+          "lights/master.fits"
+        )
+      ).toBe("users/user-1/integration-sets/set-1/lights/master.fits");
     });
   });
 });

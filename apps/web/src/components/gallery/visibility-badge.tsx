@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
-export type PostVisibility = "DRAFT" | "PRIVATE" | "UNLISTED" | "PUBLIC";
+export type PostStatus = "DRAFT" | "PUBLISHED";
 
 const visibilityConfig: Record<
-  PostVisibility,
+  PostStatus,
   { label: string; className: string }
 > = {
   DRAFT: {
@@ -11,29 +11,21 @@ const visibilityConfig: Record<
     className:
       "bg-amber-500/20 text-amber-600 dark:bg-amber-500/25 dark:text-amber-400 border border-amber-500/30",
   },
-  PRIVATE: {
-    label: "Private",
-    className: "bg-muted text-muted-foreground border border-border",
-  },
-  UNLISTED: {
-    label: "Unlisted",
-    className: "bg-secondary text-secondary-foreground border border-border",
-  },
-  PUBLIC: {
-    label: "Public",
+  PUBLISHED: {
+    label: "Published",
     className:
       "bg-emerald-500/20 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400 border border-emerald-500/30",
   },
 };
 
 export function VisibilityBadge({
-  visibility,
+  visibility: status,
   className,
 }: {
-  visibility: PostVisibility;
+  visibility: PostStatus;
   className?: string;
 }) {
-  const config = visibilityConfig[visibility] ?? visibilityConfig.DRAFT;
+  const config = visibilityConfig[status] ?? visibilityConfig.DRAFT;
   return (
     <span
       className={cn(
@@ -41,7 +33,7 @@ export function VisibilityBadge({
         config.className,
         className
       )}
-      aria-label={`Visibility: ${config.label}`}
+      aria-label={`Status: ${config.label}`}
     >
       {config.label}
     </span>

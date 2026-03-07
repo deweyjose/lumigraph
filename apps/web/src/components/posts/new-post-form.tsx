@@ -64,13 +64,12 @@ export function NewPostForm() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/image-posts", {
+      const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: titleTrim,
           slug: slugTrim,
-          visibility: "DRAFT",
           ...(description.trim() && { description: description.trim() }),
         }),
       });
