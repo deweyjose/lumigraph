@@ -18,11 +18,6 @@ output "db_instance_port" {
   value       = aws_db_instance.main.port
 }
 
-output "db_proxy_endpoint" {
-  description = "RDS Proxy endpoint hostname."
-  value       = aws_db_proxy.main.endpoint
-}
-
 output "db_name" {
   description = "Database name."
   value       = var.db_name

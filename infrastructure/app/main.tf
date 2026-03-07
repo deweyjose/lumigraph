@@ -116,15 +116,8 @@ resource "aws_db_subnet_group" "main" {
 
 resource "aws_security_group" "db" {
   name        = "${var.project_name}-db-${var.env}"
-  description = "PostgreSQL ingress from RDS Proxy"
+  description = "PostgreSQL direct access (Vercel, GHA runner)"
   vpc_id      = local.effective_vpc_id
-
-  ingress {
-    from_port       = var.db_port
-    to_port         = var.db_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.proxy.id]
-  }
 
   egress {
     from_port   = 0
@@ -137,10 +130,6 @@ resource "aws_security_group" "db" {
     Name    = "${var.project_name}-db-${var.env}"
     Project = var.project_name
     Env     = var.env
-  }
-
-  lifecycle {
-    ignore_changes = [ingress]
   }
 }
 
@@ -162,36 +151,6 @@ resource "aws_vpc_security_group_ingress_rule" "db_public" {
   to_port           = var.db_port
   ip_protocol       = "tcp"
   cidr_ipv4         = "0.0.0.0/0"
-}
-
-resource "aws_security_group" "proxy" {
-  name        = "${var.project_name}-db-proxy-${var.env}"
-  description = "RDS Proxy ingress"
-  vpc_id      = local.effective_vpc_id
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name    = "${var.project_name}-db-proxy-${var.env}"
-    Project = var.project_name
-    Env     = var.env
-  }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "proxy_cidrs" {
-  for_each = toset(var.proxy_allowed_cidrs)
-
-  security_group_id = aws_security_group.proxy.id
-  description       = "Ingress to RDS Proxy"
-  from_port         = var.db_port
-  to_port           = var.db_port
-  ip_protocol       = "tcp"
-  cidr_ipv4         = each.value
 }
 
 resource "aws_db_instance" "main" {
@@ -217,7 +176,7 @@ resource "aws_db_instance" "main" {
   iam_database_authentication_enabled = true
   auto_minor_version_upgrade          = true
   backup_retention_period             = local.backup_retention_days
-  multi_az                            = local.is_prod
+  multi_az                            = var.db_multi_az
   deletion_protection                 = local.is_prod
   apply_immediately                   = true
   skip_final_snapshot                 = !local.is_prod
@@ -228,89 +187,6 @@ resource "aws_db_instance" "main" {
     Project = var.project_name
     Env     = var.env
   }
-}
-
-data "aws_iam_policy_document" "rds_proxy_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-
-    principals {
-      type        = "Service"
-      identifiers = ["rds.amazonaws.com"]
-    }
-  }
-}
-
-resource "aws_iam_role" "rds_proxy" {
-  name               = "${var.project_name}-rds-proxy-${var.env}"
-  assume_role_policy = data.aws_iam_policy_document.rds_proxy_assume_role.json
-}
-
-data "aws_iam_policy_document" "rds_proxy_secrets" {
-  statement {
-    actions = [
-      "secretsmanager:GetSecretValue"
-    ]
-    resources = [aws_db_instance.main.master_user_secret[0].secret_arn]
-  }
-
-  statement {
-    actions   = ["kms:Decrypt"]
-    resources = [data.aws_kms_key.secretsmanager.arn]
-  }
-}
-
-resource "aws_iam_policy" "rds_proxy_secrets" {
-  name   = "${var.project_name}-rds-proxy-secrets-${var.env}"
-  policy = data.aws_iam_policy_document.rds_proxy_secrets.json
-}
-
-resource "aws_iam_role_policy_attachment" "rds_proxy_secrets" {
-  role       = aws_iam_role.rds_proxy.name
-  policy_arn = aws_iam_policy.rds_proxy_secrets.arn
-}
-
-resource "aws_db_proxy" "main" {
-  name                   = "${var.project_name}-proxy-${var.env}"
-  engine_family          = "POSTGRESQL"
-  role_arn               = aws_iam_role.rds_proxy.arn
-  vpc_subnet_ids         = local.effective_subnet_ids
-  vpc_security_group_ids = [aws_security_group.proxy.id]
-  require_tls            = true
-  idle_client_timeout    = var.db_proxy_idle_client_timeout_seconds
-
-  auth {
-    auth_scheme               = "SECRETS"
-    iam_auth                  = "REQUIRED"
-    secret_arn                = aws_db_instance.main.master_user_secret[0].secret_arn
-    client_password_auth_type = "POSTGRES_SCRAM_SHA_256"
-  }
-
-  tags = {
-    Name    = "${var.project_name}-proxy-${var.env}"
-    Project = var.project_name
-    Env     = var.env
-  }
-
-  lifecycle {
-    ignore_changes = [vpc_subnet_ids]
-  }
-}
-
-resource "aws_db_proxy_default_target_group" "main" {
-  db_proxy_name = aws_db_proxy.main.name
-
-  connection_pool_config {
-    connection_borrow_timeout    = 120
-    max_connections_percent      = 90
-    max_idle_connections_percent = 50
-  }
-}
-
-resource "aws_db_proxy_target" "main" {
-  db_proxy_name          = aws_db_proxy.main.name
-  target_group_name      = aws_db_proxy_default_target_group.main.name
-  db_instance_identifier = aws_db_instance.main.identifier
 }
 
 resource "aws_iam_openid_connect_provider" "vercel" {

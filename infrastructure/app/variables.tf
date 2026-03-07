@@ -82,9 +82,15 @@ variable "db_allocated_storage_gb" {
 }
 
 variable "db_max_allocated_storage_gb" {
-  description = "Maximum autoscaled storage in GB."
+  description = "Maximum autoscaled storage in GB (set to allocated_storage to stay within free tier)."
   type        = number
-  default     = 100
+  default     = 20
+}
+
+variable "db_multi_az" {
+  description = "Enable Multi-AZ for RDS (increases cost; set false for free tier)."
+  type        = bool
+  default     = false
 }
 
 variable "db_port" {
@@ -103,18 +109,6 @@ variable "db_backup_retention_days_prod" {
   description = "Backup retention days for prod."
   type        = number
   default     = 14
-}
-
-variable "db_proxy_idle_client_timeout_seconds" {
-  description = "Idle timeout for RDS Proxy clients."
-  type        = number
-  default     = 1800
-}
-
-variable "proxy_allowed_cidrs" {
-  description = "CIDRs allowed to connect to the RDS Proxy endpoint."
-  type        = list(string)
-  default     = []
 }
 
 variable "vercel_team_slug" {
