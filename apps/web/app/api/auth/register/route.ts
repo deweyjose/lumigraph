@@ -27,11 +27,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await registerWithPassword(
-    body.email,
-    body.password,
-    body.name
-  );
+  let result: Awaited<ReturnType<typeof registerWithPassword>>;
+  try {
+    result = await registerWithPassword(
+      body.email,
+      body.password,
+      body.name
+    );
+  } catch (err) {
+    console.error("[register] Prisma/DB error:", err);
+    return NextResponse.json(
+      { code: "REGISTRATION_FAILED", message: "Registration failed. Please try again." },
+      { status: 500 }
+    );
+  }
 
   if (!result.ok) {
     return NextResponse.json(
