@@ -131,6 +131,13 @@ resource "aws_security_group" "db" {
     Project = var.project_name
     Env     = var.env
   }
+
+  # Ingress is managed by aws_vpc_security_group_ingress_rule (db_from_runner, db_public).
+  # Without this, Terraform may replace the SG when syncing ingress; replacing would require
+  # detaching ENIs, which fails for RDS-managed ENIs (400 AuthFailure).
+  lifecycle {
+    ignore_changes = [ingress]
+  }
 }
 
 resource "aws_vpc_security_group_ingress_rule" "db_from_runner" {
