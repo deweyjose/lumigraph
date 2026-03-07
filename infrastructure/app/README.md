@@ -4,6 +4,7 @@ This Terraform stack creates app-facing infrastructure for Lumigraph:
 
 - Artifacts S3 bucket
 - RDS PostgreSQL instance (IAM DB auth enabled, Single-AZ by default for free tier)
+- RDS Proxy (staged for retirement after DB SG migration)
 - Vercel OIDC provider + IAM role for `rds-db:connect`
 
 ## Execution model
@@ -38,6 +39,8 @@ Use `.github/workflows/terraform.yml`:
 - `db_max_allocated_storage_gb` (default: `20`, free tier)
 - `db_multi_az` (default: `false`, set `true` to enable Multi-AZ at extra cost)
 - `db_port` (default: `5432`)
+- `db_proxy_idle_client_timeout_seconds` (default: `1800`)
+- `proxy_allowed_cidrs` (default: `[]`)
 - `db_backup_retention_days_dev` (default: `7`)
 - `db_backup_retention_days_prod` (default: `14`)
 - `vercel_team_slug` (default: `deweys-projects-c66e9e02`)
@@ -50,6 +53,7 @@ Use `.github/workflows/terraform.yml`:
 - `artifacts_bucket_arn`
 - `db_instance_endpoint`
 - `db_instance_port`
+- `db_proxy_endpoint`
 - `db_name`
 - `db_master_username`
 - `db_iam_app_username`

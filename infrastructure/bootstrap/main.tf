@@ -306,9 +306,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "ec2:DescribeNetworkInterfaces",
       "ec2:CreateTags",
       "ec2:DeleteTags",
-      "ec2:DescribeTags",
-      "ec2:DetachNetworkInterface",
-      "ec2:AttachNetworkInterface"
+      "ec2:DescribeTags"
     ]
     resources = ["*"]
   }
@@ -340,8 +338,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:DeleteInstanceProfile",
       "iam:GetInstanceProfile",
       "iam:AddRoleToInstanceProfile",
-      "iam:RemoveRoleFromInstanceProfile",
-      "iam:ListInstanceProfilesForRole"
+      "iam:RemoveRoleFromInstanceProfile"
     ]
     resources = [
       "arn:aws:iam::${local.account_id}:instance-profile/${var.project_name}-*"
@@ -376,7 +373,6 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:DetachRolePolicy",
       "iam:ListRolePolicies",
       "iam:ListAttachedRolePolicies",
-      "iam:ListInstanceProfilesForRole",
       "iam:GetPolicy",
       "iam:GetPolicyVersion",
       "iam:ListPolicyVersions",

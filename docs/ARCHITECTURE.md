@@ -78,7 +78,7 @@ Route handlers do not call the database directly. They validate input (e.g. with
 - GitHub Actions assumes AWS roles through GitHub OIDC for Terraform deploys.
 - A self-hosted GHA runner (EC2, managed in `infrastructure/bootstrap`) runs inside the VPC with direct access to the RDS instance. Migrations run on this runner as `lumigraph_admin` (password from Secrets Manager). Per-environment runner labels (`lumigraph-runner-dev`, `lumigraph-runner-prod`) route jobs to the correct runner.
 - Vercel assumes a team-scoped AWS role through Vercel OIDC (`@vercel/oidc-aws-credentials-provider`) to get temporary AWS credentials, then uses `@aws-sdk/rds-signer` to generate a 15-minute IAM auth token for RDS.
-- Vercel connects **directly to the RDS instance** (publicly accessible, IAM auth + TLS enforced). RDS Proxy has been removed to reduce cost; Single-AZ and 20 GB storage caps keep the instance within AWS free-tier limits where applicable.
+- Vercel connects **directly to the RDS instance** (publicly accessible, IAM auth + TLS enforced). RDS Proxy is being retired in a staged Terraform migration; Single-AZ and 20 GB storage caps keep the instance within AWS free-tier limits where applicable.
 - The `getPrisma()` function in `@lumigraph/db` handles both paths: local dev uses `DATABASE_URL` (password-based), Vercel uses IAM auth tokens constructed at runtime.
 
 ### Database Roles
