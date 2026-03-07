@@ -18,6 +18,6 @@ export function getFinalImageDisplayUrl(
   role: "image" | "thumb"
 ): string | null {
   if (!storedUrl) return null;
-  if (isFinalImageS3Key(storedUrl)) return `/api/image-posts/${postId}/${role}`;
+  if (isFinalImageS3Key(storedUrl)) return `/api/image-posts/${postId}/assets/${role}`;
   return storedUrl;
 }
