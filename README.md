@@ -112,6 +112,7 @@ For async ZIP exports in cloud, also set:
 DOWNLOAD_JOB_PROCESSOR=lambda
 DOWNLOAD_ZIP_LAMBDA_NAME=<terraform-output-download_zip_lambda_name>
 DOWNLOAD_CALLBACK_SECRET=<same-value-as-TF_VAR_download_callback_secret>
+DOWNLOAD_CALLBACK_VERCEL_BYPASS_TOKEN=<optional; needed if callback URL is behind Vercel Deployment Protection>
 ```
 
 ---

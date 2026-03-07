@@ -298,6 +298,14 @@ function getCallbackBaseUrl(origin: string): string {
   return origin.replace(/\/$/, "");
 }
 
+function getCallbackBypassToken(): string | null {
+  const explicit = process.env.DOWNLOAD_CALLBACK_VERCEL_BYPASS_TOKEN?.trim();
+  if (explicit) return explicit;
+  const vercelSystem = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
+  if (vercelSystem) return vercelSystem;
+  return null;
+}
+
 export async function createDownloadExportJob(
   input: CreateDownloadJobInput
 ): Promise<
@@ -395,6 +403,7 @@ export async function createDownloadExportJob(
         sizeBytes: Number(asset.sizeBytes),
       })),
       callbackUrl,
+      callbackBypassToken: getCallbackBypassToken(),
     }).catch(async (err) => {
       const msg = err instanceof Error ? err.message : "Lambda invoke failed";
       const p = await getPrisma();

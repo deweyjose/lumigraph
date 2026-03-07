@@ -53,7 +53,7 @@ def _sign_payload(secret: str, timestamp: str, body: str) -> str:
     return hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
 
 
-def _send_callback(callback_url: str, payload: dict) -> None:
+def _send_callback(callback_url: str, payload: dict, bypass_token: str | None = None) -> None:
     secret = _callback_secret()
     body = json.dumps(payload, separators=(",", ":"))
     timestamp = str(int(time.time()))
@@ -72,15 +72,19 @@ def _send_callback(callback_url: str, payload: dict) -> None:
         )
     )
 
+    headers = {
+        "Content-Type": "application/json",
+        "x-lumigraph-timestamp": timestamp,
+        "x-lumigraph-signature": signature,
+    }
+    if isinstance(bypass_token, str) and bypass_token:
+        headers["x-vercel-protection-bypass"] = bypass_token
+
     req = urllib.request.Request(
         callback_url_with_sig,
         data=body.encode("utf-8"),
         method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "x-lumigraph-timestamp": timestamp,
-            "x-lumigraph-signature": signature,
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -93,10 +97,11 @@ def _send_callback(callback_url: str, payload: dict) -> None:
             body_preview = err.read().decode("utf-8", errors="replace")[:1000]
         except Exception:  # noqa: BLE001
             body_preview = "<unreadable>"
+        safe_url = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
         LOGGER.error(
             "callback http error status=%s url=%s body=%s",
             err.code,
-            callback_url,
+            safe_url,
             body_preview,
         )
         raise
@@ -114,8 +119,6 @@ def _stream_s3_object_into_zip(zf: zipfile.ZipFile, bucket: str, s3_key: str, ar
 
 
 def handler(event, _context):
-    LOGGER.info("download-zip event: %s", json.dumps(event))
-
     job_id = event.get("jobId")
     user_id = event.get("userId")
     integration_set_id = event.get("integrationSetId")
@@ -123,12 +126,23 @@ def handler(event, _context):
     output_s3_key = event.get("outputS3Key")
     files = event.get("files", [])
     callback_url = event.get("callbackUrl")
+    callback_bypass_token = event.get("callbackBypassToken")
+
+    LOGGER.info(
+        "download-zip start job_id=%s user_id=%s integration_set_id=%s file_count=%s",
+        job_id,
+        user_id,
+        integration_set_id,
+        len(files) if isinstance(files, list) else "invalid",
+    )
 
     if not all(
         isinstance(v, str) and v
         for v in [job_id, user_id, integration_set_id, bucket, output_s3_key, callback_url]
     ):
         raise ValueError("Invalid event payload")
+    if callback_bypass_token is not None and not isinstance(callback_bypass_token, str):
+        raise ValueError("Invalid callbackBypassToken")
 
     if not isinstance(files, list) or len(files) == 0:
         raise ValueError("files must be a non-empty list")
@@ -137,7 +151,7 @@ def handler(event, _context):
         raise ValueError("outputS3Key has invalid prefix")
 
     try:
-        _send_callback(callback_url, {"status": "RUNNING"})
+        _send_callback(callback_url, {"status": "RUNNING"}, callback_bypass_token)
     except Exception as err:  # noqa: BLE001
         LOGGER.warning("RUNNING callback failed: %s", err)
 
@@ -178,6 +192,7 @@ def handler(event, _context):
                 "outputS3Key": output_s3_key,
                 "outputSizeBytes": output_size_bytes,
             },
+            callback_bypass_token,
         )
         return {"ok": True, "status": "READY"}
 
@@ -191,6 +206,7 @@ def handler(event, _context):
                     "status": "FAILED",
                     "errorMessage": message,
                 },
+                callback_bypass_token,
             )
         except (urllib.error.URLError, urllib.error.HTTPError, RuntimeError) as cb_err:
             LOGGER.error("FAILED callback failed: %s", cb_err)
