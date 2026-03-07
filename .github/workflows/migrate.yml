@@ -76,6 +76,7 @@ jobs:
           DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
           echo "::add-mask::${DATABASE_URL}"
           echo "DATABASE_URL=${DATABASE_URL}" >> "$GITHUB_ENV"
+          echo "DATABASE_HOST=${DB_HOST}"
 
       - name: Prisma migrate deploy
         run: pnpm prisma migrate deploy
