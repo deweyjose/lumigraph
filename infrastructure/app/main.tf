@@ -119,13 +119,6 @@ resource "aws_security_group" "db" {
   description = "PostgreSQL ingress from RDS Proxy"
   vpc_id      = local.effective_vpc_id
 
-  ingress {
-    from_port       = var.db_port
-    to_port         = var.db_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.proxy.id]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -139,8 +132,12 @@ resource "aws_security_group" "db" {
     Env     = var.env
   }
 
+  # Ingress is managed by aws_vpc_security_group_ingress_rule (db_from_runner, db_public).
+  # prevent_destroy: RDS uses this SG; destroying it would require detaching the RDS ENI,
+  # which is not allowed (400 AuthFailure). Block destroy so apply can complete.
+  # Description kept as-is to avoid ForceNew replacement; proxy retirement is staged.
   lifecycle {
-    ignore_changes = [ingress]
+    prevent_destroy = true
   }
 }
 
@@ -217,7 +214,7 @@ resource "aws_db_instance" "main" {
   iam_database_authentication_enabled = true
   auto_minor_version_upgrade          = true
   backup_retention_period             = local.backup_retention_days
-  multi_az                            = local.is_prod
+  multi_az                            = var.db_multi_az
   deletion_protection                 = local.is_prod
   apply_immediately                   = true
   skip_final_snapshot                 = !local.is_prod

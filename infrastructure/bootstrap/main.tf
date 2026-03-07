@@ -338,8 +338,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:DeleteInstanceProfile",
       "iam:GetInstanceProfile",
       "iam:AddRoleToInstanceProfile",
-      "iam:RemoveRoleFromInstanceProfile",
-      "iam:ListInstanceProfilesForRole"
+      "iam:RemoveRoleFromInstanceProfile"
     ]
     resources = [
       "arn:aws:iam::${local.account_id}:instance-profile/${var.project_name}-*"

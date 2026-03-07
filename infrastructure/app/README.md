@@ -3,8 +3,8 @@
 This Terraform stack creates app-facing infrastructure for Lumigraph:
 
 - Artifacts S3 bucket
-- RDS PostgreSQL instance (IAM DB auth enabled)
-- RDS Proxy
+- RDS PostgreSQL instance (IAM DB auth enabled, Single-AZ by default for free tier)
+- RDS Proxy (staged for retirement after DB SG migration)
 - Vercel OIDC provider + IAM role for `rds-db:connect`
 
 ## Execution model
@@ -33,15 +33,16 @@ Use `.github/workflows/terraform.yml`:
 - `allowed_vercel_prod_origins`
 - `db_name` (default: `lumigraph_db`)
 - `db_master_username` (default: `lumigraph_admin`)
-- `db_engine_version` (default: `16`)
+- `db_engine_version` (default: `17`)
 - `db_instance_class` (default: `db.t4g.micro`)
 - `db_allocated_storage_gb` (default: `20`)
-- `db_max_allocated_storage_gb` (default: `100`)
+- `db_max_allocated_storage_gb` (default: `20`, free tier)
+- `db_multi_az` (default: `false`, set `true` to enable Multi-AZ at extra cost)
 - `db_port` (default: `5432`)
+- `db_proxy_idle_client_timeout_seconds` (default: `1800`)
+- `proxy_allowed_cidrs` (default: `[]`)
 - `db_backup_retention_days_dev` (default: `7`)
 - `db_backup_retention_days_prod` (default: `14`)
-- `db_proxy_idle_client_timeout_seconds` (default: `1800`)
-- `proxy_allowed_cidrs` (default: `[]` - no inbound access until explicitly set)
 - `vercel_team_slug` (default: `deweys-projects-c66e9e02`)
 - `vercel_project_name` (default: `lumigraph`)
 - `vercel_oidc_subjects` (default: `owner:<team>:project:<project>:environment:*`)

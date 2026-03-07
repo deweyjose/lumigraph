@@ -11,6 +11,13 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 
 ---
 
+### 2026-03-07 — Database free tier: remove RDS Proxy, Single-AZ, cap storage
+**Decision:** Optimize RDS for free tier: remove RDS Proxy (unused by Vercel and migrations), set Multi-AZ to optional with default `false`, and cap `db_max_allocated_storage_gb` at 20 GB. Instance remains `db.t4g.micro`; Vercel and GHA runner continue to use the direct RDS endpoint with IAM auth (Vercel) or master password (migrations).
+**Context:** Database layer cost was too high. RDS Proxy is not in AWS free tier and was not used. Single-AZ and 20 GB storage align with RDS free tier (750 hrs/month db.t4g.micro, 20 GB storage, 20 GB backup for 12 months on new accounts).
+**Consequences:** New variable `db_multi_az` (default `false`); set to `true` in tfvars if Multi-AZ is required. RDS Proxy retirement is implemented in a staged Terraform migration: first apply preserves the existing DB security group (no replacement), adds direct-access rules, and keeps proxy resources; a follow-up apply removes RDS Proxy and related IAM/resources and the `db_proxy_endpoint` output. Docs updated (ARCHITECTURE, DECISIONS, app README).
+
+---
+
 ### 2026-03-03 — Final image upload: S3 key in URL columns + proxy routes
 **Decision:** Store final image and thumbnail in existing `finalImageUrl` / `finalImageThumbUrl` columns as either an external URL or an S3 key (string starting with `users/`). When the value is an S3 key, the app serves it via GET `/api/image-posts/:id/image` and `/thumb`, which redirect to presigned S3 URLs. No new DB columns; UI uses `getFinalImageDisplayUrl()` to choose proxy route vs raw URL.  
 **Context:** M1 requires “upload final image (original + web derivative)”. We already had presign/complete for dataset artifacts; same pattern for image posts.  
@@ -68,10 +75,10 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 
 ## 2026-02-28 — M1-13 uses RDS + Proxy + Vercel OIDC role
 
-**Decision:** Provision RDS Postgres with IAM database auth enabled, front it with RDS Proxy, and grant Vercel OIDC a dedicated `rds-db:connect` role.  
+**Decision:** Provision RDS Postgres with IAM database auth enabled and grant Vercel OIDC a dedicated `rds-db:connect` role. (RDS Proxy was later removed to reduce cost; Vercel and migrations use the direct RDS endpoint.)  
 **Context:** M1-13 requires AWS-hosted Postgres and secure app-to-DB auth without static long-lived AWS credentials.  
 **Alternatives:** Use static DB credentials stored in Vercel env vars.  
-**Consequences:** App stack now includes DB/proxy/networking/role outputs and environment-specific defaults (backup retention and Multi-AZ).
+**Consequences:** App stack includes DB, networking, and role outputs; environment-specific defaults for backup retention; Multi-AZ is optional via `db_multi_az` (default false for free tier).
 
 ---
 
@@ -98,7 +105,7 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 **Decision:** Connect Vercel serverless functions directly to the RDS instance (bypassing RDS Proxy) using IAM auth tokens generated via Vercel OIDC. Make the RDS instance `publicly_accessible = true` in both dev and prod.  
 **Context:** RDS Proxy endpoints are VPC-only — they cannot be made publicly accessible. On the Vercel Hobby plan there is no VPC peering or static IP capability, so the proxy is unreachable. The RDS instance supports `publicly_accessible` and IAM database authentication. Security is enforced by: (a) `app_user` authenticates only via IAM tokens (no password), (b) tokens expire after 15 minutes, (c) TLS is required, (d) the DB security group can be tightened to Vercel static IPs when upgrading to Pro.  
 **Alternatives:** Network Load Balancer in front of proxy (added complexity + cost); Vercel Secure Compute with VPC peering (Enterprise-only); keep RDS private and use a tunneling approach.  
-**Consequences:** RDS Proxy remains provisioned for future use. `packages/db` exports `getPrisma()` which generates IAM auth tokens on Vercel and falls back to `DATABASE_URL` locally. A `/api/health` endpoint verifies connectivity. Vercel env vars (`DB_HOST`, `DB_USER`, `AWS_ROLE_ARN`, etc.) replace a static `DATABASE_URL`.
+**Consequences:** RDS Proxy was removed (free tier optimization). `packages/db` exports `getPrisma()` which generates IAM auth tokens on Vercel and falls back to `DATABASE_URL` locally. A `/api/health` endpoint verifies connectivity. Vercel env vars (`DB_HOST`, `DB_USER`, `AWS_ROLE_ARN`, etc.) replace a static `DATABASE_URL`.
 
 ---
 

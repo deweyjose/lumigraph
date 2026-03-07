@@ -16,7 +16,7 @@ Lumigraph is a multi-user astrophotography platform for:
 ### Components
 - Web App: Next.js 16 (App Router)
 - API: Next.js route handlers (initially), evolving to service modules
-- DB: AWS RDS Postgres (direct connection with IAM auth; RDS Proxy provisioned for future use)
+- DB: AWS RDS Postgres (Single-AZ, direct connection with IAM auth; free-tier-friendly: db.t4g.micro, 20 GB storage)
 - Storage: S3 for artifacts + images; CDN (CloudFront) optional early
 - AI: OpenAI for daily canvas synthesis (NASA/Open Notify/SpaceX → GPT) and astrophotography chatbot; used for writing assistance (never auto-publish)
 - Auth: Auth.js v5 (next-auth@5), JWT sessions, Prisma adapter
@@ -78,7 +78,7 @@ Route handlers do not call the database directly. They validate input (e.g. with
 - GitHub Actions assumes AWS roles through GitHub OIDC for Terraform deploys.
 - A self-hosted GHA runner (EC2, managed in `infrastructure/bootstrap`) runs inside the VPC with direct access to the RDS instance. Migrations run on this runner as `lumigraph_admin` (password from Secrets Manager). Per-environment runner labels (`lumigraph-runner-dev`, `lumigraph-runner-prod`) route jobs to the correct runner.
 - Vercel assumes a team-scoped AWS role through Vercel OIDC (`@vercel/oidc-aws-credentials-provider`) to get temporary AWS credentials, then uses `@aws-sdk/rds-signer` to generate a 15-minute IAM auth token for RDS.
-- Vercel connects **directly to the RDS instance** (publicly accessible, IAM auth + TLS enforced). The RDS Proxy is provisioned but not used for Vercel traffic because RDS Proxy endpoints are VPC-only and unreachable from Vercel Hobby. When Vercel is upgraded to Pro/Enterprise (static IPs or VPC peering), traffic can be routed through the proxy.
+- Vercel connects **directly to the RDS instance** (publicly accessible, IAM auth + TLS enforced). RDS Proxy is being retired in a staged Terraform migration; Single-AZ and 20 GB storage caps keep the instance within AWS free-tier limits where applicable.
 - The `getPrisma()` function in `@lumigraph/db` handles both paths: local dev uses `DATABASE_URL` (password-based), Vercel uses IAM auth tokens constructed at runtime.
 
 ### Database Roles
