@@ -55,7 +55,11 @@ export async function updateIntegrationSet(
   });
   if (!existing || existing.userId !== userId) return null;
 
-  if (input.postId !== undefined && input.postId !== null && input.postId !== "") {
+  if (
+    input.postId !== undefined &&
+    input.postId !== null &&
+    input.postId !== ""
+  ) {
     const post = await prisma.post.findUnique({ where: { id: input.postId } });
     if (!post || post.userId !== userId) return null;
   }

@@ -22,7 +22,10 @@ export async function listAssetsByIntegrationSetForOwner(
   });
 }
 
-export async function listPostFinalAssetsForOwner(postId: string, userId: string) {
+export async function listPostFinalAssetsForOwner(
+  postId: string,
+  userId: string
+) {
   const prisma = await getPrisma();
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post || post.userId !== userId) return null;
@@ -82,5 +85,7 @@ export async function getAssetViewUrlForViewer(
     (asset.post != null && asset.post.status === "PUBLISHED");
   if (!canAccess) return null;
   const bucket = s3.getS3Bucket();
-  return s3.createPresignedDownloadUrl(bucket, asset.s3Key, { expiresIn: 3600 });
+  return s3.createPresignedDownloadUrl(bucket, asset.s3Key, {
+    expiresIn: 3600,
+  });
 }

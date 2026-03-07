@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
-import {
-  listPostFinalAssetsForOwner,
-} from "@/server/services/assets";
+import { listPostFinalAssetsForOwner } from "@/server/services/assets";
 import { setPostFinalAsset } from "@/server/services/posts";
 
 const BodySchema = z.object({

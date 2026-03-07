@@ -1,6 +1,12 @@
 "use client";
 
-import { type ReactElement, useCallback, useMemo, useRef, useState } from "react";
+import {
+  type ReactElement,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Upload, FolderOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +34,33 @@ type Props = {
   assets: AssetRow[];
 };
 
+type BatchPresignResult =
+  | {
+      clientId: string;
+      ok: true;
+      assetId: string;
+      uploadUrl: string;
+      s3Key: string;
+    }
+  | {
+      clientId: string;
+      ok: false;
+      error: string;
+    };
+
+type BatchCompleteResult =
+  | {
+      clientId: string;
+      ok: true;
+      assetId: string;
+      status: string;
+    }
+  | {
+      clientId: string;
+      ok: false;
+      error: string;
+    };
+
 function buildTree(paths: string[]) {
   const root: Record<string, unknown> = {};
   for (const path of paths) {
@@ -41,7 +74,10 @@ function buildTree(paths: string[]) {
   return root;
 }
 
-function renderTree(node: Record<string, unknown>, prefix = ""): ReactElement[] {
+function renderTree(
+  node: Record<string, unknown>,
+  prefix = ""
+): ReactElement[] {
   return Object.keys(node)
     .sort((a, b) => a.localeCompare(b))
     .map((key) => {
@@ -82,24 +118,27 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
     [assets]
   );
 
-  const addFiles = useCallback((files: FileList | null, fromFolder: boolean) => {
-    if (!files || files.length === 0) return;
-    const next: UploadEntry[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const relativePath =
-        fromFolder && file.webkitRelativePath
-          ? file.webkitRelativePath
-          : file.name;
-      next.push({
-        clientId: `${Date.now()}-${i}-${Math.random()}`,
-        file,
-        relativePath,
-        status: "pending",
-      });
-    }
-    setEntries((prev) => [...prev, ...next]);
-  }, []);
+  const addFiles = useCallback(
+    (files: FileList | null, fromFolder: boolean) => {
+      if (!files || files.length === 0) return;
+      const next: UploadEntry[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const relativePath =
+          fromFolder && file.webkitRelativePath
+            ? file.webkitRelativePath
+            : file.name;
+        next.push({
+          clientId: `${Date.now()}-${i}-${Math.random()}`,
+          file,
+          relativePath,
+          status: "pending",
+        });
+      }
+      setEntries((prev) => [...prev, ...next]);
+    },
+    []
+  );
 
   const uploadAll = useCallback(async () => {
     const pending = entries.filter((entry) => entry.status === "pending");
@@ -128,13 +167,17 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           })),
         }),
       });
-      const presignData = await presignRes.json();
-      if (!presignRes.ok) throw new Error(presignData.message ?? "Presign failed");
+      const presignData = (await presignRes.json()) as {
+        message?: string;
+        results: BatchPresignResult[];
+      };
+      if (!presignRes.ok)
+        throw new Error(presignData.message ?? "Presign failed");
 
       const map = new Map<
         string,
         { ok: boolean; uploadUrl?: string; assetId?: string; error?: string }
-      >(presignData.results.map((result: any) => [result.clientId, result]));
+      >(presignData.results.map((result) => [result.clientId, result]));
 
       const completeItems: Array<{
         clientId: string;
@@ -190,12 +233,15 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items: completeItems }),
         });
-        const completeData = await completeRes.json();
+        const completeData = (await completeRes.json()) as {
+          message?: string;
+          results: BatchCompleteResult[];
+        };
         if (!completeRes.ok) {
           throw new Error(completeData.message ?? "Complete failed");
         }
         const doneMap = new Map<string, { ok: boolean; error?: string }>(
-          completeData.results.map((result: any) => [result.clientId, result])
+          completeData.results.map((result) => [result.clientId, result])
         );
         setEntries((prev) =>
           prev.map((entry) => {
@@ -276,7 +322,11 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
         >
           <FolderOpen className="h-4 w-4" /> Add folder
         </Button>
-        <Button type="button" onClick={() => void uploadAll()} disabled={isUploading}>
+        <Button
+          type="button"
+          onClick={() => void uploadAll()}
+          disabled={isUploading}
+        >
           {isUploading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -293,7 +343,10 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           <h3 className="mb-2 text-sm font-semibold">Upload queue</h3>
           <ul className="space-y-1 text-sm">
             {entries.map((entry) => (
-              <li key={entry.clientId} className="flex items-center justify-between">
+              <li
+                key={entry.clientId}
+                className="flex items-center justify-between"
+              >
                 <span className="font-mono">{entry.relativePath}</span>
                 <span className="text-muted-foreground">
                   {entry.status}
@@ -327,7 +380,10 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
         <h3 className="mb-2 text-sm font-semibold">Files</h3>
         <ul className="space-y-1 text-sm">
           {assets.map((asset) => (
-            <li key={asset.id} className="flex items-center justify-between gap-2">
+            <li
+              key={asset.id}
+              className="flex items-center justify-between gap-2"
+            >
               <span className="truncate font-mono">{asset.relativePath}</span>
               <a
                 href={`/api/assets/${asset.id}/download`}

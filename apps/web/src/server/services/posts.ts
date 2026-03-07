@@ -54,10 +54,14 @@ export async function updatePostDraft(
     data: {
       ...(input.title !== undefined && { title: input.title }),
       ...(input.slug !== undefined && { slug: input.slug }),
-      ...(input.description !== undefined && { description: input.description }),
+      ...(input.description !== undefined && {
+        description: input.description,
+      }),
       ...(input.targetName !== undefined && { targetName: input.targetName }),
       ...(input.targetType !== undefined && { targetType: input.targetType }),
-      ...(input.captureDate !== undefined && { captureDate: input.captureDate }),
+      ...(input.captureDate !== undefined && {
+        captureDate: input.captureDate,
+      }),
       ...(input.bortle !== undefined && { bortle: input.bortle }),
     },
     include: postInclude,

@@ -5,9 +5,7 @@ import { auth } from "auth";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { listMyPosts } from "@/server/services/posts";
-import {
-  getIntegrationSetForOwner,
-} from "@/server/services/integration-sets";
+import { getIntegrationSetForOwner } from "@/server/services/integration-sets";
 import { listAssetsByIntegrationSetForOwner } from "@/server/services/assets";
 import { IntegrationSetForm } from "@/components/integration-sets/integration-set-form";
 import { IntegrationAssetUpload } from "@/components/integration-sets/integration-asset-upload";
