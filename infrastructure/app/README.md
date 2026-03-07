@@ -48,7 +48,7 @@ Use `.github/workflows/terraform.yml`:
 - `download_callback_secret` (required when provisioning managed Lambda; shared secret for callback signing)
 - `download_zip_lambda_timeout_seconds` (default: `900`)
 - `download_zip_lambda_memory_mb` (default: `2048`)
-- `download_zip_lambda_reserved_concurrency` (default: `5`)
+- `download_zip_lambda_reserved_concurrency` (default: `null`; uses unreserved account concurrency)
 - `download_exports_expiration_days` (default: `1`; expires S3 objects tagged `lumigraph-kind=export`)
 
 ## Outputs

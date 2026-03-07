@@ -167,9 +167,9 @@ variable "download_zip_lambda_memory_mb" {
 }
 
 variable "download_zip_lambda_reserved_concurrency" {
-  description = "Reserved concurrency for the managed ZIP export Lambda."
+  description = "Reserved concurrency for the managed ZIP export Lambda. Set null to use unreserved concurrency."
   type        = number
-  default     = 5
+  default     = null
 }
 
 variable "download_exports_expiration_days" {

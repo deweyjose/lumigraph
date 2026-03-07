@@ -101,7 +101,7 @@ If you override default names, also add:
     - `prod`: `repo:deweyjose/lumigraph:environment:prod` and `ref:refs/heads/main`
     - `dev`: `repo:deweyjose/lumigraph:environment:dev`, `repo:deweyjose/lumigraph:pull_request`, and `ref:refs/heads/*`
   - Configure via `github_subjects` (list of OIDC subject patterns).
-- If you see S3 `AccessDenied` on any `Get*` bucket call during app plans, re-apply bootstrap after updating the IAM policy in this stack.
+- If you see S3 `AccessDenied` on app stack apply (for example `PutLifecycleConfiguration`) or Lambda `AccessDenied` (for example `CreateFunction`), re-apply bootstrap after updating the IAM policy in this stack.
 - Default state bucket name format:
   `lumigraph-tfstate-<suffix>-<account-id>-<region>`
 - Default lock table name format:
