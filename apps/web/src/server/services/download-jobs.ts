@@ -553,7 +553,7 @@ async function processDownloadJobLocal(
 }
 
 function toHexHmac(secret: string, timestamp: string, body: string): string {
-  return createHmac("sha256", secret)
+  return createHmac("sha256", secret.trim())
     .update(`${timestamp}.${body}`)
     .digest("hex");
 }
@@ -571,6 +571,13 @@ function secureEqualsHex(a: string, b: string): boolean {
   const bBuf = Buffer.from(b, "hex");
   if (aBuf.length !== bBuf.length) return false;
   return timingSafeEqual(aBuf, bBuf);
+}
+
+function normalizeCallbackSignature(signature: string): string | null {
+  const lower = signature.trim().toLowerCase();
+  const value = lower.startsWith("sha256=") ? lower.slice(7) : lower;
+  if (!/^[a-f0-9]{64}$/.test(value)) return null;
+  return value;
 }
 
 export async function applyDownloadJobCallback(
@@ -638,8 +645,23 @@ export function verifyDownloadJobCallbackSignature(
   const now = Math.floor(Date.now() / 1000);
   if (Math.abs(now - ts) > CALLBACK_TTL_SECONDS) return false;
 
-  const expected = toHexHmac(secret, timestamp, body);
-  if (!/^[a-f0-9]+$/i.test(signature)) return false;
-  if (!/^[a-f0-9]+$/i.test(expected)) return false;
-  return secureEqualsHex(expected, signature.toLowerCase());
+  const normalizedSig = normalizeCallbackSignature(signature);
+  if (!normalizedSig) return false;
+
+  const expected = toHexHmac(secret, timestamp, body).toLowerCase();
+  if (secureEqualsHex(expected, normalizedSig)) return true;
+
+  // Fallback: if intermediaries reformatted JSON whitespace, verify against
+  // canonical JSON produced by JSON.stringify(parsed).
+  try {
+    const canonicalBody = JSON.stringify(JSON.parse(body));
+    if (canonicalBody !== body) {
+      const canonicalExpected = toHexHmac(secret, timestamp, canonicalBody);
+      return secureEqualsHex(canonicalExpected, normalizedSig);
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
 }

@@ -46,8 +46,14 @@ export async function POST(
     );
   }
 
-  const timestamp = request.headers.get("x-lumigraph-timestamp");
-  const signature = request.headers.get("x-lumigraph-signature");
+  const requestUrl = new URL(request.url);
+  const timestamp =
+    request.headers.get("x-lumigraph-timestamp") ??
+    requestUrl.searchParams.get("ts");
+  const signature =
+    request.headers.get("x-lumigraph-signature") ??
+    requestUrl.searchParams.get("sig") ??
+    requestUrl.searchParams.get("signature");
   if (!timestamp || !signature) {
     return NextResponse.json(
       {

@@ -5,6 +5,7 @@ import logging
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -19,7 +20,7 @@ CHUNK_SIZE = 8 * 1024 * 1024
 
 
 def _callback_secret() -> str:
-    secret = os.environ.get("DOWNLOAD_CALLBACK_SECRET", "")
+    secret = os.environ.get("DOWNLOAD_CALLBACK_SECRET", "").strip()
     if not secret:
         raise RuntimeError("DOWNLOAD_CALLBACK_SECRET is not configured")
     return secret
@@ -58,8 +59,21 @@ def _send_callback(callback_url: str, payload: dict) -> None:
     timestamp = str(int(time.time()))
     signature = _sign_payload(secret, timestamp, body)
 
+    parsed = urllib.parse.urlsplit(callback_url)
+    query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    query.extend([("ts", timestamp), ("sig", signature)])
+    callback_url_with_sig = urllib.parse.urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urllib.parse.urlencode(query),
+            parsed.fragment,
+        )
+    )
+
     req = urllib.request.Request(
-        callback_url,
+        callback_url_with_sig,
         data=body.encode("utf-8"),
         method="POST",
         headers={
@@ -68,11 +82,24 @@ def _send_callback(callback_url: str, payload: dict) -> None:
             "x-lumigraph-signature": signature,
         },
     )
-
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        status = getattr(resp, "status", 200)
-        if status < 200 or status >= 300:
-            raise RuntimeError(f"Callback failed with status {status}")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            status = getattr(resp, "status", 200)
+            if status < 200 or status >= 300:
+                raise RuntimeError(f"Callback failed with status {status}")
+    except urllib.error.HTTPError as err:
+        body_preview = ""
+        try:
+            body_preview = err.read().decode("utf-8", errors="replace")[:1000]
+        except Exception:  # noqa: BLE001
+            body_preview = "<unreadable>"
+        LOGGER.error(
+            "callback http error status=%s url=%s body=%s",
+            err.code,
+            callback_url,
+            body_preview,
+        )
+        raise
 
 
 def _stream_s3_object_into_zip(zf: zipfile.ZipFile, bucket: str, s3_key: str, arcname: str) -> None:
