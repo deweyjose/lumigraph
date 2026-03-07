@@ -408,6 +408,8 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "lambda:DeleteFunction",
       "lambda:GetFunction",
       "lambda:GetFunctionConfiguration",
+      "lambda:GetFunctionCodeSigningConfig",
+      "lambda:ListVersionsByFunction",
       "lambda:UpdateFunctionCode",
       "lambda:UpdateFunctionConfiguration",
       "lambda:TagResource",
