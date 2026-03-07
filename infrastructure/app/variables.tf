@@ -99,18 +99,6 @@ variable "db_port" {
   default     = 5432
 }
 
-variable "db_proxy_idle_client_timeout_seconds" {
-  description = "Idle timeout for RDS Proxy clients."
-  type        = number
-  default     = 1800
-}
-
-variable "proxy_allowed_cidrs" {
-  description = "CIDRs allowed to connect to the RDS Proxy endpoint."
-  type        = list(string)
-  default     = []
-}
-
 variable "db_backup_retention_days_dev" {
   description = "Backup retention days for dev."
   type        = number

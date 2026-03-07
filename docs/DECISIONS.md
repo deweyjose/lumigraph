@@ -14,7 +14,7 @@ This is a lightweight decision log (ADR-lite). Every meaningful architectural/pr
 ### 2026-03-07 — Database free tier: remove RDS Proxy, Single-AZ, cap storage
 **Decision:** Optimize RDS for free tier: remove RDS Proxy (unused by Vercel and migrations), set Multi-AZ to optional with default `false`, and cap `db_max_allocated_storage_gb` at 20 GB. Instance remains `db.t4g.micro`; Vercel and GHA runner continue to use the direct RDS endpoint with IAM auth (Vercel) or master password (migrations).
 **Context:** Database layer cost was too high. RDS Proxy is not in AWS free tier and was not used. Single-AZ and 20 GB storage align with RDS free tier (750 hrs/month db.t4g.micro, 20 GB storage, 20 GB backup for 12 months on new accounts).
-**Consequences:** New variable `db_multi_az` (default `false`); set to `true` in tfvars if Multi-AZ is required. RDS Proxy retirement is implemented in a staged Terraform migration: first apply preserves the existing DB security group (no replacement), adds direct-access rules, and keeps proxy resources; a follow-up apply removes RDS Proxy and related IAM/resources and the `db_proxy_endpoint` output. Docs updated (ARCHITECTURE, DECISIONS, app README).
+**Consequences:** New variable `db_multi_az` (default `false`); set to `true` in tfvars if Multi-AZ is required. RDS Proxy and related IAM/resources are removed from app Terraform, while the existing DB security group is preserved in place to avoid ForceNew replacement. Output `db_proxy_endpoint` is removed. Docs updated (ARCHITECTURE, DECISIONS, app README).
 
 ---
 

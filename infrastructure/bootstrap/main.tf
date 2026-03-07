@@ -259,7 +259,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
     ]
   }
 
-  # M1-13: RDS + RDS Proxy + Vercel OIDC role. Terraform needs to create and manage these.
+  # M1-13: RDS + Vercel OIDC role. Terraform needs to create and manage these.
   statement {
     sid = "RdsManage"
     actions = [
