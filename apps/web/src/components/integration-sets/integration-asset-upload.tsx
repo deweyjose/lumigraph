@@ -114,6 +114,11 @@ function getContentType(file: File): string {
   return "application/octet-stream";
 }
 
+function isIgnoredUploadPath(relativePath: string): boolean {
+  const parts = relativePath.split("/").filter(Boolean);
+  return parts.some((part) => part.toLowerCase() === ".ds_store");
+}
+
 export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -141,6 +146,7 @@ export function IntegrationAssetUpload({ integrationSetId, assets }: Props) {
           fromFolder && file.webkitRelativePath
             ? file.webkitRelativePath
             : file.name;
+        if (isIgnoredUploadPath(relativePath)) continue;
         next.push({
           clientId: `${Date.now()}-${i}-${Math.random()}`,
           file,
