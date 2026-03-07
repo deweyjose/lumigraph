@@ -241,10 +241,38 @@ export async function listDownloadJobsForIntegrationSetForOwner(
 async function getLambdaClient(): Promise<LambdaClient> {
   const region = process.env.AWS_REGION ?? "us-east-1";
   const endpoint = process.env.AWS_LAMBDA_ENDPOINT;
+  const usingCustomEndpoint =
+    typeof endpoint === "string" && endpoint.length > 0;
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const sessionToken = process.env.AWS_SESSION_TOKEN;
   const config: LambdaClientConfig = {
     region,
-    ...(endpoint && { endpoint }),
+    ...(usingCustomEndpoint && { endpoint }),
+    ...(usingCustomEndpoint && {
+      credentials: {
+        accessKeyId:
+          accessKeyId && accessKeyId.length > 0 ? accessKeyId : "test",
+        secretAccessKey:
+          secretAccessKey && secretAccessKey.length > 0
+            ? secretAccessKey
+            : "test",
+        ...(sessionToken && sessionToken.length > 0 && { sessionToken }),
+      },
+    }),
   };
+
+  if (process.env.VERCEL && process.env.AWS_ROLE_ARN && !usingCustomEndpoint) {
+    const { awsCredentialsProvider } = await import(
+      "@vercel/oidc-aws-credentials-provider"
+    );
+    return new LambdaClient({
+      ...config,
+      credentials: awsCredentialsProvider({
+        roleArn: process.env.AWS_ROLE_ARN,
+      }),
+    } as LambdaClientConfig);
+  }
 
   return new LambdaClient(config);
 }
