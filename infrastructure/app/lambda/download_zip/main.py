@@ -62,6 +62,8 @@ def _send_callback(callback_url: str, payload: dict, bypass_token: str | None = 
     parsed = urllib.parse.urlsplit(callback_url)
     query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
     query.extend([("ts", timestamp), ("sig", signature)])
+    if isinstance(bypass_token, str) and bypass_token:
+        query.append(("x-vercel-protection-bypass", bypass_token))
     callback_url_with_sig = urllib.parse.urlunsplit(
         (
             parsed.scheme,
@@ -129,11 +131,12 @@ def handler(event, _context):
     callback_bypass_token = event.get("callbackBypassToken")
 
     LOGGER.info(
-        "download-zip start job_id=%s user_id=%s integration_set_id=%s file_count=%s",
+        "download-zip start job_id=%s user_id=%s integration_set_id=%s file_count=%s has_bypass_token=%s",
         job_id,
         user_id,
         integration_set_id,
         len(files) if isinstance(files, list) else "invalid",
+        bool(callback_bypass_token),
     )
 
     if not all(
