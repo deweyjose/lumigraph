@@ -10,8 +10,9 @@ vi.mock("@/server/services/final-image", () => ({
 }));
 
 const auth = (await import("auth")).auth as ReturnType<typeof vi.fn>;
-const getPresignedFinalImageUrl = (await import("@/server/services/final-image"))
-  .getPresignedFinalImageUrl as ReturnType<typeof vi.fn>;
+const getPresignedFinalImageUrl = (
+  await import("@/server/services/final-image")
+).getPresignedFinalImageUrl as ReturnType<typeof vi.fn>;
 
 const postId = "123e4567-e89b-12d3-a456-426614174000";
 
