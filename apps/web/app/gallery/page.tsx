@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "auth";
-import { listPublicPosts } from "@/server/services/image-post";
-import { getFinalImageDisplayUrl } from "@/lib/image-url";
+import { listPublicPosts } from "@/server/services/posts";
 import { PostCard, type PostCardPost } from "@/components/gallery/post-card";
 import { Button } from "@/components/ui/button";
 import { Users } from "lucide-react";
@@ -38,13 +37,9 @@ export default async function GalleryPage() {
                     id: post.id,
                     slug: post.slug,
                     title: post.title,
-                    visibility: post.visibility,
-                    finalImageThumbUrl:
-                      getFinalImageDisplayUrl(
-                        post.id,
-                        post.finalImageThumbUrl,
-                        "thumb"
-                      ) ?? post.finalImageThumbUrl,
+                    status: post.status,
+                    finalImageAssetId: post.finalImageAssetId,
+                    finalThumbAssetId: post.finalThumbAssetId,
                     targetName: post.targetName,
                     targetType: post.targetType,
                     captureDate: post.captureDate,

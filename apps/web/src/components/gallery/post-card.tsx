@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { VisibilityBadge, type PostVisibility } from "./visibility-badge";
+import { VisibilityBadge, type PostStatus } from "./visibility-badge";
 import { ImageIcon } from "lucide-react";
 
 export type PostCardPost = {
   id: string;
   slug: string;
   title: string;
-  visibility: PostVisibility;
-  finalImageThumbUrl: string | null;
+  status: PostStatus;
+  finalImageAssetId: string | null;
+  finalThumbAssetId: string | null;
   targetName: string | null;
   targetType: string | null;
   captureDate: Date | null;
@@ -36,9 +37,9 @@ export function PostCard({ post, hrefBase = "/posts" }: PostCardProps) {
         aria-label={`View post: ${post.title}`}
       >
         <div className="relative aspect-video w-full bg-muted/50">
-          {post.finalImageThumbUrl ? (
+          {post.finalThumbAssetId || post.finalImageAssetId ? (
             <img
-              src={post.finalImageThumbUrl}
+              src={`/api/assets/${post.finalThumbAssetId ?? post.finalImageAssetId}/view`}
               alt=""
               className="h-full w-full object-cover"
             />
@@ -51,7 +52,7 @@ export function PostCard({ post, hrefBase = "/posts" }: PostCardProps) {
             </div>
           )}
           <div className="absolute right-2 top-2">
-            <VisibilityBadge visibility={post.visibility} />
+            <VisibilityBadge visibility={post.status} />
           </div>
         </div>
         <CardHeader className="pb-2">

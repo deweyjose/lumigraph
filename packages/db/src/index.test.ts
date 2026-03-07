@@ -27,7 +27,8 @@ describe("@lumigraph/db", () => {
     expect(client).toHaveProperty("$connect");
     expect(client).toHaveProperty("$disconnect");
     expect(client).toHaveProperty("user");
-    expect(client).toHaveProperty("imagePost");
-    expect(client).toHaveProperty("dataset");
+    expect(client).toHaveProperty("post");
+    expect(client).toHaveProperty("integrationSet");
+    expect(client).toHaveProperty("asset");
   });
 });

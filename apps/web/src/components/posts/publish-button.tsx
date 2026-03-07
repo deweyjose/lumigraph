@@ -19,7 +19,7 @@ export function PublishButton({ postId, className }: PublishButtonProps) {
     setIsPublishing(true);
     setError(null);
     try {
-      const res = await fetch(`/api/image-posts/${postId}/publish`, {
+      const res = await fetch(`/api/posts/${postId}/publish`, {
         method: "POST",
       });
       if (!res.ok) {

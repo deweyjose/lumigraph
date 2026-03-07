@@ -70,12 +70,15 @@ jobs:
           DB_PASSWORD=$(aws secretsmanager get-secret-value \
             --secret-id "${SECRET_ARN}" \
             --query SecretString --output text | jq -r '.password')
+          DB_PASSWORD_ENCODED=$(printf '%s' "$DB_PASSWORD" | jq -sRr @uri)
 
           echo "::add-mask::${DB_PASSWORD}"
+          echo "::add-mask::${DB_PASSWORD_ENCODED}"
 
-          DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
+          DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD_ENCODED}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=require"
           echo "::add-mask::${DATABASE_URL}"
           echo "DATABASE_URL=${DATABASE_URL}" >> "$GITHUB_ENV"
+          echo "DATABASE_HOST=${DB_HOST}"
 
       - name: Prisma migrate deploy
         run: pnpm prisma migrate deploy

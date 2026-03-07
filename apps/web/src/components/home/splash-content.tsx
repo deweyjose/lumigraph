@@ -41,7 +41,7 @@ export function SplashContent() {
         <FeatureCard
           icon={<Upload className="h-8 w-8" />}
           title="Upload"
-          description="Store integration masters, calibration frames, and intermediate stacks. Organized datasets with presigned downloads."
+          description="Store integration masters, calibration frames, and intermediate stacks in organized integration sets with folder browsing."
         />
         <FeatureCard
           icon={<Eye className="h-8 w-8" />}

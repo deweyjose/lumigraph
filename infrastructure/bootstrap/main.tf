@@ -179,6 +179,7 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "s3:PutBucketVersioning",
       "s3:PutEncryptionConfiguration",
       "s3:PutBucketPublicAccessBlock",
+      "s3:PutLifecycleConfiguration",
       "s3:PutBucketCors",
       "s3:GetBucketCors",
       "s3:PutBucketTagging",
@@ -398,6 +399,29 @@ data "aws_iam_policy_document" "github_actions_permissions" {
       "iam:UntagOpenIDConnectProvider"
     ]
     resources = ["*"]
+  }
+
+  statement {
+    sid = "LambdaManageForAppStack"
+    actions = [
+      "lambda:CreateFunction",
+      "lambda:DeleteFunction",
+      "lambda:GetFunction",
+      "lambda:GetFunctionConfiguration",
+      "lambda:GetFunctionCodeSigningConfig",
+      "lambda:ListVersionsByFunction",
+      "lambda:UpdateFunctionCode",
+      "lambda:UpdateFunctionConfiguration",
+      "lambda:TagResource",
+      "lambda:UntagResource",
+      "lambda:ListTags",
+      "lambda:PutFunctionConcurrency",
+      "lambda:DeleteFunctionConcurrency",
+      "lambda:GetFunctionConcurrency"
+    ]
+    resources = [
+      "arn:aws:lambda:*:${local.account_id}:function:${var.project_name}-*"
+    ]
   }
 
   statement {

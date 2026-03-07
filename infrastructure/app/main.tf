@@ -53,6 +53,10 @@ locals {
   vercel_subjects = length(var.vercel_oidc_subjects) > 0 ? var.vercel_oidc_subjects : [
     "owner:${var.vercel_team_slug}:project:${var.vercel_project_name}:environment:*"
   ]
+
+  create_download_zip_lambda        = var.download_zip_lambda_arn == null
+  managed_download_zip_lambda_name  = "${var.project_name}-download-zip-${var.env}"
+  effective_download_zip_lambda_arn = local.create_download_zip_lambda ? aws_lambda_function.download_zip[0].arn : var.download_zip_lambda_arn
 }
 
 resource "aws_s3_bucket" "artifacts" {
@@ -100,6 +104,131 @@ resource "aws_s3_bucket_cors_configuration" "artifacts" {
     allowed_origins = local.cors_allowed_origins
     expose_headers  = ["ETag"]
     max_age_seconds = 3000
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+
+  rule {
+    id     = "expire-generated-exports"
+    status = "Enabled"
+
+    filter {
+      tag {
+        key   = "lumigraph-kind"
+        value = "export"
+      }
+    }
+
+    expiration {
+      days = var.download_exports_expiration_days
+    }
+  }
+}
+
+data "archive_file" "download_zip_lambda" {
+  count = local.create_download_zip_lambda ? 1 : 0
+
+  type        = "zip"
+  source_file = "${path.module}/lambda/download_zip/main.py"
+  output_path = "${path.module}/.terraform/tmp/download-zip-lambda.zip"
+}
+
+data "aws_iam_policy_document" "download_zip_lambda_assume_role" {
+  count = local.create_download_zip_lambda ? 1 : 0
+
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "download_zip_lambda" {
+  count = local.create_download_zip_lambda ? 1 : 0
+
+  name               = "${var.project_name}-download-zip-${var.env}"
+  assume_role_policy = data.aws_iam_policy_document.download_zip_lambda_assume_role[0].json
+}
+
+data "aws_iam_policy_document" "download_zip_lambda" {
+  count = local.create_download_zip_lambda ? 1 : 0
+
+  statement {
+    sid = "CloudWatchLogs"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["arn:aws:logs:${var.aws_region}:${local.account_id}:*"]
+  }
+
+  statement {
+    sid = "ReadIntegrationSetObjects"
+    actions = [
+      "s3:GetObject"
+    ]
+    resources = [
+      "${aws_s3_bucket.artifacts.arn}/users/*/integration-sets/*"
+    ]
+  }
+
+  statement {
+    sid = "WriteExportObjects"
+    actions = [
+      "s3:PutObject",
+      "s3:PutObjectTagging"
+    ]
+    resources = [
+      "${aws_s3_bucket.artifacts.arn}/users/*/exports/*"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "download_zip_lambda" {
+  count = local.create_download_zip_lambda ? 1 : 0
+
+  name   = "${var.project_name}-download-zip-${var.env}"
+  role   = aws_iam_role.download_zip_lambda[0].id
+  policy = data.aws_iam_policy_document.download_zip_lambda[0].json
+}
+
+resource "aws_lambda_function" "download_zip" {
+  count = local.create_download_zip_lambda ? 1 : 0
+
+  function_name = local.managed_download_zip_lambda_name
+  role          = aws_iam_role.download_zip_lambda[0].arn
+  filename      = data.archive_file.download_zip_lambda[0].output_path
+  handler       = "main.handler"
+  runtime       = "python3.12"
+  timeout       = var.download_zip_lambda_timeout_seconds
+  memory_size   = var.download_zip_lambda_memory_mb
+
+  reserved_concurrent_executions = var.download_zip_lambda_reserved_concurrency
+  source_code_hash               = data.archive_file.download_zip_lambda[0].output_base64sha256
+
+  environment {
+    variables = {
+      DOWNLOAD_CALLBACK_SECRET        = var.download_callback_secret
+      VERCEL_AUTOMATION_BYPASS_SECRET = var.vercel_automation_bypass_secret
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(var.download_callback_secret) > 0
+      error_message = "download_callback_secret must be set when provisioning the managed download ZIP Lambda."
+    }
+  }
+
+  tags = {
+    Project = var.project_name
+    Env     = var.env
   }
 }
 
@@ -262,6 +391,13 @@ data "aws_iam_policy_document" "vercel_s3_artifacts" {
       "s3:DeleteObject"
     ]
     resources = ["${aws_s3_bucket.artifacts.arn}/*"]
+  }
+
+  statement {
+    actions = ["lambda:InvokeFunction"]
+    resources = [
+      local.effective_download_zip_lambda_arn
+    ]
   }
 }
 

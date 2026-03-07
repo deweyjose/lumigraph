@@ -2,16 +2,9 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Upload,
-  ImageIcon,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
+import { ImageIcon, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { isFinalImageS3Key } from "@/lib/image-url";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 const ACCEPT = ".jpg,.jpeg,.png,.webp";
@@ -19,8 +12,9 @@ const ACCEPT = ".jpg,.jpeg,.png,.webp";
 function mapFileToContentType(
   file: File
 ): (typeof ALLOWED_TYPES)[number] | null {
-  if (ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number]))
+  if (ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number])) {
     return file.type as (typeof ALLOWED_TYPES)[number];
+  }
   const name = file.name.toLowerCase();
   if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
   if (name.endsWith(".png")) return "image/png";
@@ -33,86 +27,95 @@ type SlotStatus = "idle" | "uploading" | "done" | "error";
 
 type FinalImageUploadProps = {
   postId: string;
-  currentImageKey: string | null;
-  currentThumbKey: string | null;
+  currentImageAssetId: string | null;
+  currentThumbAssetId: string | null;
   className?: string;
 };
 
 export function FinalImageUpload({
   postId,
-  currentImageKey,
-  currentThumbKey,
+  currentImageAssetId,
+  currentThumbAssetId,
   className,
 }: FinalImageUploadProps) {
   const router = useRouter();
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const thumbInputRef = useRef<HTMLInputElement>(null);
   const [imageStatus, setImageStatus] = useState<SlotStatus>("idle");
   const [thumbStatus, setThumbStatus] = useState<SlotStatus>("idle");
   const [imageError, setImageError] = useState<string | null>(null);
   const [thumbError, setThumbError] = useState<string | null>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const thumbInputRef = useRef<HTMLInputElement>(null);
-
-  const hasImage = isFinalImageS3Key(currentImageKey);
-  const hasThumb = isFinalImageS3Key(currentThumbKey);
 
   const uploadFile = useCallback(
     async (file: File, role: UploadSlot) => {
       const contentType = mapFileToContentType(file);
       if (!contentType) {
-        const setError = role === "image" ? setImageError : setThumbError;
-        setError("Use JPEG, PNG, or WebP.");
+        (role === "image" ? setImageError : setThumbError)(
+          "Use JPEG, PNG, or WebP."
+        );
         return;
       }
+
       const setStatus = role === "image" ? setImageStatus : setThumbStatus;
       const setError = role === "image" ? setImageError : setThumbError;
-      setError(null);
       setStatus("uploading");
+      setError(null);
 
       try {
-        const presignRes = await fetch(
-          `/api/image-posts/${postId}/final-image/presign`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              filename: file.name,
-              contentType,
-              contentLength: file.size,
-            }),
-          }
-        );
+        const relativePath = file.name;
+        const presignRes = await fetch("/api/uploads/presign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: role === "image" ? "FINAL_IMAGE" : "FINAL_THUMB",
+            postId,
+            relativePath,
+            contentType,
+            contentLength: file.size,
+          }),
+        });
         if (!presignRes.ok) {
           const data = await presignRes.json().catch(() => ({}));
-          throw new Error(
-            data.message ?? `Presign failed: ${presignRes.status}`
-          );
+          throw new Error(data.message ?? "Failed to prepare upload");
         }
-        const { uploadUrl, key } = (await presignRes.json()) as {
+        const presigned = (await presignRes.json()) as {
+          assetId: string;
           uploadUrl: string;
-          key: string;
         };
 
-        const putRes = await fetch(uploadUrl, {
+        const uploadRes = await fetch(presigned.uploadUrl, {
           method: "PUT",
           body: file,
           headers: { "Content-Type": contentType },
         });
-        if (!putRes.ok) throw new Error(`Upload failed: ${putRes.status}`);
+        if (!uploadRes.ok) throw new Error("Upload failed");
 
-        const completeRes = await fetch(
-          `/api/image-posts/${postId}/final-image/complete`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ key, role }),
-          }
-        );
+        const completeRes = await fetch("/api/uploads/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assetId: presigned.assetId,
+            sizeBytes: file.size,
+          }),
+        });
         if (!completeRes.ok) {
           const data = await completeRes.json().catch(() => ({}));
-          throw new Error(
-            data.message ?? `Complete failed: ${completeRes.status}`
-          );
+          throw new Error(data.message ?? "Failed to complete upload");
         }
+
+        const attachRes = await fetch(`/api/posts/${postId}/final-assets`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assetId: presigned.assetId,
+            role,
+          }),
+        });
+        if (!attachRes.ok) {
+          const data = await attachRes.json().catch(() => ({}));
+          throw new Error(data.message ?? "Failed to set post image");
+        }
+
         setStatus("done");
         router.refresh();
       } catch (err) {
@@ -121,24 +124,6 @@ export function FinalImageUpload({
       }
     },
     [postId, router]
-  );
-
-  const handleImageChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
-      if (file) uploadFile(file, "image");
-    },
-    [uploadFile]
-  );
-
-  const handleThumbChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      e.target.value = "";
-      if (file) uploadFile(file, "thumb");
-    },
-    [uploadFile]
   );
 
   return (
@@ -150,7 +135,7 @@ export function FinalImageUpload({
         Final image
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Upload the main image and an optional thumbnail for cards.
+        Upload a main image and optional thumbnail.
       </p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -158,18 +143,23 @@ export function FinalImageUpload({
           <h3 className="text-sm font-medium text-muted-foreground">
             Main image
           </h3>
-          {hasImage ? (
-            <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-              Image set
-            </p>
-          ) : null}
+          {currentImageAssetId && (
+            <img
+              src={`/api/assets/${currentImageAssetId}/view`}
+              alt=""
+              className="mt-2 h-24 w-full rounded border object-cover"
+            />
+          )}
           <input
             ref={imageInputRef}
             type="file"
             accept={ACCEPT}
             className="sr-only"
-            onChange={handleImageChange}
-            aria-label="Choose main image (JPEG, PNG, WebP)"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void uploadFile(file, "image");
+            }}
           />
           <Button
             type="button"
@@ -182,7 +172,7 @@ export function FinalImageUpload({
             {imageStatus === "uploading" ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Uploading…
+                Uploading...
               </>
             ) : imageStatus === "done" ? (
               <>
@@ -192,7 +182,7 @@ export function FinalImageUpload({
             ) : (
               <>
                 <ImageIcon className="h-4 w-4" aria-hidden />
-                {hasImage ? "Replace" : "Upload"}
+                {currentImageAssetId ? "Replace" : "Upload"}
               </>
             )}
           </Button>
@@ -206,24 +196,25 @@ export function FinalImageUpload({
 
         <div className="rounded-lg border bg-background p-4">
           <h3 className="text-sm font-medium text-muted-foreground">
-            Thumbnail (optional)
+            Thumbnail
           </h3>
-          {hasThumb ? (
-            <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-              Thumbnail set
-            </p>
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Used on cards and lists
-            </p>
+          {currentThumbAssetId && (
+            <img
+              src={`/api/assets/${currentThumbAssetId}/view`}
+              alt=""
+              className="mt-2 h-24 w-full rounded border object-cover"
+            />
           )}
           <input
             ref={thumbInputRef}
             type="file"
             accept={ACCEPT}
             className="sr-only"
-            onChange={handleThumbChange}
-            aria-label="Choose thumbnail (JPEG, PNG, WebP)"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) void uploadFile(file, "thumb");
+            }}
           />
           <Button
             type="button"
@@ -236,7 +227,7 @@ export function FinalImageUpload({
             {thumbStatus === "uploading" ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Uploading…
+                Uploading...
               </>
             ) : thumbStatus === "done" ? (
               <>
@@ -245,8 +236,8 @@ export function FinalImageUpload({
               </>
             ) : (
               <>
-                <Upload className="h-4 w-4" aria-hidden />
-                {hasThumb ? "Replace" : "Upload"}
+                <ImageIcon className="h-4 w-4" aria-hidden />
+                {currentThumbAssetId ? "Replace" : "Upload"}
               </>
             )}
           </Button>

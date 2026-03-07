@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s | Lumigraph",
   },
   description:
-    "Astrophotography journal and dataset platform. Publish images, share integration data, and document your processing workflows.",
+    "Astrophotography journal and integration data platform. Publish images, upload integration sets, and document your processing workflows.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
