@@ -72,7 +72,6 @@ NASA_API_KEY=...                 # Optional; improves NASA API rate limit
 
 ```bash
 docker compose up -d postgres localstack
-aws --endpoint-url http://localhost:4566 s3 mb s3://lumigraph-dev-local
 ```
 
 In `apps/web/.env`:
@@ -83,6 +82,25 @@ AWS_S3_BUCKET=lumigraph-dev-local
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
+AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED
+AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED
+```
+
+`docker-compose` now auto-creates `lumigraph-dev-local` and applies dev CORS on LocalStack startup.
+If you need to re-apply CORS manually:
+
+```bash
+aws --endpoint-url http://localhost:4566 s3api put-bucket-cors \
+  --bucket lumigraph-dev-local \
+  --cors-configuration '{
+    "CORSRules": [{
+      "AllowedOrigins": ["http://localhost:3000"],
+      "AllowedMethods": ["PUT","GET","HEAD"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 3000
+    }]
+  }'
 ```
 
 **Real AWS:** Set `AWS_S3_BUCKET`, `AWS_REGION`, and credentials in `apps/web/.env`.
