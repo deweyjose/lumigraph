@@ -117,7 +117,7 @@ DOWNLOAD_CALLBACK_SECRET=<same-value-as-TF_VAR_download_callback_secret>
 For protected Vercel preview/stage callbacks, set this Terraform/GitHub secret so Lambda can add the bypass header:
 
 ```env
-TF_VAR_vercel_automation_bypass_secret=<Vercel Protection Bypass for Automation secret>
+TF_VERCEL_AUTOMATION_BYPASS_SECRET=<Vercel Protection Bypass for Automation secret>
 ```
 
 ---
