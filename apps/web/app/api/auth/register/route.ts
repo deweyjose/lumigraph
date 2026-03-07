@@ -29,15 +29,14 @@ export async function POST(request: Request) {
 
   let result: Awaited<ReturnType<typeof registerWithPassword>>;
   try {
-    result = await registerWithPassword(
-      body.email,
-      body.password,
-      body.name
-    );
+    result = await registerWithPassword(body.email, body.password, body.name);
   } catch (err) {
     console.error("[register] Prisma/DB error:", err);
     return NextResponse.json(
-      { code: "REGISTRATION_FAILED", message: "Registration failed. Please try again." },
+      {
+        code: "REGISTRATION_FAILED",
+        message: "Registration failed. Please try again.",
+      },
       { status: 500 }
     );
   }
