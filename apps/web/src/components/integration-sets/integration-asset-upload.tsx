@@ -16,8 +16,11 @@ import {
   Download,
   Archive,
   RefreshCw,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+const EXPORT_POLL_INTERVAL_MS = 5000;
 
 type UploadEntry = {
   clientId: string;
@@ -39,7 +42,7 @@ type AssetRow = {
 
 type DownloadJobRow = {
   id: string;
-  status: "PENDING" | "RUNNING" | "READY" | "FAILED";
+  status: "PENDING" | "RUNNING" | "READY" | "FAILED" | "CANCELLED";
   selectedPaths: string[];
   outputS3Key: string | null;
   outputSizeBytes: number | null;
@@ -242,8 +245,35 @@ function deriveSelectedAssets(
 function statusTone(status: DownloadJobRow["status"]): string {
   if (status === "READY") return "text-green-500";
   if (status === "FAILED") return "text-red-500";
+  if (status === "CANCELLED") return "text-amber-500";
   if (status === "RUNNING") return "text-blue-500";
   return "text-muted-foreground";
+}
+
+function mergeJobsFromList(
+  existing: DownloadJobRow[],
+  incoming: DownloadJobRow[]
+): DownloadJobRow[] {
+  const existingById = new Map(existing.map((job) => [job.id, job]));
+  const merged = incoming.map((job) => {
+    const prev = existingById.get(job.id);
+    if (!prev) return job;
+
+    const shouldKeepUrl =
+      job.status === "READY" && !job.downloadUrl && Boolean(prev.downloadUrl);
+    return {
+      ...job,
+      ...(shouldKeepUrl && { downloadUrl: prev.downloadUrl }),
+      ...(typeof prev.isExpired === "boolean" && { isExpired: prev.isExpired }),
+    };
+  });
+
+  const incomingIds = new Set(incoming.map((job) => job.id));
+  for (const prev of existing) {
+    if (!incomingIds.has(prev.id)) merged.push(prev);
+  }
+
+  return merged;
 }
 
 function NodeRow({ node, style, dragHandle }: NodeRendererProps<ExplorerNode>) {
@@ -316,6 +346,7 @@ export function IntegrationAssetUpload({
     useState<DownloadJobRow[]>(downloadJobs);
   const [isUploading, setIsUploading] = useState(false);
   const [isStartingExport, setIsStartingExport] = useState(false);
+  const [cancelingJobIds, setCancelingJobIds] = useState<string[]>([]);
   const [exportError, setExportError] = useState<string | null>(null);
   const [treeWidth, setTreeWidth] = useState(800);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
@@ -362,6 +393,13 @@ export function IntegrationAssetUpload({
   const selectedSummary = useMemo(
     () => deriveSelectedAssets(selectedPaths, displayAssets),
     [displayAssets, selectedPaths]
+  );
+  const hasActiveJobs = useMemo(
+    () =>
+      displayJobs.some(
+        (job) => job.status === "PENDING" || job.status === "RUNNING"
+      ),
+    [displayJobs]
   );
 
   const singleSelectedFileAssetId = useMemo(() => {
@@ -414,52 +452,71 @@ export function IntegrationAssetUpload({
     [integrationSetId]
   );
 
-  useEffect(() => {
-    const activeJobIds = displayJobs
-      .filter((job) => job.status === "PENDING" || job.status === "RUNNING")
-      .map((job) => job.id);
+  const cancelJob = useCallback(
+    async (jobId: string) => {
+      setExportError(null);
+      setCancelingJobIds((prev) =>
+        prev.includes(jobId) ? prev : [...prev, jobId]
+      );
+      try {
+        const res = await fetch(
+          `/api/integration-sets/${integrationSetId}/export-jobs/${jobId}`,
+          { method: "POST" }
+        );
+        const data = (await res.json()) as {
+          job?: DownloadJobRow;
+          message?: string;
+        };
+        if (!res.ok || !data.job) {
+          throw new Error(data.message ?? "Failed to cancel export job");
+        }
+        setDisplayJobs((prev) =>
+          prev.map((job) => (job.id === data.job!.id ? data.job! : job))
+        );
+      } catch (err) {
+        setExportError(
+          err instanceof Error ? err.message : "Failed to cancel export job"
+        );
+      } finally {
+        setCancelingJobIds((prev) => prev.filter((id) => id !== jobId));
+      }
+    },
+    [integrationSetId]
+  );
 
-    if (activeJobIds.length === 0) return;
+  useEffect(() => {
+    if (!hasActiveJobs) return;
 
     let cancelled = false;
+    let inFlight = false;
     const tick = async () => {
-      const results = await Promise.all(
-        activeJobIds.map(async (jobId) => {
-          try {
-            const res = await fetch(
-              `/api/integration-sets/${integrationSetId}/export-jobs/${jobId}`
-            );
-            const data = (await res.json()) as { job?: DownloadJobRow };
-            return data.job ?? null;
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      if (cancelled) return;
-      const jobs = results.filter((job): job is DownloadJobRow => Boolean(job));
-      const byId = new Map(jobs.map((job) => [job.id, job]));
-      if (byId.size === 0) return;
-
-      setDisplayJobs((prev) =>
-        prev.map((job) => {
-          const updated = byId.get(job.id);
-          return updated ?? job;
-        })
-      );
+      if (cancelled || inFlight) return;
+      inFlight = true;
+      try {
+        const res = await fetch(
+          `/api/integration-sets/${integrationSetId}/export-jobs`,
+          { cache: "no-store" }
+        );
+        const data = (await res.json()) as { jobs?: DownloadJobRow[] };
+        if (cancelled || !res.ok || !data.jobs) return;
+        setDisplayJobs((prev) => mergeJobsFromList(prev, data.jobs!));
+      } catch {
+        return;
+      } finally {
+        inFlight = false;
+      }
     };
 
     void tick();
     const timer = setInterval(() => {
       void tick();
-    }, 3000);
+    }, EXPORT_POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [displayJobs, integrationSetId]);
+  }, [hasActiveJobs, integrationSetId]);
 
   const uploadAll = useCallback(async () => {
     const pending = entries.filter((entry) => entry.status === "pending");
@@ -892,6 +949,23 @@ export function IntegrationAssetUpload({
 
                   {(job.status === "PENDING" || job.status === "RUNNING") && (
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+
+                  {(job.status === "PENDING" || job.status === "RUNNING") && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={cancelingJobIds.includes(job.id)}
+                      onClick={() => void cancelJob(job.id)}
+                    >
+                      {cancelingJobIds.includes(job.id) ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <XCircle className="mr-2 h-4 w-4" />
+                      )}
+                      Cancel
+                    </Button>
                   )}
 
                   {job.status === "READY" && job.downloadUrl ? (

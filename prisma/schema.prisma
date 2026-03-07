@@ -50,6 +50,7 @@ enum DownloadJobStatus {
   RUNNING
   READY
   FAILED
+  CANCELLED
 
   @@map("download_job_status")
 }

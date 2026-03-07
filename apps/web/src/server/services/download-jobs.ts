@@ -22,7 +22,12 @@ type IntegrationAssetRow = {
   sizeBytes: bigint;
 };
 
-type DownloadJobStatus = "PENDING" | "RUNNING" | "READY" | "FAILED";
+type DownloadJobStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "READY"
+  | "FAILED"
+  | "CANCELLED";
 
 type DownloadJobView = {
   id: string;
@@ -49,7 +54,7 @@ type LocalProcessorInput = {
 };
 
 type CallbackPayload = {
-  status: DownloadJobStatus;
+  status: "RUNNING" | "FAILED" | "READY";
   outputS3Key?: string;
   outputSizeBytes?: number;
   errorMessage?: string;
@@ -380,8 +385,8 @@ export async function createDownloadExportJob(
       const msg =
         err instanceof Error ? err.message : "Local export job failed";
       const p = await getPrisma();
-      await p.downloadJob.update({
-        where: { id: created.id },
+      await p.downloadJob.updateMany({
+        where: { id: created.id, status: { in: ["PENDING", "RUNNING"] } },
         data: {
           status: "FAILED",
           errorMessage: msg.slice(0, 1000),
@@ -407,8 +412,8 @@ export async function createDownloadExportJob(
     }).catch(async (err) => {
       const msg = err instanceof Error ? err.message : "Lambda invoke failed";
       const p = await getPrisma();
-      await p.downloadJob.update({
-        where: { id: created.id },
+      await p.downloadJob.updateMany({
+        where: { id: created.id, status: { in: ["PENDING", "RUNNING"] } },
         data: {
           status: "FAILED",
           errorMessage: msg.slice(0, 1000),
@@ -466,6 +471,52 @@ export async function getDownloadJobStatusForOwner(
   return { ok: true, job: { ...view, isExpired } };
 }
 
+type CancelDownloadJobResult =
+  | { ok: true; job: DownloadJobView }
+  | { ok: false; code: "NOT_FOUND" | "INVALID_STATE"; message: string };
+
+export async function cancelDownloadJobForOwner(
+  integrationSetId: string,
+  jobId: string,
+  userId: string
+): Promise<CancelDownloadJobResult> {
+  const prisma = await getPrisma();
+  const now = new Date();
+
+  const updated = await prisma.downloadJob.updateMany({
+    where: {
+      id: jobId,
+      userId,
+      integrationSetId,
+      status: { in: ["PENDING", "RUNNING"] },
+    },
+    data: {
+      status: "CANCELLED",
+      completedAt: now,
+      errorMessage: null,
+    },
+  });
+
+  const job = await prisma.downloadJob.findUnique({ where: { id: jobId } });
+  if (
+    !job ||
+    job.userId !== userId ||
+    job.integrationSetId !== integrationSetId
+  ) {
+    return { ok: false, code: "NOT_FOUND", message: "Download job not found" };
+  }
+
+  if (updated.count === 0 && job.status !== "CANCELLED") {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: `Download job cannot be cancelled from status ${job.status}.`,
+    };
+  }
+
+  return { ok: true, job: toDownloadJobView(job) };
+}
+
 async function loadJobForLocalProcessor(jobId: string) {
   const prisma = await getPrisma();
   return prisma.downloadJob.findUnique({
@@ -487,15 +538,22 @@ async function processDownloadJobLocal(
   const prisma = await getPrisma();
   const job = await loadJobForLocalProcessor(input.jobId);
   if (!job || !job.integrationSet) return;
-  if (job.status === "READY" || job.status === "FAILED") return;
+  if (
+    job.status === "READY" ||
+    job.status === "FAILED" ||
+    job.status === "CANCELLED"
+  ) {
+    return;
+  }
 
-  await prisma.downloadJob.update({
-    where: { id: job.id },
+  const started = await prisma.downloadJob.updateMany({
+    where: { id: job.id, status: "PENDING" },
     data: {
       status: "RUNNING",
       errorMessage: null,
     },
   });
+  if (started.count === 0) return;
 
   const assets = await listOwnedIntegrationAssets(
     job.integrationSetId,
@@ -504,8 +562,8 @@ async function processDownloadJobLocal(
   const selectedPaths = parseSelectedPathsJson(job.selectedPathsJson);
   const resolved = resolveSelectedAssets(assets, selectedPaths);
   if (!resolved.ok) {
-    await prisma.downloadJob.update({
-      where: { id: job.id },
+    await prisma.downloadJob.updateMany({
+      where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
       data: {
         status: "FAILED",
         errorMessage: resolved.message,
@@ -549,8 +607,8 @@ async function processDownloadJobLocal(
     })
   );
 
-  await prisma.downloadJob.update({
-    where: { id: job.id },
+  await prisma.downloadJob.updateMany({
+    where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
     data: {
       status: "READY",
       outputS3Key: outputKey,
@@ -596,10 +654,11 @@ export async function applyDownloadJobCallback(
   const prisma = await getPrisma();
   const job = await prisma.downloadJob.findUnique({ where: { id: jobId } });
   if (!job) return { ok: false, message: "Download job not found" };
+  if (job.status === "CANCELLED") return { ok: true };
 
   if (payload.status === "RUNNING") {
-    await prisma.downloadJob.update({
-      where: { id: jobId },
+    await prisma.downloadJob.updateMany({
+      where: { id: jobId, status: { in: ["PENDING", "RUNNING"] } },
       data: {
         status: "RUNNING",
         errorMessage: null,
@@ -609,8 +668,8 @@ export async function applyDownloadJobCallback(
   }
 
   if (payload.status === "FAILED") {
-    await prisma.downloadJob.update({
-      where: { id: jobId },
+    await prisma.downloadJob.updateMany({
+      where: { id: jobId, status: { in: ["PENDING", "RUNNING"] } },
       data: {
         status: "FAILED",
         errorMessage: (payload.errorMessage ?? "Export failed").slice(0, 1000),
@@ -624,8 +683,8 @@ export async function applyDownloadJobCallback(
     if (!payload.outputS3Key) {
       return { ok: false, message: "outputS3Key is required for READY status" };
     }
-    await prisma.downloadJob.update({
-      where: { id: jobId },
+    await prisma.downloadJob.updateMany({
+      where: { id: jobId, status: { in: ["PENDING", "RUNNING"] } },
       data: {
         status: "READY",
         outputS3Key: payload.outputS3Key,
