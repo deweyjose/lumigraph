@@ -133,10 +133,12 @@ resource "aws_security_group" "db" {
   }
 
   # Ingress is managed by aws_vpc_security_group_ingress_rule (db_from_runner, db_public).
-  # Without this, Terraform may replace the SG when syncing ingress; replacing would require
-  # detaching ENIs, which fails for RDS-managed ENIs (400 AuthFailure).
+  # ignore_changes: avoid Terraform syncing ingress (which can trigger replace).
+  # prevent_destroy: RDS uses this SG; destroying it would require detaching the RDS ENI,
+  # which is not allowed (400 AuthFailure). Block destroy so apply can complete.
   lifecycle {
-    ignore_changes = [ingress]
+    ignore_changes  = [ingress]
+    prevent_destroy = true
   }
 }
 
