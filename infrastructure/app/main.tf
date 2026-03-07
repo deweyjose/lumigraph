@@ -214,7 +214,8 @@ resource "aws_lambda_function" "download_zip" {
 
   environment {
     variables = {
-      DOWNLOAD_CALLBACK_SECRET = var.download_callback_secret
+      DOWNLOAD_CALLBACK_SECRET        = var.download_callback_secret
+      VERCEL_AUTOMATION_BYPASS_SECRET = var.vercel_automation_bypass_secret
     }
   }
 

@@ -112,7 +112,12 @@ For async ZIP exports in cloud, also set:
 DOWNLOAD_JOB_PROCESSOR=lambda
 DOWNLOAD_ZIP_LAMBDA_NAME=<terraform-output-download_zip_lambda_name>
 DOWNLOAD_CALLBACK_SECRET=<same-value-as-TF_VAR_download_callback_secret>
-DOWNLOAD_CALLBACK_VERCEL_BYPASS_TOKEN=<required for protected Vercel preview URLs; use the Vercel automation bypass token>
+```
+
+For protected Vercel preview/stage callbacks, set this Terraform/GitHub secret so Lambda can add the bypass header:
+
+```env
+TF_VAR_vercel_automation_bypass_secret=<Vercel Protection Bypass for Automation secret>
 ```
 
 ---

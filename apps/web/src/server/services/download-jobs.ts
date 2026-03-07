@@ -303,23 +303,6 @@ function getCallbackBaseUrl(origin: string): string {
   return origin.replace(/\/$/, "");
 }
 
-function getCallbackBypassToken(): string | null {
-  const explicit = process.env.DOWNLOAD_CALLBACK_VERCEL_BYPASS_TOKEN?.trim();
-  if (explicit) return explicit;
-  const vercelSystem = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
-  if (vercelSystem) return vercelSystem;
-  return null;
-}
-
-function isVercelDeploymentHost(baseUrl: string): boolean {
-  try {
-    const hostname = new URL(baseUrl).hostname.toLowerCase();
-    return hostname.endsWith(".vercel.app");
-  } catch {
-    return false;
-  }
-}
-
 export async function createDownloadExportJob(
   input: CreateDownloadJobInput
 ): Promise<
@@ -341,22 +324,6 @@ export async function createDownloadExportJob(
       ok: false,
       message:
         "DOWNLOAD_CALLBACK_SECRET is not configured for lambda export jobs.",
-    };
-  }
-  const callbackBaseUrl =
-    processor === "lambda" ? getCallbackBaseUrl(input.requestOrigin) : null;
-  const callbackBypassToken =
-    processor === "lambda" ? getCallbackBypassToken() : null;
-  if (
-    processor === "lambda" &&
-    callbackBaseUrl &&
-    isVercelDeploymentHost(callbackBaseUrl) &&
-    (!callbackBypassToken || callbackBypassToken.length === 0)
-  ) {
-    return {
-      ok: false,
-      message:
-        "Preview callback is blocked by Vercel Deployment Protection. Set DOWNLOAD_CALLBACK_VERCEL_BYPASS_TOKEN (or expose VERCEL_AUTOMATION_BYPASS_SECRET).",
     };
   }
 
@@ -420,7 +387,8 @@ export async function createDownloadExportJob(
       });
     });
   } else {
-    const callbackUrl = `${callbackBaseUrl!}/api/internal/export-jobs/${created.id}/callback`;
+    const callbackBaseUrl = getCallbackBaseUrl(input.requestOrigin);
+    const callbackUrl = `${callbackBaseUrl}/api/internal/export-jobs/${created.id}/callback`;
     void invokeZipLambda({
       jobId: created.id,
       userId: input.userId,
@@ -433,7 +401,6 @@ export async function createDownloadExportJob(
         sizeBytes: Number(asset.sizeBytes),
       })),
       callbackUrl,
-      callbackBypassToken,
     }).catch(async (err) => {
       const msg = err instanceof Error ? err.message : "Lambda invoke failed";
       const p = await getPrisma();

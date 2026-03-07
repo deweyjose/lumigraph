@@ -154,6 +154,13 @@ variable "download_callback_secret" {
   sensitive   = true
 }
 
+variable "vercel_automation_bypass_secret" {
+  description = "Vercel deployment protection bypass secret used by Lambda callbacks to protected preview/stage URLs."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "download_zip_lambda_timeout_seconds" {
   description = "Timeout for the managed ZIP export Lambda."
   type        = number

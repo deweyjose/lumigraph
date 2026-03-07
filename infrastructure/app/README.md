@@ -46,6 +46,7 @@ Use `.github/workflows/terraform.yml`:
 - `db_iam_app_username` (default: `app_user`)
 - `download_zip_lambda_arn` (default: `null`; optional external Lambda ARN. If null, this stack provisions the ZIP export Lambda.)
 - `download_callback_secret` (required when provisioning managed Lambda; shared secret for callback signing)
+- `vercel_automation_bypass_secret` (optional; required when callback URL is protected by Vercel Deployment Protection)
 - `download_zip_lambda_timeout_seconds` (default: `900`)
 - `download_zip_lambda_memory_mb` (default: `2048`)
 - `download_zip_lambda_reserved_concurrency` (default: `null`; uses unreserved account concurrency)

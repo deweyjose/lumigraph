@@ -30,6 +30,7 @@ jobs:
       TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
       TF_VAR_runner_security_group_id: ${{ secrets.TF_VAR_runner_security_group_id }}
       TF_VAR_download_callback_secret: ${{ secrets.TF_VAR_download_callback_secret }}
+      TF_VAR_vercel_automation_bypass_secret: ${{ secrets.TF_VAR_vercel_automation_bypass_secret }}
 
     steps:
       - name: Checkout

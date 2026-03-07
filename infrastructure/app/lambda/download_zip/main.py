@@ -26,6 +26,11 @@ def _callback_secret() -> str:
     return secret
 
 
+def _vercel_automation_bypass_secret() -> str | None:
+    secret = os.environ.get("VERCEL_AUTOMATION_BYPASS_SECRET", "").strip()
+    return secret or None
+
+
 def _is_safe_relative_path(path: str) -> bool:
     if not isinstance(path, str):
         return False
@@ -128,7 +133,7 @@ def handler(event, _context):
     output_s3_key = event.get("outputS3Key")
     files = event.get("files", [])
     callback_url = event.get("callbackUrl")
-    callback_bypass_token = event.get("callbackBypassToken")
+    callback_bypass_token = _vercel_automation_bypass_secret()
 
     LOGGER.info(
         "download-zip start job_id=%s user_id=%s integration_set_id=%s file_count=%s has_bypass_token=%s",
@@ -144,9 +149,6 @@ def handler(event, _context):
         for v in [job_id, user_id, integration_set_id, bucket, output_s3_key, callback_url]
     ):
         raise ValueError("Invalid event payload")
-    if callback_bypass_token is not None and not isinstance(callback_bypass_token, str):
-        raise ValueError("Invalid callbackBypassToken")
-
     if not isinstance(files, list) or len(files) == 0:
         raise ValueError("files must be a non-empty list")
 
