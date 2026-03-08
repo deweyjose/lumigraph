@@ -95,7 +95,7 @@
 
 ## Agent execution persistence model
 
-- `WorkflowDefinition` and `WorkflowStepDefinition` belong to workflow-capture work in `#92`. They describe reusable authored process templates.
+- `WorkflowDefinition` and `WorkflowStepDefinition` describe reusable authored process templates. `#117` persists these private owned records and their ordered step lists.
 - `WorkflowSession` is the durable execution context for one user's working thread around a goal or resource. It can optionally point at a workflow definition and at subject resources such as a post or integration set. `#104` persists this model now.
 - `WorkflowRun` is one execution attempt within a session. A session may have many runs over time as the user retries, resumes, or switches agents/models. `#104` persists this model now.
 - `RunToolCall` is the audit log for one tool invocation during a run. It stores the tool name, validated input payload, output payload or error, timestamps, and status. `#105` persists this model now.
@@ -152,7 +152,7 @@
 - Integration-set visibility is currently private-only.
 - Export jobs are async and progress through worker callbacks before a download URL is exposed.
 - Workflow execution persistence now stores private user-owned sessions, runs, tool-call audit rows, artifact references, and private inspection/restart APIs.
-- Workflow capture remains the next layer: authored workflow definitions and ordered step templates are planned in `#116` through `#120`.
+- Workflow capture now persists private workflow definitions and ordered step templates. Private CRUD APIs, editor UX, and workflow-launch wiring remain in `#118` through `#120`.
 
 ## Operational notes
 

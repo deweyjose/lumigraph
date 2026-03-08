@@ -104,6 +104,22 @@ enum RunArtifactRefType {
   @@map("run_artifact_ref_type")
 }
 
+enum WorkflowDefinitionStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+
+  @@map("workflow_definition_status")
+}
+
+enum WorkflowStepKind {
+  INSTRUCTION
+  TOOL_CALL
+  REVIEW
+
+  @@map("workflow_step_kind")
+}
+
 model User {
   id            String    @id @default(uuid()) @db.Uuid
   email         String    @unique
@@ -119,6 +135,7 @@ model User {
   integrationSets IntegrationSet[]
   assets          Asset[]
   downloadJobs    DownloadJob[]
+  workflowDefinitions WorkflowDefinition[]
   workflowSessions WorkflowSession[]
   workflowRuns     WorkflowRun[]
   runToolCalls     RunToolCall[]
@@ -269,6 +286,47 @@ model DailyCanvas {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("daily_canvas")
+}
+
+model WorkflowDefinition {
+  id          String                   @id @default(uuid()) @db.Uuid
+  userId      String                   @db.Uuid @map("user_id")
+  title       String
+  description String?
+  subjectType WorkflowSubjectType?     @map("subject_type")
+  status      WorkflowDefinitionStatus @default(DRAFT)
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  updatedAt   DateTime                 @updatedAt @map("updated_at")
+
+  user  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps WorkflowStepDefinition[]
+
+  @@index([userId, updatedAt])
+  @@index([status, updatedAt])
+  @@index([subjectType, updatedAt])
+  @@map("workflow_definitions")
+}
+
+model WorkflowStepDefinition {
+  id                    String              @id @default(uuid()) @db.Uuid
+  definitionId          String              @db.Uuid @map("definition_id")
+  key                   String
+  position              Int
+  title                 String
+  kind                  WorkflowStepKind
+  instructions          String?
+  toolName              String?             @map("tool_name")
+  toolInputTemplateJson Json?               @map("tool_input_template_json")
+  expectedArtifactType  RunArtifactRefType? @map("expected_artifact_type")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, key])
+  @@unique([definitionId, position])
+  @@index([definitionId, position])
+  @@map("workflow_step_definitions")
 }
 
 model WorkflowSession {
