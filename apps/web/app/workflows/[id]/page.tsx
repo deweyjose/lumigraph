@@ -4,7 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "auth";
 import { ArrowLeft } from "lucide-react";
 import { WorkflowDefinitionForm } from "@/components/workflows/workflow-definition-form";
+import { WorkflowLaunchForm } from "@/components/workflows/workflow-launch-form";
 import { Button } from "@/components/ui/button";
+import { listMyIntegrationSets } from "@/server/services/integration-sets";
+import { listMyPosts } from "@/server/services/posts";
 import { getWorkflowDefinitionForOwner } from "@/server/services/workflow-definitions";
 import { lumigraphTools } from "@/server/tools/lumigraph";
 
@@ -31,6 +34,13 @@ export default async function WorkflowDetailPage({ params }: Props) {
     notFound();
   }
 
+  const [posts, integrationSets] = await Promise.all([
+    definition.subjectType === "POST" ? listMyPosts(session.user.id) : [],
+    definition.subjectType === "INTEGRATION_SET"
+      ? listMyIntegrationSets(session.user.id)
+      : [],
+  ]);
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
       <div className="mb-4">
@@ -52,15 +62,38 @@ export default async function WorkflowDetailPage({ params }: Props) {
         </p>
       </div>
 
-      <WorkflowDefinitionForm
-        mode="edit"
-        definitionId={definition.id}
-        initialDefinition={definition}
-        toolOptions={lumigraphTools.map((tool) => ({
-          name: tool.name,
-          description: tool.description,
-        }))}
-      />
+      <div className="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
+        <WorkflowDefinitionForm
+          mode="edit"
+          definitionId={definition.id}
+          initialDefinition={definition}
+          toolOptions={lumigraphTools.map((tool) => ({
+            name: tool.name,
+            description: tool.description,
+          }))}
+        />
+
+        <WorkflowLaunchForm
+          definitionId={definition.id}
+          status={definition.status}
+          subjectType={definition.subjectType}
+          subjectOptions={
+            definition.subjectType === "POST"
+              ? posts.map((post) => ({
+                  id: post.id,
+                  title: post.title,
+                  subtitle: post.slug,
+                }))
+              : definition.subjectType === "INTEGRATION_SET"
+                ? integrationSets.map((set) => ({
+                    id: set.id,
+                    title: set.title,
+                    subtitle: set.post?.title ?? null,
+                  }))
+                : []
+          }
+        />
+      </div>
     </div>
   );
 }
