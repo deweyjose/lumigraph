@@ -27,6 +27,13 @@ Record architecture and workflow decisions that affect future implementation.
 - Alternatives considered: Run format checks only in CI.
 - Consequences: Cleaner local diffs and fewer avoidable CI failures.
 
+### 2026-03-08 - Build agentic capabilities on top of stable contracts
+
+- Decision: Prioritize API contract cleanup, a dedicated AI integration boundary, and typed tool-like server actions before adding more end-user AI features.
+- Context: The current prototype already has AI-powered daily canvas and chat, but provider calls and prompt logic are still feature-local. The service/domain split is usable, yet the machine-facing API contract and AI boundary are not stable enough to support broader agent workflows safely.
+- Alternatives considered: Continue shipping user-facing AI features first; focus on visual polish before platform cleanup; add workflow persistence before contract normalization.
+- Consequences: Near-term work shifts toward backend and docs cleanup, but future AI features can reuse a clearer contract surface, swap providers more safely, and call domain actions through explicit interfaces instead of ad hoc route knowledge.
+
 ### 2026-03-07 - Async ZIP export jobs
 
 - Decision: Use async worker callbacks for integration-set ZIP export progress and completion.
