@@ -25,6 +25,12 @@ export function SiteHeader() {
               Drafts
             </Link>
             <Link
+              href="/workflows"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Workflows
+            </Link>
+            <Link
               href="/gallery"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
