@@ -147,6 +147,12 @@ variable "download_zip_lambda_arn" {
   default     = null
 }
 
+variable "download_zip_lambda_package_path" {
+  description = "Path to the ZIP package for the managed download ZIP Lambda. Built in CI and passed via TF_VAR_download_zip_lambda_package_path."
+  type        = string
+  default     = ""
+}
+
 variable "download_callback_secret" {
   description = "Shared secret used by Lambda callbacks to sign status updates."
   type        = string

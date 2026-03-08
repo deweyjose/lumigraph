@@ -36,6 +36,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build download ZIP Lambda package (app only)
+        if: env.TF_TARGET == 'app'
+        run: |
+          PACKAGE_PATH="${RUNNER_TEMP}/download-zip-lambda.zip"
+          rm -f "${PACKAGE_PATH}"
+          (
+            cd infrastructure/app/lambda/download_zip
+            zip -q -j "${PACKAGE_PATH}" main.py
+          )
+          echo "TF_VAR_download_zip_lambda_package_path=${PACKAGE_PATH}" >> "${GITHUB_ENV}"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 

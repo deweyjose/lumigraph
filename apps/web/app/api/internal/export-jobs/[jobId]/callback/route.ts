@@ -8,7 +8,11 @@ import {
 const ParamsSchema = z.object({ jobId: z.string().uuid() });
 
 const BodySchema = z.discriminatedUnion("status", [
-  z.object({ status: z.literal("RUNNING") }),
+  z.object({
+    status: z.literal("RUNNING"),
+    totalFiles: z.number().int().positive().optional(),
+    completedFiles: z.number().int().nonnegative().optional(),
+  }),
   z.object({
     status: z.literal("FAILED"),
     errorMessage: z.string().max(1000).optional(),

@@ -78,17 +78,23 @@ In `apps/web/.env`:
 
 ```env
 AWS_S3_ENDPOINT=http://localhost:4566
+AWS_LAMBDA_ENDPOINT=http://localhost:4566
 AWS_S3_BUCKET=lumigraph-dev-local
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED
 AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED
-DOWNLOAD_JOB_PROCESSOR=local
+DOWNLOAD_ZIP_LAMBDA_NAME=lumigraph-download-zip-local
+DOWNLOAD_CALLBACK_SECRET=lumigraph-local-callback-secret
+DOWNLOAD_CALLBACK_BASE_URL=http://host.docker.internal:3000
 DOWNLOAD_EXPORT_TTL_HOURS=24
 ```
 
-`docker-compose` now auto-creates `lumigraph-dev-local` and applies dev CORS on LocalStack startup.
+`docker-compose` now auto-creates `lumigraph-dev-local`, applies dev CORS, and provisions the
+`lumigraph-download-zip-local` Lambda in LocalStack startup hooks.
+LocalStack Lambda execution uses the host Docker socket (`/var/run/docker.sock`) from `docker-compose`.
+The LocalStack Lambda init also sets S3 checksum env vars to `when_required` to avoid multipart checksum mode mismatches.
 If you need to re-apply CORS manually:
 
 ```bash
@@ -109,7 +115,6 @@ aws --endpoint-url http://localhost:4566 s3api put-bucket-cors \
 For async ZIP exports in cloud, also set:
 
 ```env
-DOWNLOAD_JOB_PROCESSOR=lambda
 DOWNLOAD_ZIP_LAMBDA_NAME=<terraform-output-download_zip_lambda_name>
 DOWNLOAD_CALLBACK_SECRET=<same-value-as-TF_VAR_download_callback_secret>
 ```
@@ -119,6 +124,9 @@ For protected Vercel preview/stage callbacks, set this Terraform/GitHub secret s
 ```env
 TF_VERCEL_AUTOMATION_BYPASS_SECRET=<Vercel Protection Bypass for Automation secret>
 ```
+
+Lambda ZIP packaging is built in GitHub Actions and injected into Terraform as
+`TF_VAR_download_zip_lambda_package_path` (no local Lambda ZIP prep required).
 
 ---
 
