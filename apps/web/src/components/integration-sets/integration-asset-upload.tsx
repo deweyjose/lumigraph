@@ -15,7 +15,6 @@ import {
   ChevronRight,
   Download,
   Archive,
-  RefreshCw,
   XCircle,
   Trash2,
 } from "lucide-react";
@@ -360,6 +359,7 @@ export function IntegrationAssetUpload({
   const [isStartingExport, setIsStartingExport] = useState(false);
   const [cancelingJobIds, setCancelingJobIds] = useState<string[]>([]);
   const [deletingJobIds, setDeletingJobIds] = useState<string[]>([]);
+  const [downloadingJobIds, setDownloadingJobIds] = useState<string[]>([]);
   const [exportError, setExportError] = useState<string | null>(null);
   const [treeWidth, setTreeWidth] = useState(800);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
@@ -446,21 +446,45 @@ export function IntegrationAssetUpload({
     []
   );
 
-  const refreshJob = useCallback(
+  const downloadJob = useCallback(
     async (jobId: string) => {
-      const res = await fetch(
-        `/api/integration-sets/${integrationSetId}/export-jobs/${jobId}`
+      setExportError(null);
+      setDownloadingJobIds((prev) =>
+        prev.includes(jobId) ? prev : [...prev, jobId]
       );
-      const data = (await res.json()) as {
-        job?: DownloadJobRow;
-        message?: string;
-      };
-      if (!res.ok || !data.job) {
-        throw new Error(data.message ?? "Failed to refresh export job");
+      try {
+        const res = await fetch(
+          `/api/integration-sets/${integrationSetId}/export-jobs/${jobId}`,
+          { cache: "no-store" }
+        );
+        const data = (await res.json()) as {
+          job?: DownloadJobRow;
+          message?: string;
+        };
+        if (!res.ok || !data.job) {
+          throw new Error(data.message ?? "Failed to prepare download");
+        }
+        if (data.job.status !== "READY") {
+          throw new Error("Export is not ready yet");
+        }
+        if (!data.job.downloadUrl) {
+          if (data.job.isExpired) {
+            throw new Error("Export has expired. Create a new export.");
+          }
+          throw new Error("Download link is not available yet");
+        }
+
+        setDisplayJobs((prev) =>
+          prev.map((job) => (job.id === data.job!.id ? data.job! : job))
+        );
+        window.location.assign(data.job.downloadUrl);
+      } catch (err) {
+        setExportError(
+          err instanceof Error ? err.message : "Failed to download export"
+        );
+      } finally {
+        setDownloadingJobIds((prev) => prev.filter((id) => id !== jobId));
       }
-      setDisplayJobs((prev) =>
-        prev.map((job) => (job.id === data.job?.id ? data.job : job))
-      );
     },
     [integrationSetId]
   );
@@ -1066,22 +1090,22 @@ export function IntegrationAssetUpload({
                       </Button>
                     )}
 
-                    {job.status === "READY" && job.downloadUrl ? (
-                      <Button asChild size="sm" variant="outline">
-                        <a href={job.downloadUrl}>
-                          <Download className="mr-2 h-4 w-4" /> Download ZIP
-                        </a>
-                      </Button>
-                    ) : job.status === "READY" ? (
+                    {job.status === "READY" && (
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => void refreshJob(job.id)}
+                        disabled={downloadingJobIds.includes(job.id)}
+                        onClick={() => void downloadJob(job.id)}
                       >
-                        <RefreshCw className="mr-2 h-4 w-4" /> Prepare download
+                        {downloadingJobIds.includes(job.id) ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Download ZIP
                       </Button>
-                    ) : null}
+                    )}
                   </div>
                 </li>
               );
