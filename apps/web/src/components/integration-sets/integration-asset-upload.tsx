@@ -17,6 +17,7 @@ import {
   Archive,
   RefreshCw,
   XCircle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -284,11 +285,6 @@ function mergeJobsFromList(
     };
   });
 
-  const incomingIds = new Set(incoming.map((job) => job.id));
-  for (const prev of existing) {
-    if (!incomingIds.has(prev.id)) merged.push(prev);
-  }
-
   return merged;
 }
 
@@ -363,6 +359,7 @@ export function IntegrationAssetUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [isStartingExport, setIsStartingExport] = useState(false);
   const [cancelingJobIds, setCancelingJobIds] = useState<string[]>([]);
+  const [deletingJobIds, setDeletingJobIds] = useState<string[]>([]);
   const [exportError, setExportError] = useState<string | null>(null);
   const [treeWidth, setTreeWidth] = useState(800);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
@@ -495,6 +492,36 @@ export function IntegrationAssetUpload({
         );
       } finally {
         setCancelingJobIds((prev) => prev.filter((id) => id !== jobId));
+      }
+    },
+    [integrationSetId]
+  );
+
+  const deleteJob = useCallback(
+    async (jobId: string) => {
+      setExportError(null);
+      setDeletingJobIds((prev) =>
+        prev.includes(jobId) ? prev : [...prev, jobId]
+      );
+      try {
+        const res = await fetch(
+          `/api/integration-sets/${integrationSetId}/export-jobs/${jobId}`,
+          { method: "DELETE" }
+        );
+        const data = (await res.json()) as {
+          ok?: boolean;
+          message?: string;
+        };
+        if (!res.ok || !data.ok) {
+          throw new Error(data.message ?? "Failed to delete export job");
+        }
+        setDisplayJobs((prev) => prev.filter((job) => job.id !== jobId));
+      } catch (err) {
+        setExportError(
+          err instanceof Error ? err.message : "Failed to delete export job"
+        );
+      } finally {
+        setDeletingJobIds((prev) => prev.filter((id) => id !== jobId));
       }
     },
     [integrationSetId]
@@ -1017,6 +1044,25 @@ export function IntegrationAssetUpload({
                           <XCircle className="mr-2 h-4 w-4" />
                         )}
                         Cancel
+                      </Button>
+                    )}
+
+                    {(job.status === "READY" ||
+                      job.status === "FAILED" ||
+                      job.status === "CANCELLED") && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={deletingJobIds.includes(job.id)}
+                        onClick={() => void deleteJob(job.id)}
+                      >
+                        {deletingJobIds.includes(job.id) ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Delete
                       </Button>
                     )}
 

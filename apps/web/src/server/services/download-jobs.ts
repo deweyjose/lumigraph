@@ -6,7 +6,7 @@ import {
   LambdaClient,
   type LambdaClientConfig,
 } from "@aws-sdk/client-lambda";
-import { createPresignedDownloadUrl, getS3Bucket } from "./s3";
+import { createPresignedDownloadUrl, deleteS3Object, getS3Bucket } from "./s3";
 
 const DEFAULT_DOWNLOAD_MAX_FILES = 1000;
 const DEFAULT_DOWNLOAD_MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
@@ -497,6 +497,90 @@ export async function cancelDownloadJobForOwner(
   }
 
   return { ok: true, job: toDownloadJobView(job) };
+}
+
+type DeleteDownloadJobResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code: "NOT_FOUND" | "INVALID_STATE" | "STORAGE_ERROR";
+      message: string;
+    };
+
+export async function deleteDownloadJobForOwner(
+  integrationSetId: string,
+  jobId: string,
+  userId: string
+): Promise<DeleteDownloadJobResult> {
+  const prisma = await getPrisma();
+  const job = await prisma.downloadJob.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      userId: true,
+      integrationSetId: true,
+      status: true,
+      outputS3Key: true,
+    },
+  });
+
+  if (
+    !job ||
+    job.userId !== userId ||
+    job.integrationSetId !== integrationSetId
+  ) {
+    return { ok: false, code: "NOT_FOUND", message: "Download job not found" };
+  }
+
+  if (job.status === "PENDING" || job.status === "RUNNING") {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: `Download job cannot be deleted from status ${job.status}.`,
+    };
+  }
+
+  if (job.outputS3Key) {
+    try {
+      await deleteS3Object(getS3Bucket(), job.outputS3Key);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete export object";
+      return {
+        ok: false,
+        code: "STORAGE_ERROR",
+        message: `Failed to delete export object: ${message}`,
+      };
+    }
+  }
+
+  const deleted = await prisma.downloadJob.deleteMany({
+    where: {
+      id: jobId,
+      userId,
+      integrationSetId,
+      status: { in: ["READY", "FAILED", "CANCELLED"] },
+    },
+  });
+  if (deleted.count === 1) return { ok: true };
+
+  const latest = await prisma.downloadJob.findUnique({
+    where: { id: jobId },
+    select: { userId: true, integrationSetId: true, status: true },
+  });
+  if (
+    !latest ||
+    latest.userId !== userId ||
+    latest.integrationSetId !== integrationSetId
+  ) {
+    return { ok: false, code: "NOT_FOUND", message: "Download job not found" };
+  }
+
+  return {
+    ok: false,
+    code: "INVALID_STATE",
+    message: `Download job cannot be deleted from status ${latest.status}.`,
+  };
 }
 
 function toHexHmac(secret: string, timestamp: string, body: string): string {
