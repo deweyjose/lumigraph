@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPrisma } from "@lumigraph/db";
+import { apiError } from "@/server/api-responses";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +29,10 @@ export async function GET() {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json(
-      { status: "error", db: "disconnected", message, debug },
-      { status: 503 }
-    );
+    return apiError(503, "SERVICE_UNAVAILABLE", message, {
+      status: "error",
+      db: "disconnected",
+      debug,
+    });
   }
 }
