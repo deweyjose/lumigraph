@@ -14,6 +14,8 @@ const DEFAULT_DOWNLOAD_MAX_FILES = 1000;
 const DEFAULT_DOWNLOAD_MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
 const DEFAULT_DOWNLOAD_EXPORT_TTL_HOURS = 24;
 const CALLBACK_TTL_SECONDS = 300;
+const PROGRESS_FILE_STEP = 50;
+const PROGRESS_INTERVAL_MS = 5000;
 
 type IntegrationAssetRow = {
   id: string;
@@ -33,6 +35,9 @@ type DownloadJobView = {
   id: string;
   status: DownloadJobStatus;
   selectedPaths: string[];
+  totalFiles: number | null;
+  completedFiles: number;
+  lastProgressAt: string | null;
   outputS3Key: string | null;
   outputSizeBytes: number | null;
   errorMessage: string | null;
@@ -55,6 +60,8 @@ type LocalProcessorInput = {
 
 type CallbackPayload = {
   status: "RUNNING" | "FAILED" | "READY";
+  totalFiles?: number;
+  completedFiles?: number;
   outputS3Key?: string;
   outputSizeBytes?: number;
   errorMessage?: string;
@@ -170,6 +177,9 @@ function toDownloadJobView(job: {
   id: string;
   status: DownloadJobStatus;
   selectedPathsJson: unknown;
+  totalFiles: number | null;
+  completedFiles: number;
+  lastProgressAt: Date | null;
   outputS3Key: string | null;
   outputSizeBytes: bigint | null;
   errorMessage: string | null;
@@ -182,6 +192,9 @@ function toDownloadJobView(job: {
     id: job.id,
     status: job.status,
     selectedPaths: parseSelectedPathsJson(job.selectedPathsJson),
+    totalFiles: job.totalFiles,
+    completedFiles: job.completedFiles,
+    lastProgressAt: job.lastProgressAt?.toISOString() ?? null,
     outputS3Key: job.outputS3Key,
     outputSizeBytes: job.outputSizeBytes ? Number(job.outputSizeBytes) : null,
     errorMessage: job.errorMessage,
@@ -356,6 +369,8 @@ export async function createDownloadExportJob(
       integrationSetId: input.integrationSetId,
       selectedPathsJson: resolved.selectedPaths,
       status: "PENDING",
+      totalFiles: resolved.assets.length,
+      completedFiles: 0,
       expiresAt: new Date(
         Date.now() + getDownloadExportTtlHours() * 60 * 60 * 1000
       ),
@@ -543,6 +558,9 @@ async function processDownloadJobLocal(
     data: {
       status: "RUNNING",
       errorMessage: null,
+      totalFiles: job.totalFiles,
+      completedFiles: 0,
+      lastProgressAt: new Date(),
     },
   });
   if (started.count === 0) return;
@@ -565,9 +583,23 @@ async function processDownloadJobLocal(
     return;
   }
 
+  const totalFiles = resolved.assets.length;
+  await prisma.downloadJob.updateMany({
+    where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
+    data: {
+      status: "RUNNING",
+      totalFiles,
+      completedFiles: 0,
+      lastProgressAt: new Date(),
+      errorMessage: null,
+    },
+  });
+
   const zip = new JSZip();
   const bucket = getS3Bucket();
   const s3 = await getS3Client();
+  let completedFiles = 0;
+  let lastProgressAt = Date.now();
 
   for (const asset of resolved.assets) {
     const object = await s3.send(
@@ -578,6 +610,24 @@ async function processDownloadJobLocal(
     }
     const data = await object.Body.transformToByteArray();
     zip.file(asset.relativePath, data);
+    completedFiles += 1;
+
+    const now = Date.now();
+    const shouldUpdateProgress =
+      completedFiles % PROGRESS_FILE_STEP === 0 ||
+      now - lastProgressAt >= PROGRESS_INTERVAL_MS;
+    if (shouldUpdateProgress) {
+      await prisma.downloadJob.updateMany({
+        where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
+        data: {
+          status: "RUNNING",
+          totalFiles,
+          completedFiles,
+          lastProgressAt: new Date(now),
+        },
+      });
+      lastProgressAt = now;
+    }
   }
 
   const buffer = await zip.generateAsync({
@@ -603,6 +653,9 @@ async function processDownloadJobLocal(
     where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
     data: {
       status: "READY",
+      totalFiles,
+      completedFiles: totalFiles,
+      lastProgressAt: new Date(),
       outputS3Key: outputKey,
       outputSizeBytes: BigInt(buffer.byteLength),
       completedAt: new Date(),
@@ -649,10 +702,27 @@ export async function applyDownloadJobCallback(
   if (job.status === "CANCELLED") return { ok: true };
 
   if (payload.status === "RUNNING") {
+    const nextTotalFiles =
+      typeof payload.totalFiles === "number"
+        ? payload.totalFiles
+        : job.totalFiles ?? null;
+    const requestedCompletedFiles =
+      typeof payload.completedFiles === "number"
+        ? payload.completedFiles
+        : job.completedFiles;
+    const boundedCompletedFiles =
+      typeof nextTotalFiles === "number"
+        ? Math.min(requestedCompletedFiles, nextTotalFiles)
+        : requestedCompletedFiles;
+    const completedFiles = Math.max(job.completedFiles, boundedCompletedFiles);
+
     await prisma.downloadJob.updateMany({
       where: { id: jobId, status: { in: ["PENDING", "RUNNING"] } },
       data: {
         status: "RUNNING",
+        totalFiles: nextTotalFiles,
+        completedFiles,
+        lastProgressAt: new Date(),
         errorMessage: null,
       },
     });
@@ -664,6 +734,10 @@ export async function applyDownloadJobCallback(
       where: { id: jobId, status: { in: ["PENDING", "RUNNING"] } },
       data: {
         status: "FAILED",
+        completedFiles:
+          typeof job.totalFiles === "number"
+            ? Math.min(job.completedFiles, job.totalFiles)
+            : job.completedFiles,
         errorMessage: (payload.errorMessage ?? "Export failed").slice(0, 1000),
         completedAt: new Date(),
       },
@@ -679,6 +753,11 @@ export async function applyDownloadJobCallback(
       where: { id: jobId, status: { in: ["PENDING", "RUNNING"] } },
       data: {
         status: "READY",
+        completedFiles:
+          typeof job.totalFiles === "number"
+            ? job.totalFiles
+            : job.completedFiles,
+        lastProgressAt: new Date(),
         outputS3Key: payload.outputS3Key,
         outputSizeBytes:
           typeof payload.outputSizeBytes === "number"

@@ -44,6 +44,9 @@ type DownloadJobRow = {
   id: string;
   status: "PENDING" | "RUNNING" | "READY" | "FAILED" | "CANCELLED";
   selectedPaths: string[];
+  totalFiles: number | null;
+  completedFiles: number;
+  lastProgressAt: string | null;
   outputS3Key: string | null;
   outputSizeBytes: number | null;
   errorMessage: string | null;
@@ -248,6 +251,19 @@ function statusTone(status: DownloadJobRow["status"]): string {
   if (status === "CANCELLED") return "text-amber-500";
   if (status === "RUNNING") return "text-blue-500";
   return "text-muted-foreground";
+}
+
+function runningProgress(job: DownloadJobRow): {
+  completed: number;
+  total: number;
+  percent: number;
+} {
+  const total = Math.max(0, job.totalFiles ?? 0);
+  const completed = Math.max(0, job.completedFiles);
+  if (total <= 0) return { completed, total: 0, percent: 0 };
+  const bounded = Math.min(completed, total);
+  const percent = Math.min(100, Math.round((bounded / total) * 100));
+  return { completed: bounded, total, percent };
 }
 
 function mergeJobsFromList(
@@ -920,73 +936,96 @@ export function IntegrationAssetUpload({
           <p className="text-sm text-muted-foreground">No exports yet.</p>
         ) : (
           <ul className="space-y-2 text-sm">
-            {displayJobs.map((job) => (
-              <li
-                key={job.id}
-                className="flex flex-col gap-2 rounded border p-2 lg:flex-row lg:items-center lg:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-mono text-xs">{job.id}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(job.createdAt).toLocaleString()} •{" "}
-                    {job.selectedPaths.length} selected path
-                    {job.selectedPaths.length === 1 ? "" : "s"}
-                  </p>
-                  {job.errorMessage && (
-                    <p className="mt-1 text-xs text-red-500">
-                      {job.errorMessage}
+            {displayJobs.map((job) => {
+              const progress = runningProgress(job);
+              return (
+                <li
+                  key={job.id}
+                  className="flex flex-col gap-2 rounded border p-2 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-xs">{job.id}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(job.createdAt).toLocaleString()} •{" "}
+                      {job.selectedPaths.length} selected path
+                      {job.selectedPaths.length === 1 ? "" : "s"}
                     </p>
-                  )}
-                </div>
+                    {job.status === "RUNNING" && (
+                      <div className="mt-2 max-w-sm">
+                        <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>
+                            {progress.total > 0
+                              ? `${progress.completed}/${progress.total} files`
+                              : `${progress.completed} files`}
+                          </span>
+                          <span>
+                            {progress.total > 0 ? `${progress.percent}%` : ""}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded bg-muted">
+                          <div
+                            className="h-full bg-blue-500 transition-[width] duration-200"
+                            style={{ width: `${progress.percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {job.errorMessage && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {job.errorMessage}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`text-xs font-medium ${statusTone(job.status)}`}
-                  >
-                    {job.status}
-                    {job.isExpired ? " (expired)" : ""}
-                  </span>
-
-                  {(job.status === "PENDING" || job.status === "RUNNING") && (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-
-                  {(job.status === "PENDING" || job.status === "RUNNING") && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={cancelingJobIds.includes(job.id)}
-                      onClick={() => void cancelJob(job.id)}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`text-xs font-medium ${statusTone(job.status)}`}
                     >
-                      {cancelingJobIds.includes(job.id) ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <XCircle className="mr-2 h-4 w-4" />
-                      )}
-                      Cancel
-                    </Button>
-                  )}
+                      {job.status}
+                      {job.isExpired ? " (expired)" : ""}
+                    </span>
 
-                  {job.status === "READY" && job.downloadUrl ? (
-                    <Button asChild size="sm" variant="outline">
-                      <a href={job.downloadUrl}>
-                        <Download className="mr-2 h-4 w-4" /> Download ZIP
-                      </a>
-                    </Button>
-                  ) : job.status === "READY" ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void refreshJob(job.id)}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" /> Prepare download
-                    </Button>
-                  ) : null}
-                </div>
-              </li>
-            ))}
+                    {(job.status === "PENDING" || job.status === "RUNNING") && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+
+                    {(job.status === "PENDING" || job.status === "RUNNING") && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={cancelingJobIds.includes(job.id)}
+                        onClick={() => void cancelJob(job.id)}
+                      >
+                        {cancelingJobIds.includes(job.id) ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Cancel
+                      </Button>
+                    )}
+
+                    {job.status === "READY" && job.downloadUrl ? (
+                      <Button asChild size="sm" variant="outline">
+                        <a href={job.downloadUrl}>
+                          <Download className="mr-2 h-4 w-4" /> Download ZIP
+                        </a>
+                      </Button>
+                    ) : job.status === "READY" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void refreshJob(job.id)}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" /> Prepare download
+                      </Button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

@@ -127,14 +127,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
   }
 }
 
-data "archive_file" "download_zip_lambda" {
-  count = local.create_download_zip_lambda ? 1 : 0
-
-  type        = "zip"
-  source_file = "${path.module}/lambda/download_zip/main.py"
-  output_path = "${path.module}/.terraform/tmp/download-zip-lambda.zip"
-}
-
 data "aws_iam_policy_document" "download_zip_lambda_assume_role" {
   count = local.create_download_zip_lambda ? 1 : 0
 
@@ -203,14 +195,14 @@ resource "aws_lambda_function" "download_zip" {
 
   function_name = local.managed_download_zip_lambda_name
   role          = aws_iam_role.download_zip_lambda[0].arn
-  filename      = data.archive_file.download_zip_lambda[0].output_path
+  filename      = var.download_zip_lambda_package_path
   handler       = "main.handler"
   runtime       = "python3.12"
   timeout       = var.download_zip_lambda_timeout_seconds
   memory_size   = var.download_zip_lambda_memory_mb
 
   reserved_concurrent_executions = var.download_zip_lambda_reserved_concurrency
-  source_code_hash               = data.archive_file.download_zip_lambda[0].output_base64sha256
+  source_code_hash               = filebase64sha256(var.download_zip_lambda_package_path)
 
   environment {
     variables = {
@@ -223,6 +215,10 @@ resource "aws_lambda_function" "download_zip" {
     precondition {
       condition     = length(var.download_callback_secret) > 0
       error_message = "download_callback_secret must be set when provisioning the managed download ZIP Lambda."
+    }
+    precondition {
+      condition     = length(trim(var.download_zip_lambda_package_path, " ")) > 0 && fileexists(var.download_zip_lambda_package_path)
+      error_message = "download_zip_lambda_package_path must point to an existing ZIP built by CI."
     }
   }
 

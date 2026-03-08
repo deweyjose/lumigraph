@@ -8,7 +8,6 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
-from pathlib import Path
 
 import boto3
 
@@ -16,7 +15,13 @@ LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.INFO)
 
 S3 = boto3.client("s3")
+
 CHUNK_SIZE = 8 * 1024 * 1024
+PART_SIZE = 16 * 1024 * 1024
+MIN_MULTIPART_SIZE = 5 * 1024 * 1024
+PROGRESS_FILE_STEP = 50
+PROGRESS_INTERVAL_SECONDS = 5
+EXPORT_OBJECT_TAGGING = "lumigraph-kind=export"
 
 
 def _callback_secret() -> str:
@@ -114,15 +119,143 @@ def _send_callback(callback_url: str, payload: dict, bypass_token: str | None = 
         raise
 
 
+def _send_running_progress_callback(
+    callback_url: str,
+    total_files: int,
+    completed_files: int,
+    bypass_token: str | None,
+) -> None:
+    try:
+        _send_callback(
+            callback_url,
+            {
+                "status": "RUNNING",
+                "totalFiles": total_files,
+                "completedFiles": completed_files,
+            },
+            bypass_token,
+        )
+    except Exception as err:  # noqa: BLE001
+        LOGGER.warning("RUNNING progress callback failed: %s", err)
+
+
+class MultipartUploadSink:
+    def __init__(
+        self,
+        s3_client,
+        bucket: str,
+        key: str,
+        part_size: int = PART_SIZE,
+        content_type: str = "application/zip",
+        tagging: str = EXPORT_OBJECT_TAGGING,
+    ):
+        if part_size < MIN_MULTIPART_SIZE:
+            raise ValueError("part_size must be at least 5MB for multipart upload")
+
+        self._s3 = s3_client
+        self._bucket = bucket
+        self._key = key
+        self._part_size = part_size
+        self._parts = []
+        self._buffer = bytearray()
+        self._part_number = 1
+        self._position = 0
+        self._completed = False
+        self._aborted = False
+        self._upload_id = self._s3.create_multipart_upload(
+            Bucket=bucket,
+            Key=key,
+            ContentType=content_type,
+            Tagging=tagging,
+        )["UploadId"]
+
+    def writable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return False
+
+    def tell(self) -> int:
+        return self._position
+
+    def write(self, data) -> int:
+        if self._completed or self._aborted:
+            raise RuntimeError("Cannot write to closed multipart sink")
+        if not data:
+            return 0
+
+        chunk = bytes(data)
+        self._buffer.extend(chunk)
+        self._position += len(chunk)
+
+        while len(self._buffer) >= self._part_size:
+            payload = bytes(self._buffer[: self._part_size])
+            del self._buffer[: self._part_size]
+            self._upload_part(payload)
+        return len(chunk)
+
+    def flush(self) -> None:
+        return None
+
+    def close(self) -> None:
+        return None
+
+    def _upload_part(self, payload: bytes) -> None:
+        response = self._s3.upload_part(
+            Bucket=self._bucket,
+            Key=self._key,
+            UploadId=self._upload_id,
+            PartNumber=self._part_number,
+            Body=payload,
+        )
+        self._parts.append({"ETag": response["ETag"], "PartNumber": self._part_number})
+        self._part_number += 1
+
+    def complete(self) -> int:
+        if self._aborted:
+            raise RuntimeError("Cannot complete aborted multipart upload")
+        if self._completed:
+            return self._position
+
+        if self._buffer:
+            self._upload_part(bytes(self._buffer))
+            self._buffer.clear()
+
+        self._s3.complete_multipart_upload(
+            Bucket=self._bucket,
+            Key=self._key,
+            UploadId=self._upload_id,
+            MultipartUpload={"Parts": self._parts},
+        )
+        self._completed = True
+        return self._position
+
+    def abort(self) -> None:
+        if self._completed or self._aborted:
+            return
+        self._aborted = True
+        try:
+            self._s3.abort_multipart_upload(
+                Bucket=self._bucket,
+                Key=self._key,
+                UploadId=self._upload_id,
+            )
+        except Exception as err:  # noqa: BLE001
+            LOGGER.warning("abort_multipart_upload failed: %s", err)
+
+
 def _stream_s3_object_into_zip(zf: zipfile.ZipFile, bucket: str, s3_key: str, arcname: str) -> None:
     obj = S3.get_object(Bucket=bucket, Key=s3_key)
     body = obj["Body"]
-    with zf.open(arcname, mode="w") as dst:
-        while True:
-            chunk = body.read(CHUNK_SIZE)
-            if not chunk:
-                break
-            dst.write(chunk)
+    try:
+        with zf.open(arcname, mode="w") as dst:
+            while True:
+                chunk = body.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                dst.write(chunk)
+    finally:
+        body.close()
 
 
 def handler(event, _context):
@@ -155,19 +288,26 @@ def handler(event, _context):
     if not _validate_export_key_prefix(user_id, integration_set_id, output_s3_key):
         raise ValueError("outputS3Key has invalid prefix")
 
-    try:
-        _send_callback(callback_url, {"status": "RUNNING"}, callback_bypass_token)
-    except Exception as err:  # noqa: BLE001
-        LOGGER.warning("RUNNING callback failed: %s", err)
+    total_files = len(files)
+    completed_files = 0
+    last_progress_sent_at = 0.0
+    sink = MultipartUploadSink(S3, bucket, output_s3_key)
 
-    tmp_path = Path("/tmp") / f"{job_id}.zip"
+    _send_running_progress_callback(
+        callback_url,
+        total_files,
+        completed_files,
+        callback_bypass_token,
+    )
+    last_progress_sent_at = time.monotonic()
 
     try:
         with zipfile.ZipFile(
-            tmp_path,
+            sink,
             mode="w",
             compression=zipfile.ZIP_DEFLATED,
             compresslevel=6,
+            allowZip64=True,
         ) as zf:
             for file_item in files:
                 relative_path = file_item.get("relativePath")
@@ -179,17 +319,24 @@ def handler(event, _context):
                     raise ValueError(f"Invalid s3Key prefix: {s3_key!r}")
 
                 _stream_s3_object_into_zip(zf, bucket, s3_key, relative_path)
+                completed_files += 1
 
-        output_size_bytes = tmp_path.stat().st_size
-        with tmp_path.open("rb") as stream:
-            S3.put_object(
-                Bucket=bucket,
-                Key=output_s3_key,
-                Body=stream,
-                ContentType="application/zip",
-                Tagging="lumigraph-kind=export",
-            )
+                now = time.monotonic()
+                should_send_progress = (
+                    completed_files % PROGRESS_FILE_STEP == 0
+                    or now - last_progress_sent_at >= PROGRESS_INTERVAL_SECONDS
+                    or completed_files == total_files
+                )
+                if should_send_progress:
+                    _send_running_progress_callback(
+                        callback_url,
+                        total_files,
+                        completed_files,
+                        callback_bypass_token,
+                    )
+                    last_progress_sent_at = now
 
+        output_size_bytes = sink.complete()
         _send_callback(
             callback_url,
             {
@@ -202,6 +349,7 @@ def handler(event, _context):
         return {"ok": True, "status": "READY"}
 
     except Exception as err:  # noqa: BLE001
+        sink.abort()
         LOGGER.exception("ZIP job failed")
         message = str(err)[:1000]
         try:
@@ -216,7 +364,3 @@ def handler(event, _context):
         except (urllib.error.URLError, urllib.error.HTTPError, RuntimeError) as cb_err:
             LOGGER.error("FAILED callback failed: %s", cb_err)
         raise
-
-    finally:
-        if tmp_path.exists():
-            tmp_path.unlink(missing_ok=True)

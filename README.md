@@ -120,6 +120,9 @@ For protected Vercel preview/stage callbacks, set this Terraform/GitHub secret s
 TF_VERCEL_AUTOMATION_BYPASS_SECRET=<Vercel Protection Bypass for Automation secret>
 ```
 
+Lambda ZIP packaging is built in GitHub Actions and injected into Terraform as
+`TF_VAR_download_zip_lambda_package_path` (no local Lambda ZIP prep required).
+
 ---
 
 ## Stack
