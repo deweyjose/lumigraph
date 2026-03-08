@@ -34,6 +34,13 @@ Record architecture and workflow decisions that affect future implementation.
 - Alternatives considered: Continue shipping user-facing AI features first; focus on visual polish before platform cleanup; add workflow persistence before contract normalization.
 - Consequences: Near-term work shifts toward backend and docs cleanup, but future AI features can reuse a clearer contract surface, swap providers more safely, and call domain actions through explicit interfaces instead of ad hoc route knowledge.
 
+### 2026-03-08 - Separate workflow definition from execution persistence
+
+- Decision: Treat workflow definition/capture and execution persistence as related but distinct concerns. Workflow capture owns reusable definitions and step templates; execution persistence owns sessions, runs, tool-call audit logs, and artifact references.
+- Context: Lumigraph now has stable API contracts, an AI boundary, and typed tool surfaces. The next risk is schema churn from mixing authored workflow templates with runtime state too early.
+- Alternatives considered: Put definitions, sessions, runs, and transcripts into one broad execution model; keep runs fully stateless for longer; persist raw chat transcripts first and infer tool history later.
+- Consequences: `#92` can progress independently on workflow-definition UX and schema, while execution work can start with private-first session/run persistence that references workflow definitions and tool names without blocking on a full runtime.
+
 ### 2026-03-07 - Async ZIP export jobs
 
 - Decision: Use async worker callbacks for integration-set ZIP export progress and completion.
