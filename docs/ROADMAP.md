@@ -11,10 +11,12 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 
 ## Next
 
+- Astro Hub revamp: Mission Control-style live astronomy experience
 - Public post/detail polish and download ergonomics
-- Workflow capture v1: spec, persistence/APIs, and authoring UI
+- Guided processing planner v1: setup intake, tailored plan generation, and plan workspace
+- Workflow orchestration v1: runtime spec, execution engine, and operator station
 - AI drafting improvements for posts
-- Workflow/session persistence for future agent runs
+- PixInsight-aware processing context for target/camera-driven guidance
 
 ## Later
 
@@ -48,3 +50,18 @@ Add links as items are created.
 - #118 - Add private workflow definition CRUD APIs
 - #119 - Build workflow capture v1 list and editor UX
 - #120 - Launch workflow sessions from authored definitions
+- #126 - Workflow orchestration v1 (agent runtime, event stream, operator station)
+- #127 - Specify workflow orchestrator runtime, run-event schema, and operator interaction model
+- #128 - Execute authored workflow definitions through an orchestrator agent
+- #129 - Build an operator station for live orchestrator updates and run control
+- #130 - Model PixInsight processing context for target-aware and camera-aware orchestration
+- #131 - Guided processing planner v1 (setup intake, tailored plan, workflow instance)
+- #132 - Capture astrophotography setup and session context through a guided planner intake
+- #133 - Generate tailored preprocessing and integration plans from setup context
+- #134 - Build a processing plan workspace for checklist, settings, and rationale review
+- #135 - Astro Hub revamp: Mission Control-style live astronomy experience
+- #136 - Redesign Astro Hub as a dynamic Mission Control experience with mocked data
+- #137 - Add Astro Hub daily photo/media module with normalized provider contract and fallback gallery
+- #138 - Add a live ISS tracker to Astro Hub with normalized telemetry and refresh strategy
+- #139 - Build an Astro Hub astronomy calendar and event detail experience
+- #140 - Polish Astro Hub performance, accessibility, and mobile tuning after live data integration
