@@ -3,6 +3,7 @@ import { getPrisma } from "@lumigraph/db";
 import {
   createWorkflowSessionForOwner,
   getWorkflowSessionForOwner,
+  getWorkflowRunForOwner,
   listRunArtifactRefsForOwner,
   listRunToolCallsForOwner,
   listWorkflowRunsForOwner,
@@ -10,6 +11,8 @@ import {
   recordFailedRunToolCallForOwner,
   recordRunArtifactRefForOwner,
   recordSuccessfulRunToolCallForOwner,
+  resumeWorkflowRunForOwner,
+  retryWorkflowRunForOwner,
   startWorkflowRunForOwner,
 } from "./workflow-runs";
 
@@ -165,6 +168,32 @@ describe("workflow-runs service", () => {
     expect(result).toBeNull();
   });
 
+  it("returns an owned workflow run", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValue({
+      id: "run-1",
+      sessionId: "session-1",
+      userId: "user-1",
+      status: "FAILED",
+      trigger: "MANUAL",
+      agentKind: "planner",
+      model: "gpt-4o-mini",
+      summary: null,
+      errorMessage: "Boom",
+      startedAt: new Date("2026-03-08T12:00:00.000Z"),
+      completedAt: new Date("2026-03-08T12:01:00.000Z"),
+      cancelledAt: null,
+      createdAt: new Date("2026-03-08T12:00:00.000Z"),
+      updatedAt: new Date("2026-03-08T12:01:00.000Z"),
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await getWorkflowRunForOwner("user-1", "run-1");
+
+    expect(result?.id).toBe("run-1");
+    expect(result?.status).toBe("FAILED");
+  });
+
   it("starts a workflow run for an active owned session", async () => {
     const prisma = makePrismaMock();
     prisma.workflowSession.findUnique.mockResolvedValue({
@@ -228,6 +257,80 @@ describe("workflow-runs service", () => {
     });
 
     expect(result).toBeNull();
+    expect(prisma.workflowRun.create).not.toHaveBeenCalled();
+  });
+
+  it("resumes a failed run by starting a new run in the same active session", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValueOnce({
+      id: "run-1",
+      userId: "user-1",
+      sessionId: "session-1",
+      status: "FAILED",
+      agentKind: "planner",
+      model: "gpt-4o-mini",
+      session: { status: "ACTIVE" },
+    });
+    prisma.workflowSession.findUnique.mockResolvedValueOnce({
+      id: "session-1",
+      userId: "user-1",
+      status: "ACTIVE",
+    });
+    prisma.workflowRun.create.mockResolvedValue({
+      id: "run-2",
+      sessionId: "session-1",
+      status: "RUNNING",
+      trigger: "RESUME",
+      agentKind: "planner",
+      model: "gpt-4o-mini",
+      summary: null,
+      errorMessage: null,
+      startedAt: new Date("2026-03-08T12:02:00.000Z"),
+      completedAt: null,
+      cancelledAt: null,
+      createdAt: new Date("2026-03-08T12:02:00.000Z"),
+      updatedAt: new Date("2026-03-08T12:02:00.000Z"),
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await resumeWorkflowRunForOwner("user-1", "run-1");
+
+    expect(result).toEqual({
+      ok: true,
+      run: expect.objectContaining({
+        id: "run-2",
+        trigger: "RESUME",
+      }),
+    });
+    expect(prisma.workflowRun.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        sessionId: "session-1",
+        trigger: "RESUME",
+        agentKind: "planner",
+      }),
+    });
+  });
+
+  it("rejects retry when the source run status is not retryable", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValue({
+      id: "run-1",
+      userId: "user-1",
+      sessionId: "session-1",
+      status: "RUNNING",
+      agentKind: "planner",
+      model: null,
+      session: { status: "ACTIVE" },
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await retryWorkflowRunForOwner("user-1", "run-1");
+
+    expect(result).toEqual({
+      ok: false,
+      code: "INVALID_STATE",
+      message: "Only failed or cancelled runs can be retried",
+    });
     expect(prisma.workflowRun.create).not.toHaveBeenCalled();
   });
 

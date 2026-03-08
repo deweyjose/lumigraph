@@ -68,6 +68,14 @@
   - `POST /api/uploads/complete-batch`
 - Internal callbacks:
   - `POST /api/internal/export-jobs/:jobId/callback`
+- Workflow sessions:
+  - `GET /api/workflow-sessions`
+  - `GET /api/workflow-sessions/:id`
+- Workflow runs:
+  - `GET /api/workflow-runs`
+  - `GET /api/workflow-runs/:id`
+  - `POST /api/workflow-runs/:id/resume`
+  - `POST /api/workflow-runs/:id/retry`
 
 ## Path conventions
 
@@ -76,6 +84,7 @@
 - Artifact upload is initiated through `/api/uploads/...` after the server verifies the target post or integration set.
 - Artifact viewing/downloading is exposed by asset id through `/api/assets/:id/view` and `/api/assets/:id/download`.
 - Export job lifecycle stays nested under the owning integration set via `/api/integration-sets/:id/export-jobs/...`.
+- Workflow inspection stays private-first under `/api/workflow-sessions/...` and `/api/workflow-runs/...`.
 
 ## Tool surfaces
 
@@ -121,6 +130,8 @@
 - `#97` defines the tool names and input/output contracts that run logs will record.
 - Execution persistence can start with sessions/runs/tool-call audit trails even before a full autonomous runtime exists.
 - Resume/retry APIs should come after the persistence schema exists so callers can rely on stable ids and status transitions.
+- Resume rules: `POST /api/workflow-runs/:id/resume` creates a new run with trigger `RESUME` only when the source run is `PENDING` or `FAILED` and the parent session is still `ACTIVE`.
+- Retry rules: `POST /api/workflow-runs/:id/retry` creates a new run with trigger `RETRY` only when the source run is `FAILED` or `CANCELLED` and the parent session is still `ACTIVE`.
 
 ## Security and authz invariants
 

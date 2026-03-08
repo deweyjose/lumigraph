@@ -50,6 +50,10 @@ export type WorkflowRunView = {
   updatedAt: string;
 };
 
+export type RestartWorkflowRunResult =
+  | { ok: true; run: WorkflowRunView }
+  | { ok: false; code: "NOT_FOUND" | "INVALID_STATE"; message: string };
+
 export type WorkflowRunToolCallView = {
   id: string;
   runId: string;
@@ -309,6 +313,18 @@ export async function getWorkflowSessionForOwner(
   return toWorkflowSessionView(session);
 }
 
+export async function getWorkflowRunForOwner(
+  userId: string,
+  runId: string
+): Promise<WorkflowRunView | null> {
+  const prisma = await getPrisma();
+  const run = await prisma.workflowRun.findUnique({
+    where: { id: runId },
+  });
+  if (!run || run.userId !== userId) return null;
+  return toWorkflowRunView(run);
+}
+
 export async function listWorkflowSessionsForOwner(
   userId: string
 ): Promise<WorkflowSessionView[]> {
@@ -356,6 +372,90 @@ export async function startWorkflowRunForOwner(
   });
 
   return toWorkflowRunView(run);
+}
+
+async function restartWorkflowRunForOwner(
+  userId: string,
+  sourceRunId: string,
+  trigger: "RESUME" | "RETRY"
+): Promise<RestartWorkflowRunResult> {
+  const prisma = await getPrisma();
+  const sourceRun = await prisma.workflowRun.findUnique({
+    where: { id: sourceRunId },
+    select: {
+      id: true,
+      userId: true,
+      sessionId: true,
+      status: true,
+      agentKind: true,
+      model: true,
+      session: {
+        select: {
+          status: true,
+        },
+      },
+    },
+  });
+
+  if (!sourceRun || sourceRun.userId !== userId) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Workflow run not found or you do not own it",
+    };
+  }
+
+  if (sourceRun.session.status !== "ACTIVE") {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: "Workflow session is archived and cannot start a new run",
+    };
+  }
+
+  const allowedStatuses =
+    trigger === "RESUME" ? ["PENDING", "FAILED"] : ["FAILED", "CANCELLED"];
+  if (!allowedStatuses.includes(sourceRun.status)) {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message:
+        trigger === "RESUME"
+          ? "Only pending or failed runs can be resumed"
+          : "Only failed or cancelled runs can be retried",
+    };
+  }
+
+  const run = await startWorkflowRunForOwner(userId, {
+    sessionId: sourceRun.sessionId,
+    trigger,
+    agentKind: sourceRun.agentKind,
+    model: sourceRun.model,
+  });
+
+  if (!run) {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: "Workflow session is no longer active",
+    };
+  }
+
+  return { ok: true, run };
+}
+
+export async function resumeWorkflowRunForOwner(
+  userId: string,
+  sourceRunId: string
+): Promise<RestartWorkflowRunResult> {
+  return restartWorkflowRunForOwner(userId, sourceRunId, "RESUME");
+}
+
+export async function retryWorkflowRunForOwner(
+  userId: string,
+  sourceRunId: string
+): Promise<RestartWorkflowRunResult> {
+  return restartWorkflowRunForOwner(userId, sourceRunId, "RETRY");
 }
 
 export async function listWorkflowRunsForOwner(
