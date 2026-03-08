@@ -3,8 +3,13 @@ import { getPrisma } from "@lumigraph/db";
 import {
   createWorkflowSessionForOwner,
   getWorkflowSessionForOwner,
+  listRunArtifactRefsForOwner,
+  listRunToolCallsForOwner,
   listWorkflowRunsForOwner,
   listWorkflowSessionsForOwner,
+  recordFailedRunToolCallForOwner,
+  recordRunArtifactRefForOwner,
+  recordSuccessfulRunToolCallForOwner,
   startWorkflowRunForOwner,
 } from "./workflow-runs";
 
@@ -21,6 +26,12 @@ function makePrismaMock() {
     integrationSet: {
       findUnique: vi.fn(),
     },
+    asset: {
+      findUnique: vi.fn(),
+    },
+    downloadJob: {
+      findUnique: vi.fn(),
+    },
     workflowSession: {
       create: vi.fn(),
       findMany: vi.fn(),
@@ -30,6 +41,15 @@ function makePrismaMock() {
     workflowRun: {
       create: vi.fn(),
       findMany: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    runToolCall: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+    },
+    runArtifactRef: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
     },
   };
 
@@ -242,5 +262,259 @@ describe("workflow-runs service", () => {
     });
     expect(result).toHaveLength(1);
     expect(result[0]?.id).toBe("run-1");
+  });
+
+  it("records a successful tool call for an owned run", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValue({
+      id: "run-1",
+      userId: "user-1",
+      sessionId: "session-1",
+    });
+    prisma.runToolCall.create.mockResolvedValue({
+      id: "call-1",
+      runId: "run-1",
+      toolName: "posts.get",
+      status: "SUCCEEDED",
+      inputJson: { postId: "post-1" },
+      outputJson: { id: "post-1" },
+      errorCode: null,
+      errorMessage: null,
+      errorJson: null,
+      startedAt: new Date("2026-03-08T12:00:00.000Z"),
+      completedAt: new Date("2026-03-08T12:00:01.000Z"),
+      createdAt: new Date("2026-03-08T12:00:01.000Z"),
+      updatedAt: new Date("2026-03-08T12:00:01.000Z"),
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await recordSuccessfulRunToolCallForOwner("user-1", {
+      runId: "run-1",
+      toolName: "posts.get",
+      input: { postId: "post-1" },
+      output: { id: "post-1" },
+      startedAt: new Date("2026-03-08T12:00:00.000Z"),
+      completedAt: new Date("2026-03-08T12:00:01.000Z"),
+    });
+
+    expect(prisma.runToolCall.create).toHaveBeenCalledWith({
+      data: {
+        runId: "run-1",
+        userId: "user-1",
+        toolName: "posts.get",
+        status: "SUCCEEDED",
+        inputJson: { postId: "post-1" },
+        outputJson: { id: "post-1" },
+        startedAt: new Date("2026-03-08T12:00:00.000Z"),
+        completedAt: new Date("2026-03-08T12:00:01.000Z"),
+      },
+    });
+    expect(result).toEqual({
+      id: "call-1",
+      runId: "run-1",
+      toolName: "posts.get",
+      status: "SUCCEEDED",
+      input: { postId: "post-1" },
+      output: { id: "post-1" },
+      errorCode: null,
+      errorMessage: null,
+      errorDetails: null,
+      startedAt: "2026-03-08T12:00:00.000Z",
+      completedAt: "2026-03-08T12:00:01.000Z",
+      createdAt: "2026-03-08T12:00:01.000Z",
+      updatedAt: "2026-03-08T12:00:01.000Z",
+    });
+  });
+
+  it("records a failed tool call for an owned run", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValue({
+      id: "run-1",
+      userId: "user-1",
+      sessionId: "session-1",
+    });
+    prisma.runToolCall.create.mockResolvedValue({
+      id: "call-2",
+      runId: "run-1",
+      toolName: "export_jobs.create",
+      status: "FAILED",
+      inputJson: { integrationSetId: "set-1" },
+      outputJson: null,
+      errorCode: "BAD_REQUEST",
+      errorMessage: "Invalid selection",
+      errorJson: { invalidPaths: ["missing"] },
+      startedAt: new Date("2026-03-08T12:02:00.000Z"),
+      completedAt: new Date("2026-03-08T12:02:03.000Z"),
+      createdAt: new Date("2026-03-08T12:02:03.000Z"),
+      updatedAt: new Date("2026-03-08T12:02:03.000Z"),
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await recordFailedRunToolCallForOwner("user-1", {
+      runId: "run-1",
+      toolName: "export_jobs.create",
+      input: { integrationSetId: "set-1" },
+      errorCode: "BAD_REQUEST",
+      errorMessage: "Invalid selection",
+      errorDetails: { invalidPaths: ["missing"] },
+      startedAt: new Date("2026-03-08T12:02:00.000Z"),
+      completedAt: new Date("2026-03-08T12:02:03.000Z"),
+    });
+
+    expect(prisma.runToolCall.create).toHaveBeenCalledWith({
+      data: {
+        runId: "run-1",
+        userId: "user-1",
+        toolName: "export_jobs.create",
+        status: "FAILED",
+        inputJson: { integrationSetId: "set-1" },
+        errorCode: "BAD_REQUEST",
+        errorMessage: "Invalid selection",
+        errorJson: { invalidPaths: ["missing"] },
+        startedAt: new Date("2026-03-08T12:02:00.000Z"),
+        completedAt: new Date("2026-03-08T12:02:03.000Z"),
+      },
+    });
+    expect(result?.status).toBe("FAILED");
+    expect(result?.errorDetails).toEqual({ invalidPaths: ["missing"] });
+  });
+
+  it("rejects tool-call recording for a run the user does not own", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValue({
+      id: "run-1",
+      userId: "other-user",
+      sessionId: "session-1",
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await recordSuccessfulRunToolCallForOwner("user-1", {
+      runId: "run-1",
+      toolName: "posts.get",
+      input: { postId: "post-1" },
+      output: { id: "post-1" },
+    });
+
+    expect(result).toBeNull();
+    expect(prisma.runToolCall.create).not.toHaveBeenCalled();
+  });
+
+  it("lists run tool calls for one owner and optional run", async () => {
+    const prisma = makePrismaMock();
+    prisma.runToolCall.findMany.mockResolvedValue([
+      {
+        id: "call-1",
+        runId: "run-1",
+        toolName: "posts.get",
+        status: "SUCCEEDED",
+        inputJson: { postId: "post-1" },
+        outputJson: { id: "post-1" },
+        errorCode: null,
+        errorMessage: null,
+        errorJson: null,
+        startedAt: new Date("2026-03-08T12:00:00.000Z"),
+        completedAt: new Date("2026-03-08T12:00:01.000Z"),
+        createdAt: new Date("2026-03-08T12:00:01.000Z"),
+        updatedAt: new Date("2026-03-08T12:00:01.000Z"),
+      },
+    ]);
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await listRunToolCallsForOwner("user-1", {
+      runId: "run-1",
+    });
+
+    expect(prisma.runToolCall.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", runId: "run-1" },
+      orderBy: [{ createdAt: "asc" }],
+    });
+    expect(result[0]?.toolName).toBe("posts.get");
+  });
+
+  it("records a run artifact ref for an owned asset and de-duplicates it", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValue({
+      id: "run-1",
+      userId: "user-1",
+      sessionId: "session-1",
+    });
+    prisma.asset.findUnique.mockResolvedValue({ userId: "user-1" });
+    prisma.runArtifactRef.upsert.mockResolvedValue({
+      id: "ref-1",
+      runId: "run-1",
+      artifactType: "ASSET",
+      artifactId: "asset-1",
+      createdAt: new Date("2026-03-08T12:03:00.000Z"),
+      updatedAt: new Date("2026-03-08T12:03:00.000Z"),
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await recordRunArtifactRefForOwner("user-1", {
+      runId: "run-1",
+      artifact: { type: "ASSET", id: "asset-1" },
+    });
+
+    expect(prisma.runArtifactRef.upsert).toHaveBeenCalledWith({
+      where: {
+        runId_artifactType_artifactId: {
+          runId: "run-1",
+          artifactType: "ASSET",
+          artifactId: "asset-1",
+        },
+      },
+      update: {},
+      create: {
+        runId: "run-1",
+        userId: "user-1",
+        artifactType: "ASSET",
+        artifactId: "asset-1",
+      },
+    });
+    expect(result?.artifactType).toBe("ASSET");
+    expect(result?.artifactId).toBe("asset-1");
+  });
+
+  it("rejects a run artifact ref when the underlying resource is not owned", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValue({
+      id: "run-1",
+      userId: "user-1",
+      sessionId: "session-1",
+    });
+    prisma.downloadJob.findUnique.mockResolvedValue({ userId: "other-user" });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await recordRunArtifactRefForOwner("user-1", {
+      runId: "run-1",
+      artifact: { type: "DOWNLOAD_JOB", id: "job-1" },
+    });
+
+    expect(result).toBeNull();
+    expect(prisma.runArtifactRef.upsert).not.toHaveBeenCalled();
+  });
+
+  it("lists run artifact refs for one owner and optional run", async () => {
+    const prisma = makePrismaMock();
+    prisma.runArtifactRef.findMany.mockResolvedValue([
+      {
+        id: "ref-1",
+        runId: "run-1",
+        artifactType: "POST",
+        artifactId: "post-1",
+        createdAt: new Date("2026-03-08T12:03:00.000Z"),
+        updatedAt: new Date("2026-03-08T12:03:00.000Z"),
+      },
+    ]);
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await listRunArtifactRefsForOwner("user-1", {
+      runId: "run-1",
+    });
+
+    expect(prisma.runArtifactRef.findMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", runId: "run-1" },
+      orderBy: [{ createdAt: "asc" }],
+    });
+    expect(result[0]?.artifactType).toBe("POST");
   });
 });

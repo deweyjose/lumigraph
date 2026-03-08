@@ -32,5 +32,7 @@ describe("@lumigraph/db", () => {
     expect(client).toHaveProperty("asset");
     expect(client).toHaveProperty("workflowSession");
     expect(client).toHaveProperty("workflowRun");
+    expect(client).toHaveProperty("runToolCall");
+    expect(client).toHaveProperty("runArtifactRef");
   });
 });
