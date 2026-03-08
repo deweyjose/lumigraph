@@ -152,7 +152,7 @@
 - Integration-set visibility is currently private-only.
 - Export jobs are async and progress through worker callbacks before a download URL is exposed.
 - Workflow execution persistence now stores private user-owned sessions, runs, tool-call audit rows, artifact references, and private inspection/restart APIs.
-- Workflow capture now persists private workflow definitions and ordered step templates. Private CRUD APIs, editor UX, and workflow-launch wiring remain in `#118` through `#120`.
+- Workflow capture now persists private workflow definitions and ordered step templates, and private CRUD APIs expose list/fetch/create/update operations for owned workflows. Editor UX and workflow-launch wiring remain in `#119` and `#120`.
 
 ## Operational notes
 
