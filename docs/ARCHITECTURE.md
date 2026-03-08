@@ -84,6 +84,44 @@
 - Tool handlers call existing services so ownership checks, visibility rules, and state transitions stay centralized.
 - Routes and tools are sibling transport layers over the same service logic; routes exist for HTTP clients, tools exist for agent/runtime callers.
 
+## Agent execution persistence model
+
+- `WorkflowDefinition` and `WorkflowStepDefinition` belong to workflow-capture work in `#92`. They describe reusable authored process templates.
+- `WorkflowSession` is the durable execution context for one user's working thread around a goal or resource. It can optionally point at a workflow definition and at subject resources such as a post or integration set.
+- `WorkflowRun` is one execution attempt within a session. A session may have many runs over time as the user retries, resumes, or switches agents/models.
+- `RunToolCall` is the audit log for one tool invocation during a run. It stores the tool name, validated input payload, output payload or error, timestamps, and status.
+- `RunArtifactRef` links a run to durable domain outputs such as posts, integration sets, assets, or export jobs instead of duplicating those records into agent tables.
+
+## Persist now vs later
+
+- Persist now:
+  - `WorkflowSession`
+  - `WorkflowRun`
+  - `RunToolCall`
+  - `RunArtifactRef`
+- Reuse existing domain entities for durable outputs rather than creating agent-owned copies.
+- Defer:
+  - full message transcript persistence
+  - token/billing accounting
+  - speculative branch trees and rollback snapshots
+  - long-term semantic memory/vector storage
+  - cross-user collaboration and shared visibility modes
+
+## Ownership, visibility, and auditability
+
+- Sessions and runs are user-owned records by default; access follows the same server-side ownership enforcement used by posts, integration sets, assets, and export jobs.
+- Visibility for execution records should remain private-first until workflow sharing is explicitly designed.
+- Tool inputs and outputs should be persisted as structured JSON so runs are auditable and resumable without reverse-engineering log text.
+- Run records should keep immutable timestamps and terminal status so operators and users can distinguish in-progress, failed, cancelled, and completed attempts.
+- Artifact references should point at existing domain objects by id and type, preserving the source-of-truth ownership and visibility rules on those underlying objects.
+
+## Dependency and sequencing model
+
+- `#92` defines reusable workflow definitions and step structure.
+- `#97` defines the tool names and input/output contracts that run logs will record.
+- Execution persistence can start with sessions/runs/tool-call audit trails even before a full autonomous runtime exists.
+- Resume/retry APIs should come after the persistence schema exists so callers can rely on stable ids and status transitions.
+
 ## Security and authz invariants
 
 - Every mutating route requires auth.

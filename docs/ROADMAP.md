@@ -37,6 +37,9 @@ Add links as items are created.
 - #96 - Extract a shared AI integration boundary
 - #97 - Expose typed agent tool surfaces over domain services
 - #98 - Define workflow, session, and run persistence for agent execution
+- #104 - Persist workflow sessions and run records
+- #105 - Persist run tool calls and artifact references
+- #103 - Add private run inspection and resume APIs
 - #90 - Roadmap: Harden export management UX and job lifecycle
 - #91 - Roadmap: Polish integration set workflow UX
 - #92 - Roadmap: Workflow capture v1 (spec and implementation slices)
