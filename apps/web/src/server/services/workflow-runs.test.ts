@@ -4,6 +4,7 @@ import {
   createWorkflowSessionForOwner,
   getWorkflowSessionForOwner,
   getWorkflowRunForOwner,
+  launchWorkflowSessionFromDefinitionForOwner,
   listRunArtifactRefsForOwner,
   listRunToolCallsForOwner,
   listWorkflowRunsForOwner,
@@ -27,6 +28,9 @@ function makePrismaMock() {
       findUnique: vi.fn(),
     },
     integrationSet: {
+      findUnique: vi.fn(),
+    },
+    workflowDefinition: {
       findUnique: vi.fn(),
     },
     asset: {
@@ -119,6 +123,165 @@ describe("workflow-runs service", () => {
     });
 
     expect(result).toBeNull();
+    expect(prisma.workflowSession.create).not.toHaveBeenCalled();
+  });
+
+  it("launches a workflow session and initial run from an active owned definition", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowDefinition.findUnique.mockResolvedValue({
+      id: "definition-1",
+      userId: "user-1",
+      status: "ACTIVE",
+      subjectType: "POST",
+    });
+    prisma.post.findUnique.mockResolvedValue({ userId: "user-1" });
+    prisma.workflowSession.create.mockResolvedValue({
+      id: "session-1",
+      workflowDefinitionId: "definition-1",
+      subjectType: "POST",
+      subjectId: "post-1",
+      goal: "Run the publish checklist",
+      status: "ACTIVE",
+      createdAt: new Date("2026-03-08T12:00:00.000Z"),
+      updatedAt: new Date("2026-03-08T12:00:00.000Z"),
+    });
+    prisma.workflowRun.create.mockResolvedValue({
+      id: "run-1",
+      sessionId: "session-1",
+      status: "RUNNING",
+      trigger: "MANUAL",
+      agentKind: "workflow-definition",
+      model: null,
+      summary: null,
+      errorMessage: null,
+      startedAt: new Date("2026-03-08T12:00:00.000Z"),
+      completedAt: null,
+      cancelledAt: null,
+      createdAt: new Date("2026-03-08T12:00:00.000Z"),
+      updatedAt: new Date("2026-03-08T12:00:00.000Z"),
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await launchWorkflowSessionFromDefinitionForOwner("user-1", {
+      definitionId: "definition-1",
+      subject: { type: "POST", id: "post-1" },
+      goal: "Run the publish checklist",
+    });
+
+    expect(prisma.workflowSession.create).toHaveBeenCalledWith({
+      data: {
+        userId: "user-1",
+        workflowDefinitionId: "definition-1",
+        subjectType: "POST",
+        subjectId: "post-1",
+        goal: "Run the publish checklist",
+      },
+    });
+    expect(prisma.workflowRun.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        sessionId: "session-1",
+        userId: "user-1",
+        status: "RUNNING",
+        trigger: "MANUAL",
+        agentKind: "workflow-definition",
+      }),
+    });
+    expect(result).toEqual({
+      ok: true,
+      session: {
+        id: "session-1",
+        workflowDefinitionId: "definition-1",
+        subjectType: "POST",
+        subjectId: "post-1",
+        goal: "Run the publish checklist",
+        status: "ACTIVE",
+        createdAt: "2026-03-08T12:00:00.000Z",
+        updatedAt: "2026-03-08T12:00:00.000Z",
+      },
+      run: {
+        id: "run-1",
+        sessionId: "session-1",
+        status: "RUNNING",
+        trigger: "MANUAL",
+        agentKind: "workflow-definition",
+        model: null,
+        summary: null,
+        errorMessage: null,
+        startedAt: "2026-03-08T12:00:00.000Z",
+        completedAt: null,
+        cancelledAt: null,
+        createdAt: "2026-03-08T12:00:00.000Z",
+        updatedAt: "2026-03-08T12:00:00.000Z",
+      },
+    });
+  });
+
+  it("rejects launches for draft workflow definitions", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowDefinition.findUnique.mockResolvedValue({
+      id: "definition-1",
+      userId: "user-1",
+      status: "DRAFT",
+      subjectType: null,
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await launchWorkflowSessionFromDefinitionForOwner("user-1", {
+      definitionId: "definition-1",
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "INVALID_STATE",
+      message: "Only active workflow definitions can be launched",
+    });
+    expect(prisma.workflowSession.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects launches with incompatible workflow subjects", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowDefinition.findUnique.mockResolvedValue({
+      id: "definition-1",
+      userId: "user-1",
+      status: "ACTIVE",
+      subjectType: "INTEGRATION_SET",
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await launchWorkflowSessionFromDefinitionForOwner("user-1", {
+      definitionId: "definition-1",
+      subject: { type: "POST", id: "post-1" },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "INVALID_SUBJECT",
+      message: "Workflow subject type does not match the definition",
+    });
+    expect(prisma.workflowSession.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects launches when the subject is not owned", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowDefinition.findUnique.mockResolvedValue({
+      id: "definition-1",
+      userId: "user-1",
+      status: "ACTIVE",
+      subjectType: "POST",
+    });
+    prisma.post.findUnique.mockResolvedValue({ userId: "other-user" });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await launchWorkflowSessionFromDefinitionForOwner("user-1", {
+      definitionId: "definition-1",
+      subject: { type: "POST", id: "post-1" },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Workflow subject not found or you do not own it",
+    });
     expect(prisma.workflowSession.create).not.toHaveBeenCalled();
   });
 

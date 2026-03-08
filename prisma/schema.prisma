@@ -298,8 +298,9 @@ model WorkflowDefinition {
   createdAt   DateTime                 @default(now()) @map("created_at")
   updatedAt   DateTime                 @updatedAt @map("updated_at")
 
-  user  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  steps WorkflowStepDefinition[]
+  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps    WorkflowStepDefinition[]
+  sessions WorkflowSession[]
 
   @@index([userId, updatedAt])
   @@index([status, updatedAt])
@@ -340,8 +341,9 @@ model WorkflowSession {
   createdAt            DateTime              @default(now()) @map("created_at")
   updatedAt            DateTime              @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  runs WorkflowRun[]
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workflowDefinition WorkflowDefinition? @relation(fields: [workflowDefinitionId], references: [id], onDelete: SetNull)
+  runs               WorkflowRun[]
 
   @@index([userId, createdAt])
   @@index([workflowDefinitionId])

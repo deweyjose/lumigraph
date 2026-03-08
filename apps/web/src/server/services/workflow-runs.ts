@@ -23,6 +23,14 @@ export type StartWorkflowRunInput = {
   model?: string | null;
 };
 
+export type LaunchWorkflowDefinitionSessionInput = {
+  definitionId: string;
+  subject?: WorkflowSessionSubject | null;
+  goal?: string | null;
+  agentKind?: string;
+  model?: string | null;
+};
+
 export type WorkflowSessionView = {
   id: string;
   workflowDefinitionId: string | null;
@@ -53,6 +61,14 @@ export type WorkflowRunView = {
 export type RestartWorkflowRunResult =
   | { ok: true; run: WorkflowRunView }
   | { ok: false; code: "NOT_FOUND" | "INVALID_STATE"; message: string };
+
+export type LaunchWorkflowDefinitionResult =
+  | { ok: true; session: WorkflowSessionView; run: WorkflowRunView }
+  | {
+      ok: false;
+      code: "NOT_FOUND" | "INVALID_STATE" | "INVALID_SUBJECT";
+      message: string;
+    };
 
 export type WorkflowRunToolCallView = {
   id: string;
@@ -299,6 +315,102 @@ export async function createWorkflowSessionForOwner(
   });
 
   return toWorkflowSessionView(session);
+}
+
+export async function launchWorkflowSessionFromDefinitionForOwner(
+  userId: string,
+  input: LaunchWorkflowDefinitionSessionInput
+): Promise<LaunchWorkflowDefinitionResult> {
+  const prisma = await getPrisma();
+  const definition = await prisma.workflowDefinition.findUnique({
+    where: { id: input.definitionId },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      subjectType: true,
+    },
+  });
+
+  if (!definition || definition.userId !== userId) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Workflow definition not found or you do not own it",
+    };
+  }
+
+  if (definition.status !== "ACTIVE") {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: "Only active workflow definitions can be launched",
+    };
+  }
+
+  if (definition.subjectType && !input.subject) {
+    return {
+      ok: false,
+      code: "INVALID_SUBJECT",
+      message: `This workflow requires a ${definition.subjectType.toLowerCase().replace("_", " ")} subject`,
+    };
+  }
+
+  if (
+    definition.subjectType &&
+    input.subject &&
+    input.subject.type !== definition.subjectType
+  ) {
+    return {
+      ok: false,
+      code: "INVALID_SUBJECT",
+      message: "Workflow subject type does not match the definition",
+    };
+  }
+
+  if (input.subject) {
+    const isOwned = await subjectIsOwnedByUser(prisma, userId, input.subject);
+    if (!isOwned) {
+      return {
+        ok: false,
+        code: "NOT_FOUND",
+        message: "Workflow subject not found or you do not own it",
+      };
+    }
+  }
+
+  const now = new Date();
+  const result = await prisma.$transaction(async (tx) => {
+    const session = await tx.workflowSession.create({
+      data: {
+        userId,
+        workflowDefinitionId: definition.id,
+        subjectType: input.subject?.type ?? null,
+        subjectId: input.subject?.id ?? null,
+        goal: input.goal ?? null,
+      },
+    });
+
+    const run = await tx.workflowRun.create({
+      data: {
+        sessionId: session.id,
+        userId,
+        status: "RUNNING",
+        trigger: "MANUAL",
+        agentKind: input.agentKind?.trim() || "workflow-definition",
+        model: input.model ?? null,
+        startedAt: now,
+      },
+    });
+
+    return { session, run };
+  });
+
+  return {
+    ok: true,
+    session: toWorkflowSessionView(result.session),
+    run: toWorkflowRunView(result.run),
+  };
 }
 
 export async function getWorkflowSessionForOwner(
