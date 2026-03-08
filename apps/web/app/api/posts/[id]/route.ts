@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
+import { apiError, apiValidationError } from "@/server/api-responses";
 import { toJsonSafe } from "@/server/json";
-import { updatePostDraft } from "@/server/services/posts";
+import { getPostForOwner, updatePostDraft } from "@/server/services/posts";
 
 const TargetType = z.enum([
   "GALAXY",
@@ -27,23 +28,39 @@ const UpdateSchema = z.object({
   bortle: z.number().int().min(1).max(9).optional().nullable(),
 });
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return apiError(401, "UNAUTHORIZED", "Sign in to view a post");
+  }
+
+  const { id } = await params;
+  if (!id) {
+    return apiError(400, "BAD_REQUEST", "Missing post id");
+  }
+
+  const post = await getPostForOwner(id, session.user.id);
+  if (!post) {
+    return apiError(404, "NOT_FOUND", "Post not found or you do not own it");
+  }
+
+  return NextResponse.json(toJsonSafe(post));
+}
+
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { code: "UNAUTHORIZED", message: "Sign in to update a post" },
-      { status: 401 }
-    );
+    return apiError(401, "UNAUTHORIZED", "Sign in to update a post");
   }
   const { id } = await params;
   if (!id) {
-    return NextResponse.json(
-      { code: "BAD_REQUEST", message: "Missing post id" },
-      { status: 400 }
-    );
+    return apiError(400, "BAD_REQUEST", "Missing post id");
   }
   try {
     const body = UpdateSchema.parse(await request.json());
@@ -59,32 +76,17 @@ export async function PUT(
       ...(body.bortle !== undefined && { bortle: body.bortle }),
     });
     if (!post) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", message: "Post not found or you do not own it" },
-        { status: 404 }
-      );
+      return apiError(404, "NOT_FOUND", "Post not found or you do not own it");
     }
     return NextResponse.json(toJsonSafe(post));
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          code: "VALIDATION_ERROR",
-          message: err.issues.map((i) => i.message).join("; "),
-        },
-        { status: 400 }
-      );
+      return apiValidationError(err);
     }
     const message = err instanceof Error ? err.message : "Update failed";
     if (message.includes("Unique constraint") || message.includes("slug")) {
-      return NextResponse.json(
-        { code: "SLUG_TAKEN", message: "This slug is already in use" },
-        { status: 409 }
-      );
+      return apiError(409, "SLUG_TAKEN", "This slug is already in use");
     }
-    return NextResponse.json(
-      { code: "SERVER_ERROR", message: "Failed to update post" },
-      { status: 500 }
-    );
+    return apiError(500, "SERVER_ERROR", "Failed to update post");
   }
 }

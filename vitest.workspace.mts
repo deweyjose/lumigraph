@@ -3,12 +3,20 @@ import { fileURLToPath } from "url";
 import { defineWorkspace } from "vitest/config";
 
 const repoRoot = path.dirname(fileURLToPath(import.meta.url));
+const webRoot = path.resolve(repoRoot, "apps/web");
+const webAliases = {
+  "@": path.resolve(webRoot, "src"),
+  auth: path.resolve(webRoot, "auth.ts"),
+};
 
 export default defineWorkspace([
   {
+    resolve: {
+      alias: webAliases,
+    },
     test: {
       name: "web",
-      root: path.resolve(repoRoot, "apps/web"),
+      root: webRoot,
       include: [
         "src/**/*.{test,spec}.{ts,tsx}",
         "app/**/*.{test,spec}.{ts,tsx}",
@@ -18,9 +26,12 @@ export default defineWorkspace([
     },
   },
   {
+    resolve: {
+      alias: webAliases,
+    },
     test: {
       name: "web-integration",
-      root: path.resolve(repoRoot, "apps/web"),
+      root: webRoot,
       include: ["src/**/*.integration.test.{ts,tsx}"],
       exclude: ["**/node_modules/**"],
       passWithNoTests: true,
