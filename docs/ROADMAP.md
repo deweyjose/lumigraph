@@ -23,6 +23,50 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - PixInsight copilot capabilities
 - Cloud execution pipeline
 
+## Recommended execution order
+
+- Finish the current reliability and UX lane before opening more platform surface:
+  - #90 - export management hardening
+  - #107 through #112 - automatic thumbnail generation slices
+  - #91 - integration set workflow polish
+- Keep workflow work moving, but treat orchestration as the next major backend lane after capture:
+  - #127 - orchestrator runtime spec
+  - #128 - orchestrator execution engine
+  - #129 - operator station
+  - #130 - PixInsight-aware processing context
+- Start planner work once the orchestration spec clarifies runtime and context boundaries:
+  - #132 - guided planner intake
+  - #133 - tailored plan generation
+  - #134 - processing plan workspace
+- Treat Astro Hub as the main parallel frontend/product lane once one owner is available to push the visual system:
+  - #136 - Mission Control redesign with mocked data
+  - #137 - daily media contract and module
+  - #138 - ISS tracker contract and module
+  - #139 - astronomy calendar and event detail
+  - #140 - final polish pass
+
+## Parallel lanes
+
+- Lane A: reliability and user-facing polish
+  - #90, #107 through #112, #91
+- Lane B: workflow orchestration backend
+  - #127, #128, #130
+- Lane C: planner-first product UX
+  - #132, #133, #134
+- Lane D: Astro Hub frontend revamp
+  - #136, #137, #138, #139
+
+## Worktree guidance
+
+- Keep one git worktree per issue or tightly-coupled issue pair.
+- Avoid sharing migrations, generated files, or route contracts across parallel branches unless one issue is explicitly the base dependency for the others.
+- Merge in this order when lanes depend on each other:
+  - specs/contracts before service/runtime work
+  - backend contracts before frontend integration
+  - mocked-data UX before live provider wiring
+- Rebase long-running worktrees frequently against `main` after each merged slice.
+- Close or relabel issues when the priority order changes so this file stays aligned with GitHub.
+
 ## Roadmap to issue process
 
 - Break each roadmap theme into shippable slices.
