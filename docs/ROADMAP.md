@@ -49,6 +49,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - docs/restyle-ui/download-2.png
   - docs/restyle-ui/download-3.png
   - docs/restyle-ui/download-4.png
+  - docs/restyle-ui/image.png
 - Session design review summary:
   - Strong information architecture and useful command-center framing.
   - Weak brand distinctiveness, flat hierarchy, and template-like dashboard styling.
@@ -61,6 +62,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Workflow run-monitor and assistant patterns should inform planner workspace follow-on work in #134 more than the older execution-engine framing.
 - Integration Data screen patterns can inform UX cleanup in #91 without replacing the current storage/auth architecture.
 - Posts list patterns are secondary reference material and should only influence future post-management polish where they improve clarity.
+- The login screen is secondary reference material for shared auth and brand presentation, not a direct Astro Hub implementation target.
 
 ## Issue index
 
