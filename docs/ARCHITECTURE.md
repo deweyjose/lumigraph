@@ -12,7 +12,7 @@
 - Route handlers: auth + validation + transport mapping
 - Services: business logic, ownership/visibility rules
 - Repositories/DB access: Prisma operations
-- AI boundary: provider integrations and prompt/schema helpers should stay behind server-side adapters, not inside route handlers
+- AI boundary: provider integrations and prompt/schema helpers should stay behind server-side adapters under `apps/web/src/server/ai`, not inside route handlers
 
 ## Core domain entities
 

@@ -1,6 +1,8 @@
 import { z } from "zod";
-import OpenAI from "openai";
 import { getPrisma } from "@lumigraph/db";
+import { hasOpenAIApiKey } from "../ai/config";
+import { generateOpenAIJsonObject } from "../ai/json";
+import { DAILY_CANVAS_SYSTEM_PROMPT } from "../ai/prompts";
 import * as dailyCanvasRepo from "../repo/daily-canvas";
 import { fetchAllExternalApis, type ExternalApisData } from "./external-apis";
 
@@ -25,17 +27,6 @@ export const dailyCanvasContentSchema = z.object({
 });
 
 export type DailyCanvasContent = z.infer<typeof dailyCanvasContentSchema>;
-
-const SYSTEM_PROMPT = `You are an astrophotography and astronomy content curator. Given raw data from NASA APOD, ISS position, and SpaceX launches, produce a daily "astro hub" summary in JSON format.
-
-Output MUST be valid JSON matching this structure (no markdown, no code blocks):
-{
-  "events": [{"title": "...", "description": "...", "source": "..."}],
-  "calendar": "A brief text summary of notable astro events this week (meteors, moon phases, planet visibility, etc.)",
-  "highlights": [{"title": "...", "summary": "..."}]
-}
-
-Include 1-3 events, a concise calendar summary, and 2-4 highlights. Focus on what's interesting for astrophotographers and amateur astronomers. If some API data is missing, work with what you have.`;
 
 function buildUserPrompt(data: ExternalApisData): string {
   const parts: string[] = ["Raw API data for today:\n"];
@@ -102,27 +93,16 @@ export async function getOrGenerateDailyCanvas(
   const apiData = await fetchAllExternalApis(date);
 
   // 3. Call OpenAI to synthesize
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
+  if (!hasOpenAIApiKey()) {
     return createFallbackContent();
   }
 
   try {
-    const openai = new OpenAI({ apiKey });
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: buildUserPrompt(apiData) },
-      ],
-      response_format: { type: "json_object" },
+    const validated = await generateOpenAIJsonObject({
+      systemPrompt: DAILY_CANVAS_SYSTEM_PROMPT,
+      userPrompt: buildUserPrompt(apiData),
+      schema: dailyCanvasContentSchema,
     });
-
-    const raw = completion.choices[0]?.message?.content;
-    if (!raw) throw new Error("Empty OpenAI response");
-
-    const parsed = JSON.parse(raw) as unknown;
-    const validated = dailyCanvasContentSchema.parse(parsed);
 
     // 4. Store in DB
     await dailyCanvasRepo.createDailyCanvas(prisma, date, validated);
