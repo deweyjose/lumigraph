@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
+import { toJsonSafe } from "@/server/json";
 import { createDraft, listMyPosts } from "@/server/services/posts";
 
 const TargetType = z.enum([
@@ -34,7 +35,7 @@ export async function GET() {
     );
   }
   const posts = await listMyPosts(session.user.id);
-  return NextResponse.json(posts);
+  return NextResponse.json(toJsonSafe(posts));
 }
 
 export async function POST(request: Request) {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
       captureDate: body.captureDate ? new Date(body.captureDate) : null,
       bortle: body.bortle ?? null,
     });
-    return NextResponse.json(post, { status: 201 });
+    return NextResponse.json(toJsonSafe(post), { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(
