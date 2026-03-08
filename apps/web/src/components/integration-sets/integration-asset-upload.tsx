@@ -938,6 +938,16 @@ export function IntegrationAssetUpload({
           <ul className="space-y-2 text-sm">
             {displayJobs.map((job) => {
               const progress = runningProgress(job);
+              const isActive =
+                job.status === "PENDING" || job.status === "RUNNING";
+              const hasDeterminateProgress =
+                job.status === "RUNNING" && progress.total > 0;
+              const progressLabel =
+                job.status === "PENDING"
+                  ? "Queued - waiting for worker"
+                  : hasDeterminateProgress
+                    ? `${progress.completed}/${progress.total} files`
+                    : `${progress.completed} files`;
               return (
                 <li
                   key={job.id}
@@ -950,22 +960,26 @@ export function IntegrationAssetUpload({
                       {job.selectedPaths.length} selected path
                       {job.selectedPaths.length === 1 ? "" : "s"}
                     </p>
-                    {job.status === "RUNNING" && (
+                    {isActive && (
                       <div className="mt-2 max-w-sm">
                         <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>{progressLabel}</span>
                           <span>
-                            {progress.total > 0
-                              ? `${progress.completed}/${progress.total} files`
-                              : `${progress.completed} files`}
-                          </span>
-                          <span>
-                            {progress.total > 0 ? `${progress.percent}%` : ""}
+                            {hasDeterminateProgress
+                              ? `${progress.percent}%`
+                              : ""}
                           </span>
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded bg-muted">
                           <div
-                            className="h-full bg-blue-500 transition-[width] duration-200"
-                            style={{ width: `${progress.percent}%` }}
+                            className={`h-full bg-blue-500 transition-[width] duration-200 ${
+                              hasDeterminateProgress ? "" : "animate-pulse"
+                            }`}
+                            style={{
+                              width: hasDeterminateProgress
+                                ? `${progress.percent}%`
+                                : "35%",
+                            }}
                           />
                         </div>
                       </div>

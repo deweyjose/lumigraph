@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import JSZip from "jszip";
 import { getPrisma } from "@lumigraph/db";
 import {
   type InvokeCommandInput,
@@ -7,15 +6,12 @@ import {
   LambdaClient,
   type LambdaClientConfig,
 } from "@aws-sdk/client-lambda";
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { createPresignedDownloadUrl, getS3Bucket, getS3Client } from "./s3";
+import { createPresignedDownloadUrl, getS3Bucket } from "./s3";
 
 const DEFAULT_DOWNLOAD_MAX_FILES = 1000;
 const DEFAULT_DOWNLOAD_MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
 const DEFAULT_DOWNLOAD_EXPORT_TTL_HOURS = 24;
 const CALLBACK_TTL_SECONDS = 300;
-const PROGRESS_FILE_STEP = 50;
-const PROGRESS_INTERVAL_MS = 5000;
 
 type IntegrationAssetRow = {
   id: string;
@@ -54,10 +50,6 @@ type CreateDownloadJobInput = {
   requestOrigin: string;
 };
 
-type LocalProcessorInput = {
-  jobId: string;
-};
-
 type CallbackPayload = {
   status: "RUNNING" | "FAILED" | "READY";
   totalFiles?: number;
@@ -91,12 +83,6 @@ export function getDownloadExportTtlHours(): number {
     "DOWNLOAD_EXPORT_TTL_HOURS",
     DEFAULT_DOWNLOAD_EXPORT_TTL_HOURS
   );
-}
-
-export function getDownloadJobProcessor(): "lambda" | "local" {
-  const raw = process.env.DOWNLOAD_JOB_PROCESSOR;
-  if (raw === "lambda" || raw === "local") return raw;
-  return process.env.AWS_S3_ENDPOINT ? "local" : "lambda";
 }
 
 export function integrationSetExportZipKey(
@@ -331,12 +317,17 @@ export async function createDownloadExportJob(
     input.integrationSetId,
     input.userId
   );
-  const processor = getDownloadJobProcessor();
-  if (processor === "lambda" && !process.env.DOWNLOAD_CALLBACK_SECRET) {
+  if (!process.env.DOWNLOAD_CALLBACK_SECRET) {
     return {
       ok: false,
       message:
         "DOWNLOAD_CALLBACK_SECRET is not configured for lambda export jobs.",
+    };
+  }
+  if (!process.env.DOWNLOAD_ZIP_LAMBDA_NAME) {
+    return {
+      ok: false,
+      message: "DOWNLOAD_ZIP_LAMBDA_NAME is not configured for export jobs.",
     };
   }
 
@@ -387,48 +378,32 @@ export async function createDownloadExportJob(
     data: { outputS3Key },
   });
 
-  if (processor === "local") {
-    void processDownloadJobLocal({ jobId: created.id }).catch(async (err) => {
-      const msg =
-        err instanceof Error ? err.message : "Local export job failed";
-      const p = await getPrisma();
-      await p.downloadJob.updateMany({
-        where: { id: created.id, status: { in: ["PENDING", "RUNNING"] } },
-        data: {
-          status: "FAILED",
-          errorMessage: msg.slice(0, 1000),
-          completedAt: new Date(),
-        },
-      });
+  const callbackBaseUrl = getCallbackBaseUrl(input.requestOrigin);
+  const callbackUrl = `${callbackBaseUrl}/api/internal/export-jobs/${created.id}/callback`;
+  void invokeZipLambda({
+    jobId: created.id,
+    userId: input.userId,
+    integrationSetId: input.integrationSetId,
+    bucket: getS3Bucket(),
+    outputS3Key,
+    files: resolved.assets.map((asset) => ({
+      relativePath: asset.relativePath,
+      s3Key: asset.s3Key,
+      sizeBytes: Number(asset.sizeBytes),
+    })),
+    callbackUrl,
+  }).catch(async (err) => {
+    const msg = err instanceof Error ? err.message : "Lambda invoke failed";
+    const p = await getPrisma();
+    await p.downloadJob.updateMany({
+      where: { id: created.id, status: { in: ["PENDING", "RUNNING"] } },
+      data: {
+        status: "FAILED",
+        errorMessage: msg.slice(0, 1000),
+        completedAt: new Date(),
+      },
     });
-  } else {
-    const callbackBaseUrl = getCallbackBaseUrl(input.requestOrigin);
-    const callbackUrl = `${callbackBaseUrl}/api/internal/export-jobs/${created.id}/callback`;
-    void invokeZipLambda({
-      jobId: created.id,
-      userId: input.userId,
-      integrationSetId: input.integrationSetId,
-      bucket: getS3Bucket(),
-      outputS3Key,
-      files: resolved.assets.map((asset) => ({
-        relativePath: asset.relativePath,
-        s3Key: asset.s3Key,
-        sizeBytes: Number(asset.sizeBytes),
-      })),
-      callbackUrl,
-    }).catch(async (err) => {
-      const msg = err instanceof Error ? err.message : "Lambda invoke failed";
-      const p = await getPrisma();
-      await p.downloadJob.updateMany({
-        where: { id: created.id, status: { in: ["PENDING", "RUNNING"] } },
-        data: {
-          status: "FAILED",
-          errorMessage: msg.slice(0, 1000),
-          completedAt: new Date(),
-        },
-      });
-    });
-  }
+  });
 
   const refreshed = await prisma.downloadJob.findUniqueOrThrow({
     where: { id: created.id },
@@ -524,146 +499,6 @@ export async function cancelDownloadJobForOwner(
   return { ok: true, job: toDownloadJobView(job) };
 }
 
-async function loadJobForLocalProcessor(jobId: string) {
-  const prisma = await getPrisma();
-  return prisma.downloadJob.findUnique({
-    where: { id: jobId },
-    include: {
-      integrationSet: {
-        select: {
-          id: true,
-          userId: true,
-        },
-      },
-    },
-  });
-}
-
-async function processDownloadJobLocal(
-  input: LocalProcessorInput
-): Promise<void> {
-  const prisma = await getPrisma();
-  const job = await loadJobForLocalProcessor(input.jobId);
-  if (!job || !job.integrationSet) return;
-  if (
-    job.status === "READY" ||
-    job.status === "FAILED" ||
-    job.status === "CANCELLED"
-  ) {
-    return;
-  }
-
-  const started = await prisma.downloadJob.updateMany({
-    where: { id: job.id, status: "PENDING" },
-    data: {
-      status: "RUNNING",
-      errorMessage: null,
-      totalFiles: job.totalFiles,
-      completedFiles: 0,
-      lastProgressAt: new Date(),
-    },
-  });
-  if (started.count === 0) return;
-
-  const assets = await listOwnedIntegrationAssets(
-    job.integrationSetId,
-    job.userId
-  );
-  const selectedPaths = parseSelectedPathsJson(job.selectedPathsJson);
-  const resolved = resolveSelectedAssets(assets, selectedPaths);
-  if (!resolved.ok) {
-    await prisma.downloadJob.updateMany({
-      where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
-      data: {
-        status: "FAILED",
-        errorMessage: resolved.message,
-        completedAt: new Date(),
-      },
-    });
-    return;
-  }
-
-  const totalFiles = resolved.assets.length;
-  await prisma.downloadJob.updateMany({
-    where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
-    data: {
-      status: "RUNNING",
-      totalFiles,
-      completedFiles: 0,
-      lastProgressAt: new Date(),
-      errorMessage: null,
-    },
-  });
-
-  const zip = new JSZip();
-  const bucket = getS3Bucket();
-  const s3 = await getS3Client();
-  let completedFiles = 0;
-  let lastProgressAt = Date.now();
-
-  for (const asset of resolved.assets) {
-    const object = await s3.send(
-      new GetObjectCommand({ Bucket: bucket, Key: asset.s3Key })
-    );
-    if (!object.Body) {
-      throw new Error(`Missing object body for ${asset.s3Key}`);
-    }
-    const data = await object.Body.transformToByteArray();
-    zip.file(asset.relativePath, data);
-    completedFiles += 1;
-
-    const now = Date.now();
-    const shouldUpdateProgress =
-      completedFiles % PROGRESS_FILE_STEP === 0 ||
-      now - lastProgressAt >= PROGRESS_INTERVAL_MS;
-    if (shouldUpdateProgress) {
-      await prisma.downloadJob.updateMany({
-        where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
-        data: {
-          status: "RUNNING",
-          totalFiles,
-          completedFiles,
-          lastProgressAt: new Date(now),
-        },
-      });
-      lastProgressAt = now;
-    }
-  }
-
-  const buffer = await zip.generateAsync({
-    type: "nodebuffer",
-    compression: "DEFLATE",
-    compressionOptions: { level: 6 },
-  });
-
-  const outputKey =
-    job.outputS3Key ??
-    integrationSetExportZipKey(job.userId, job.integrationSetId, job.id);
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: bucket,
-      Key: outputKey,
-      Body: buffer,
-      ContentType: "application/zip",
-      Tagging: "lumigraph-kind=export",
-    })
-  );
-
-  await prisma.downloadJob.updateMany({
-    where: { id: job.id, status: { in: ["PENDING", "RUNNING"] } },
-    data: {
-      status: "READY",
-      totalFiles,
-      completedFiles: totalFiles,
-      lastProgressAt: new Date(),
-      outputS3Key: outputKey,
-      outputSizeBytes: BigInt(buffer.byteLength),
-      completedAt: new Date(),
-      errorMessage: null,
-    },
-  });
-}
-
 function toHexHmac(secret: string, timestamp: string, body: string): string {
   return createHmac("sha256", secret.trim())
     .update(`${timestamp}.${body}`)
@@ -714,10 +549,14 @@ export async function applyDownloadJobCallback(
       typeof nextTotalFiles === "number"
         ? Math.min(requestedCompletedFiles, nextTotalFiles)
         : requestedCompletedFiles;
-    const completedFiles = Math.max(job.completedFiles, boundedCompletedFiles);
+    const completedFiles = Math.max(0, boundedCompletedFiles);
 
-    await prisma.downloadJob.updateMany({
-      where: { id: jobId, status: { in: ["PENDING", "RUNNING"] } },
+    const updated = await prisma.downloadJob.updateMany({
+      where: {
+        id: jobId,
+        status: { in: ["PENDING", "RUNNING"] },
+        completedFiles: { lte: completedFiles },
+      },
       data: {
         status: "RUNNING",
         totalFiles: nextTotalFiles,
@@ -726,6 +565,7 @@ export async function applyDownloadJobCallback(
         errorMessage: null,
       },
     });
+    if (updated.count === 0) return { ok: true };
     return { ok: true };
   }
 

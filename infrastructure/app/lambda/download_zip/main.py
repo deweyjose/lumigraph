@@ -10,11 +10,33 @@ import urllib.request
 import zipfile
 
 import boto3
+from botocore.config import Config
 
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.INFO)
 
-S3 = boto3.client("s3")
+
+def _load_checksum_mode(name: str) -> str | None:
+    value = os.environ.get(name, "").strip().lower()
+    if value in {"when_supported", "when_required"}:
+        return value
+    return None
+
+
+def _build_s3_client():
+    config_kwargs = {}
+    request_mode = _load_checksum_mode("AWS_REQUEST_CHECKSUM_CALCULATION")
+    response_mode = _load_checksum_mode("AWS_RESPONSE_CHECKSUM_VALIDATION")
+    if request_mode:
+        config_kwargs["request_checksum_calculation"] = request_mode
+    if response_mode:
+        config_kwargs["response_checksum_validation"] = response_mode
+    if config_kwargs:
+        return boto3.client("s3", config=Config(**config_kwargs))
+    return boto3.client("s3")
+
+
+S3 = _build_s3_client()
 
 CHUNK_SIZE = 8 * 1024 * 1024
 PART_SIZE = 16 * 1024 * 1024
@@ -323,6 +345,8 @@ def handler(event, _context):
 
                 now = time.monotonic()
                 should_send_progress = (
+                    completed_files == 1
+                    or
                     completed_files % PROGRESS_FILE_STEP == 0
                     or now - last_progress_sent_at >= PROGRESS_INTERVAL_SECONDS
                     or completed_files == total_files
