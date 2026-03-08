@@ -30,5 +30,7 @@ describe("@lumigraph/db", () => {
     expect(client).toHaveProperty("post");
     expect(client).toHaveProperty("integrationSet");
     expect(client).toHaveProperty("asset");
+    expect(client).toHaveProperty("workflowSession");
+    expect(client).toHaveProperty("workflowRun");
   });
 });

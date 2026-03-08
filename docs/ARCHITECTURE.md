@@ -87,8 +87,8 @@
 ## Agent execution persistence model
 
 - `WorkflowDefinition` and `WorkflowStepDefinition` belong to workflow-capture work in `#92`. They describe reusable authored process templates.
-- `WorkflowSession` is the durable execution context for one user's working thread around a goal or resource. It can optionally point at a workflow definition and at subject resources such as a post or integration set.
-- `WorkflowRun` is one execution attempt within a session. A session may have many runs over time as the user retries, resumes, or switches agents/models.
+- `WorkflowSession` is the durable execution context for one user's working thread around a goal or resource. It can optionally point at a workflow definition and at subject resources such as a post or integration set. `#104` persists this model now.
+- `WorkflowRun` is one execution attempt within a session. A session may have many runs over time as the user retries, resumes, or switches agents/models. `#104` persists this model now.
 - `RunToolCall` is the audit log for one tool invocation during a run. It stores the tool name, validated input payload, output payload or error, timestamps, and status.
 - `RunArtifactRef` links a run to durable domain outputs such as posts, integration sets, assets, or export jobs instead of duplicating those records into agent tables.
 
@@ -97,6 +97,7 @@
 - Persist now:
   - `WorkflowSession`
   - `WorkflowRun`
+- Persist next:
   - `RunToolCall`
   - `RunArtifactRef`
 - Reuse existing domain entities for durable outputs rather than creating agent-owned copies.
@@ -140,6 +141,7 @@
 
 - Integration-set visibility is currently private-only.
 - Export jobs are async and progress through worker callbacks before a download URL is exposed.
+- Workflow execution persistence currently stores private user-owned sessions and runs only. Tool-call audit rows, artifact references, and run-inspection APIs remain follow-up work in `#105` and `#103`.
 
 ## Operational notes
 
