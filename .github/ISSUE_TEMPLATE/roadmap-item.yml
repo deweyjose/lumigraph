@@ -1,0 +1,68 @@
+name: Roadmap Item
+about: Convert a roadmap/planning discussion into an executable issue
+labels: [roadmap]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What user or system problem does this slice solve?
+      placeholder: Describe the problem or opportunity this issue addresses.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is included and explicitly out of scope for this slice?
+      placeholder: |
+        In scope:
+        - ...
+
+        Non-goals:
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Testable conditions for done
+      placeholder: |
+        - [ ] criterion 1
+        - [ ] criterion 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: deps
+    attributes:
+      label: Dependencies
+      description: List issue numbers or prerequisites
+      placeholder: '#123, #124'
+
+  - type: markdown
+    attributes:
+      value: |
+        After creating the issue, apply the matching labels:
+        `backend`, `frontend`, `infra`, `docs`, `parallel`, `blocked`
+
+  - type: checkboxes
+    id: lanes
+    attributes:
+      label: Work lanes
+      options:
+        - label: frontend
+        - label: backend
+        - label: infra
+        - label: docs
+        - label: parallel
+        - label: blocked
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Extra implementation notes or links
