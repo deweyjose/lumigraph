@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
+import { toJsonSafe } from "@/server/json";
 import { updatePostDraft } from "@/server/services/posts";
 
 const TargetType = z.enum([
@@ -63,7 +64,7 @@ export async function PUT(
         { status: 404 }
       );
     }
-    return NextResponse.json(post);
+    return NextResponse.json(toJsonSafe(post));
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(

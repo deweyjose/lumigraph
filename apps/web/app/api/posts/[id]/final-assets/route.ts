@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
+import { toJsonSafe } from "@/server/json";
 import { listPostFinalAssetsForOwner } from "@/server/services/assets";
 import { setPostFinalAsset } from "@/server/services/posts";
 
@@ -28,7 +29,7 @@ export async function GET(
       { status: 404 }
     );
   }
-  return NextResponse.json(assets);
+  return NextResponse.json(toJsonSafe(assets));
 }
 
 export async function POST(
@@ -60,7 +61,7 @@ export async function POST(
         { status: 404 }
       );
     }
-    return NextResponse.json(post);
+    return NextResponse.json(toJsonSafe(post));
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json(

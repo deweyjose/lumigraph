@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "auth";
+import { toJsonSafe } from "@/server/json";
 import { publishPost } from "@/server/services/posts";
 
 export async function POST(
@@ -21,5 +22,5 @@ export async function POST(
       { status: 404 }
     );
   }
-  return NextResponse.json(post);
+  return NextResponse.json(toJsonSafe(post));
 }

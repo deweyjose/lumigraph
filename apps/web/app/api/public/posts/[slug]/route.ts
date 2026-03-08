@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { toJsonSafe } from "@/server/json";
 import { getPostBySlugForView } from "@/server/services/posts";
 
 export async function GET(
@@ -13,5 +14,5 @@ export async function GET(
       { status: 404 }
     );
   }
-  return NextResponse.json(post);
+  return NextResponse.json(toJsonSafe(post));
 }
