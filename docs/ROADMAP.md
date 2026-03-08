@@ -30,6 +30,38 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Apply the relevant lane labels: `backend`, `frontend`, `infra`, `docs`, `parallel`, `blocked`.
 - Link created issues back into this file.
 
+## Astro Hub design guidance
+
+- Treat Astro Hub as a distinct Lumigraph product theme, not a generic dashboard page.
+- Keep the current information architecture direction: Astro Hub, Posts, Workflows, Todos, and Integration Data remain a coherent grouping.
+- Do not port the Figma Make styling wholesale. Use it as a structural reference and implementation prompt, not the final design system.
+- Prioritize one dominant Astro Hub hero surface, fewer stronger modules, clearer hierarchy, and explicit freshness/trust signals for live data.
+- Design mobile behavior intentionally rather than shrinking the desktop sidebar-and-cards layout.
+- Favor the Make patterns for Workflows run monitoring and Todos more directly than Astro Hub, which needs a stronger custom visual treatment.
+- Preserve the current backend and auth architecture while selectively adopting UI patterns from the Make file.
+
+## Astro Hub references
+
+- Figma Make reference: https://www.figma.com/make/5FNloP83Ll2SmMOShy1nUc/Astrophotography-site-features?t=rd7bY7av9bi7W99F-0
+- Local screenshot references:
+  - docs/restyle-ui/download.png
+  - docs/restyle-ui/download-1.png
+  - docs/restyle-ui/download-2.png
+  - docs/restyle-ui/download-3.png
+  - docs/restyle-ui/download-4.png
+- Session design review summary:
+  - Strong information architecture and useful command-center framing.
+  - Weak brand distinctiveness, flat hierarchy, and template-like dashboard styling.
+  - Astro Hub should move toward a more cinematic Mission Control experience with stronger hero treatment and telemetry trust signals.
+  - Workflows and Todos are the most directly reusable UI patterns from the Make exploration.
+
+## Make frame mapping
+
+- AstroHub dashboard frames primarily inform #135, #136, #137, #138, #139, and #140.
+- Workflow run-monitor and assistant patterns should inform planner workspace follow-on work in #134 more than the older execution-engine framing.
+- Integration Data screen patterns can inform UX cleanup in #91 without replacing the current storage/auth architecture.
+- Posts list patterns are secondary reference material and should only influence future post-management polish where they improve clarity.
+
 ## Issue index
 
 Add links as items are created.
