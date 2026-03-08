@@ -4,6 +4,12 @@ export type WorkflowSessionSubject =
   | { type: "POST"; id: string }
   | { type: "INTEGRATION_SET"; id: string };
 
+export type WorkflowRunArtifact =
+  | { type: "POST"; id: string }
+  | { type: "INTEGRATION_SET"; id: string }
+  | { type: "ASSET"; id: string }
+  | { type: "DOWNLOAD_JOB"; id: string };
+
 export type CreateWorkflowSessionInput = {
   workflowDefinitionId?: string | null;
   subject?: WorkflowSessionSubject | null;
@@ -42,6 +48,56 @@ export type WorkflowRunView = {
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type WorkflowRunToolCallView = {
+  id: string;
+  runId: string;
+  toolName: string;
+  status: "SUCCEEDED" | "FAILED";
+  input: Prisma.JsonValue;
+  output: Prisma.JsonValue | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  errorDetails: Prisma.JsonValue | null;
+  startedAt: string;
+  completedAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WorkflowRunArtifactRefView = {
+  id: string;
+  runId: string;
+  artifactType: "POST" | "INTEGRATION_SET" | "ASSET" | "DOWNLOAD_JOB";
+  artifactId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RecordSuccessfulRunToolCallInput = {
+  runId: string;
+  toolName: string;
+  input: Prisma.InputJsonValue;
+  output: Prisma.InputJsonValue;
+  startedAt?: Date;
+  completedAt?: Date;
+};
+
+export type RecordFailedRunToolCallInput = {
+  runId: string;
+  toolName: string;
+  input: Prisma.InputJsonValue;
+  errorCode?: string | null;
+  errorMessage: string;
+  errorDetails?: Prisma.InputJsonValue;
+  startedAt?: Date;
+  completedAt?: Date;
+};
+
+export type RecordRunArtifactRefInput = {
+  runId: string;
+  artifact: WorkflowRunArtifact;
 };
 
 function toWorkflowSessionView(session: {
@@ -98,6 +154,56 @@ function toWorkflowRunView(run: {
   };
 }
 
+function toWorkflowRunToolCallView(call: {
+  id: string;
+  runId: string;
+  toolName: string;
+  status: "SUCCEEDED" | "FAILED";
+  inputJson: Prisma.JsonValue;
+  outputJson: Prisma.JsonValue | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  errorJson: Prisma.JsonValue | null;
+  startedAt: Date;
+  completedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}): WorkflowRunToolCallView {
+  return {
+    id: call.id,
+    runId: call.runId,
+    toolName: call.toolName,
+    status: call.status,
+    input: call.inputJson,
+    output: call.outputJson,
+    errorCode: call.errorCode,
+    errorMessage: call.errorMessage,
+    errorDetails: call.errorJson,
+    startedAt: call.startedAt.toISOString(),
+    completedAt: call.completedAt.toISOString(),
+    createdAt: call.createdAt.toISOString(),
+    updatedAt: call.updatedAt.toISOString(),
+  };
+}
+
+function toWorkflowRunArtifactRefView(ref: {
+  id: string;
+  runId: string;
+  artifactType: "POST" | "INTEGRATION_SET" | "ASSET" | "DOWNLOAD_JOB";
+  artifactId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): WorkflowRunArtifactRefView {
+  return {
+    id: ref.id,
+    runId: ref.runId,
+    artifactType: ref.artifactType,
+    artifactId: ref.artifactId,
+    createdAt: ref.createdAt.toISOString(),
+    updatedAt: ref.updatedAt.toISOString(),
+  };
+}
+
 async function subjectIsOwnedByUser(
   prisma: Prisma.TransactionClient | Prisma.DefaultPrismaClient,
   userId: string,
@@ -116,6 +222,55 @@ async function subjectIsOwnedByUser(
     select: { userId: true },
   });
   return set?.userId === userId;
+}
+
+async function getOwnedRun(
+  prisma: Prisma.TransactionClient | Prisma.DefaultPrismaClient,
+  userId: string,
+  runId: string
+) {
+  const run = await prisma.workflowRun.findUnique({
+    where: { id: runId },
+    select: { id: true, userId: true, sessionId: true },
+  });
+  if (!run || run.userId !== userId) return null;
+  return run;
+}
+
+async function artifactIsOwnedByUser(
+  prisma: Prisma.TransactionClient | Prisma.DefaultPrismaClient,
+  userId: string,
+  artifact: WorkflowRunArtifact
+) {
+  if (artifact.type === "POST") {
+    const post = await prisma.post.findUnique({
+      where: { id: artifact.id },
+      select: { userId: true },
+    });
+    return post?.userId === userId;
+  }
+
+  if (artifact.type === "INTEGRATION_SET") {
+    const set = await prisma.integrationSet.findUnique({
+      where: { id: artifact.id },
+      select: { userId: true },
+    });
+    return set?.userId === userId;
+  }
+
+  if (artifact.type === "ASSET") {
+    const asset = await prisma.asset.findUnique({
+      where: { id: artifact.id },
+      select: { userId: true },
+    });
+    return asset?.userId === userId;
+  }
+
+  const job = await prisma.downloadJob.findUnique({
+    where: { id: artifact.id },
+    select: { userId: true },
+  });
+  return job?.userId === userId;
 }
 
 export async function createWorkflowSessionForOwner(
@@ -216,4 +371,123 @@ export async function listWorkflowRunsForOwner(
     orderBy: [{ createdAt: "desc" }],
   });
   return runs.map((run) => toWorkflowRunView(run));
+}
+
+export async function recordSuccessfulRunToolCallForOwner(
+  userId: string,
+  input: RecordSuccessfulRunToolCallInput
+): Promise<WorkflowRunToolCallView | null> {
+  const prisma = await getPrisma();
+  const run = await getOwnedRun(prisma, userId, input.runId);
+  if (!run) return null;
+
+  const completedAt = input.completedAt ?? new Date();
+  const startedAt = input.startedAt ?? completedAt;
+  const call = await prisma.runToolCall.create({
+    data: {
+      runId: run.id,
+      userId,
+      toolName: input.toolName,
+      status: "SUCCEEDED",
+      inputJson: input.input,
+      outputJson: input.output,
+      startedAt,
+      completedAt,
+    },
+  });
+
+  return toWorkflowRunToolCallView(call);
+}
+
+export async function recordFailedRunToolCallForOwner(
+  userId: string,
+  input: RecordFailedRunToolCallInput
+): Promise<WorkflowRunToolCallView | null> {
+  const prisma = await getPrisma();
+  const run = await getOwnedRun(prisma, userId, input.runId);
+  if (!run) return null;
+
+  const completedAt = input.completedAt ?? new Date();
+  const startedAt = input.startedAt ?? completedAt;
+  const call = await prisma.runToolCall.create({
+    data: {
+      runId: run.id,
+      userId,
+      toolName: input.toolName,
+      status: "FAILED",
+      inputJson: input.input,
+      errorCode: input.errorCode ?? null,
+      errorMessage: input.errorMessage,
+      ...(input.errorDetails !== undefined && {
+        errorJson: input.errorDetails,
+      }),
+      startedAt,
+      completedAt,
+    },
+  });
+
+  return toWorkflowRunToolCallView(call);
+}
+
+export async function listRunToolCallsForOwner(
+  userId: string,
+  options?: { runId?: string }
+): Promise<WorkflowRunToolCallView[]> {
+  const prisma = await getPrisma();
+  const calls = await prisma.runToolCall.findMany({
+    where: {
+      userId,
+      ...(options?.runId && { runId: options.runId }),
+    },
+    orderBy: [{ createdAt: "asc" }],
+  });
+
+  return calls.map((call) => toWorkflowRunToolCallView(call));
+}
+
+export async function recordRunArtifactRefForOwner(
+  userId: string,
+  input: RecordRunArtifactRefInput
+): Promise<WorkflowRunArtifactRefView | null> {
+  const prisma = await getPrisma();
+  const run = await getOwnedRun(prisma, userId, input.runId);
+  if (!run) return null;
+
+  const isOwned = await artifactIsOwnedByUser(prisma, userId, input.artifact);
+  if (!isOwned) return null;
+
+  const ref = await prisma.runArtifactRef.upsert({
+    where: {
+      runId_artifactType_artifactId: {
+        runId: run.id,
+        artifactType: input.artifact.type,
+        artifactId: input.artifact.id,
+      },
+    },
+    update: {},
+    create: {
+      runId: run.id,
+      userId,
+      artifactType: input.artifact.type,
+      artifactId: input.artifact.id,
+    },
+  });
+
+  return toWorkflowRunArtifactRefView(ref);
+}
+
+export async function listRunArtifactRefsForOwner(
+  userId: string,
+  options?: { runId?: string }
+): Promise<WorkflowRunArtifactRefView[]> {
+  const prisma = await getPrisma();
+  const refs = await prisma.runArtifactRef.findMany({
+    where: {
+      userId,
+      ...(options?.runId && { runId: options.runId }),
+    },
+    orderBy: [{ createdAt: "asc" }],
+  });
+
+  return refs.map((ref) => toWorkflowRunArtifactRefView(ref));
 }

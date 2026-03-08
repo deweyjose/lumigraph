@@ -88,6 +88,22 @@ enum WorkflowRunTrigger {
   @@map("workflow_run_trigger")
 }
 
+enum RunToolCallStatus {
+  SUCCEEDED
+  FAILED
+
+  @@map("run_tool_call_status")
+}
+
+enum RunArtifactRefType {
+  POST
+  INTEGRATION_SET
+  ASSET
+  DOWNLOAD_JOB
+
+  @@map("run_artifact_ref_type")
+}
+
 model User {
   id            String    @id @default(uuid()) @db.Uuid
   email         String    @unique
@@ -105,6 +121,8 @@ model User {
   downloadJobs    DownloadJob[]
   workflowSessions WorkflowSession[]
   workflowRuns     WorkflowRun[]
+  runToolCalls     RunToolCall[]
+  runArtifactRefs  RunArtifactRef[]
 
   @@map("users")
 }
@@ -291,9 +309,55 @@ model WorkflowRun {
 
   session WorkflowSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  toolCalls RunToolCall[]
+  artifactRefs RunArtifactRef[]
 
   @@index([userId, createdAt])
   @@index([sessionId, createdAt])
   @@index([status, createdAt])
   @@map("workflow_runs")
+}
+
+model RunToolCall {
+  id           String            @id @default(uuid()) @db.Uuid
+  runId        String            @db.Uuid @map("run_id")
+  userId       String            @db.Uuid @map("user_id")
+  toolName     String            @map("tool_name")
+  status       RunToolCallStatus
+  inputJson    Json              @map("input_json")
+  outputJson   Json?             @map("output_json")
+  errorCode    String?           @map("error_code")
+  errorMessage String?           @map("error_message")
+  errorJson    Json?             @map("error_json")
+  startedAt    DateTime          @map("started_at")
+  completedAt  DateTime          @map("completed_at")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+
+  run  WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([runId, createdAt])
+  @@index([toolName, createdAt])
+  @@map("run_tool_calls")
+}
+
+model RunArtifactRef {
+  id           String             @id @default(uuid()) @db.Uuid
+  runId        String             @db.Uuid @map("run_id")
+  userId       String             @db.Uuid @map("user_id")
+  artifactType RunArtifactRefType @map("artifact_type")
+  artifactId   String             @db.Uuid @map("artifact_id")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  run  WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, artifactType, artifactId])
+  @@index([userId, createdAt])
+  @@index([runId, createdAt])
+  @@index([artifactType, artifactId])
+  @@map("run_artifact_refs")
 }
