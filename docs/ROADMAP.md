@@ -12,7 +12,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 ## Next
 
 - Public post/detail polish and download ergonomics
-- Workflow capture v1 (structured steps)
+- Workflow capture v1: spec, persistence/APIs, and authoring UI
 - AI drafting improvements for posts
 - Workflow/session persistence for future agent runs
 
@@ -43,3 +43,8 @@ Add links as items are created.
 - #90 - Roadmap: Harden export management UX and job lifecycle
 - #91 - Roadmap: Polish integration set workflow UX
 - #92 - Roadmap: Workflow capture v1 (spec and implementation slices)
+- #116 - Specify workflow capture v1 domain model and API contract
+- #117 - Persist workflow definitions and ordered step definitions
+- #118 - Add private workflow definition CRUD APIs
+- #119 - Build workflow capture v1 list and editor UX
+- #120 - Launch workflow sessions from authored definitions
