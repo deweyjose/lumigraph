@@ -41,6 +41,13 @@ Record architecture and workflow decisions that affect future implementation.
 - Alternatives considered: Put definitions, sessions, runs, and transcripts into one broad execution model; keep runs fully stateless for longer; persist raw chat transcripts first and infer tool history later.
 - Consequences: `#92` can progress independently on workflow-definition UX and schema, while execution work can start with private-first session/run persistence that references workflow definitions and tool names without blocking on a full runtime.
 
+### 2026-03-08 - Keep workflow capture v1 private-first and linear
+
+- Decision: Scope workflow capture v1 to private owned workflow definitions with linear ordered steps and no branching.
+- Context: Lumigraph now has execution persistence and tool surfaces, but no authored workflow model. The first workflow-capture slice needs to be small enough to implement across schema, APIs, and UI without inventing a full automation language.
+- Alternatives considered: Start with shared/public workflows; add conditional branching, loops, or arbitrary expressions in v1; model each step as an unstructured freeform text block with implicit tool semantics.
+- Consequences: Workflow capture can ship sooner with simpler APIs and editor UX, while future agent/chat/runtime work can attach to explicit step order and tool names. More advanced orchestration features stay available as follow-up work rather than distorting the initial model.
+
 ### 2026-03-07 - Async ZIP export jobs
 
 - Decision: Use async worker callbacks for integration-set ZIP export progress and completion.
