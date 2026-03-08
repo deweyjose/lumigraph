@@ -4,9 +4,11 @@
 
 For any substantial code change, do not consider work done until all of the following pass:
 
-1. `pnpm typecheck`
-2. `pnpm lint`
-3. `pnpm test`
+1. `pnpm format:fix`
+2. `pnpm format`
+3. `pnpm typecheck`
+4. `pnpm lint`
+5. `pnpm test`
 
 If any check fails:
 

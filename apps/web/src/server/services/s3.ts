@@ -142,7 +142,10 @@ export async function createPresignedDownloadUrl(
 /**
  * Deletes an object from S3.
  */
-export async function deleteS3Object(bucket: string, key: string): Promise<void> {
+export async function deleteS3Object(
+  bucket: string,
+  key: string
+): Promise<void> {
   const client = await getS3Client();
   await client.send(
     new DeleteObjectCommand({
