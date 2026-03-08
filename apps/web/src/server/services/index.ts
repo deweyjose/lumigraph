@@ -4,4 +4,5 @@ export * from "./assets";
 export * from "./uploads";
 export * from "./s3";
 export * from "./download-jobs";
+export * from "./workflow-definitions";
 export * from "./workflow-runs";
