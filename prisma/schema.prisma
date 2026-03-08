@@ -55,6 +55,39 @@ enum DownloadJobStatus {
   @@map("download_job_status")
 }
 
+enum WorkflowSubjectType {
+  POST
+  INTEGRATION_SET
+
+  @@map("workflow_subject_type")
+}
+
+enum WorkflowSessionStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("workflow_session_status")
+}
+
+enum WorkflowRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+
+  @@map("workflow_run_status")
+}
+
+enum WorkflowRunTrigger {
+  MANUAL
+  RESUME
+  RETRY
+  SYSTEM
+
+  @@map("workflow_run_trigger")
+}
+
 model User {
   id            String    @id @default(uuid()) @db.Uuid
   email         String    @unique
@@ -70,6 +103,8 @@ model User {
   integrationSets IntegrationSet[]
   assets          Asset[]
   downloadJobs    DownloadJob[]
+  workflowSessions WorkflowSession[]
+  workflowRuns     WorkflowRun[]
 
   @@map("users")
 }
@@ -216,4 +251,49 @@ model DailyCanvas {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("daily_canvas")
+}
+
+model WorkflowSession {
+  id                   String                @id @default(uuid()) @db.Uuid
+  userId               String                @db.Uuid @map("user_id")
+  workflowDefinitionId String?               @db.Uuid @map("workflow_definition_id")
+  subjectType          WorkflowSubjectType?  @map("subject_type")
+  subjectId            String?               @db.Uuid @map("subject_id")
+  goal                 String?
+  status               WorkflowSessionStatus @default(ACTIVE)
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runs WorkflowRun[]
+
+  @@index([userId, createdAt])
+  @@index([workflowDefinitionId])
+  @@index([subjectType, subjectId])
+  @@map("workflow_sessions")
+}
+
+model WorkflowRun {
+  id           String             @id @default(uuid()) @db.Uuid
+  sessionId    String             @db.Uuid @map("session_id")
+  userId       String             @db.Uuid @map("user_id")
+  status       WorkflowRunStatus  @default(PENDING)
+  trigger      WorkflowRunTrigger @default(MANUAL)
+  agentKind    String             @default("default") @map("agent_kind")
+  model        String?
+  summary      String?
+  errorMessage String?            @map("error_message")
+  startedAt    DateTime?          @map("started_at")
+  completedAt  DateTime?          @map("completed_at")
+  cancelledAt  DateTime?          @map("cancelled_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  session WorkflowSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([status, createdAt])
+  @@map("workflow_runs")
 }
