@@ -13,6 +13,7 @@
 - Services: business logic, ownership/visibility rules
 - Repositories/DB access: Prisma operations
 - AI boundary: provider integrations and prompt/schema helpers should stay behind server-side adapters under `apps/web/src/server/ai`, not inside route handlers
+- Tool boundary: typed agent-facing actions should live under `apps/web/src/server/tools` and delegate to services rather than duplicating business rules
 
 ## Core domain entities
 
@@ -75,6 +76,13 @@
 - Artifact upload is initiated through `/api/uploads/...` after the server verifies the target post or integration set.
 - Artifact viewing/downloading is exposed by asset id through `/api/assets/:id/view` and `/api/assets/:id/download`.
 - Export job lifecycle stays nested under the owning integration set via `/api/integration-sets/:id/export-jobs/...`.
+
+## Tool surfaces
+
+- Agent-facing tool definitions live under `apps/web/src/server/tools`.
+- Tool schemas validate inputs at the tool boundary before execution.
+- Tool handlers call existing services so ownership checks, visibility rules, and state transitions stay centralized.
+- Routes and tools are sibling transport layers over the same service logic; routes exist for HTTP clients, tools exist for agent/runtime callers.
 
 ## Security and authz invariants
 
