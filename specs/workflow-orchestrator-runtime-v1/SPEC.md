@@ -16,7 +16,7 @@ It does not cover:
 
 - implementation details of the runtime executor loop
 - final operator station UI implementation
-- PixInsight domain prompt strategy
+- native PixInsight desktop automation
 
 ## Runtime goals
 
@@ -241,8 +241,175 @@ Do not persist in v1 runtime:
 3. Add run command handling endpoint and idempotency key support.
 4. Keep existing `WorkflowRun`, `RunToolCall`, and `RunArtifactRef` contracts backward compatible for current API consumers.
 
+## PixInsight processing context model (`#130`)
+
+This section defines the minimum structured context for target-aware and camera-aware orchestration decisions.
+
+### Goals
+
+- Keep context explicit and typed so orchestration decisions are auditable.
+- Reuse existing post/integration metadata first, then layer user-supplied context where gaps exist.
+- Separate deterministic context derivation from prompt-time reasoning.
+- Avoid brittle one-off rules embedded directly in route handlers or ad hoc prompts.
+
+### ProcessingContextV1 envelope
+
+```json
+{
+  "schemaVersion": "1.0",
+  "subject": {
+    "subjectType": "POST",
+    "subjectId": "post-uuid",
+    "postId": "post-uuid",
+    "integrationSetId": "set-uuid",
+    "targetName": "M31",
+    "targetType": "GALAXY",
+    "captureDate": "2026-09-14T03:15:00.000Z",
+    "bortle": 5
+  },
+  "acquisition": {
+    "cameraProfileId": "camera-qhy268m",
+    "camera": {
+      "model": "QHY268M",
+      "sensorType": "MONO",
+      "pixelSizeUm": 3.76,
+      "binning": "1x1",
+      "gain": 56,
+      "offset": 20,
+      "temperatureC": -10
+    },
+    "optics": {
+      "telescopeProfileId": "scope-fs60cb",
+      "focalLengthMm": 355,
+      "apertureMm": 60
+    },
+    "filters": ["L", "R", "G", "B"],
+    "sessionNotes": "thin clouds after 02:00 UTC"
+  },
+  "dataset": {
+    "lightFrameCount": 72,
+    "calibrationFrameCounts": {
+      "darks": 30,
+      "flats": 60,
+      "bias": 0
+    },
+    "totalExposureSeconds": 21600,
+    "medianSubExposureSeconds": 300,
+    "quality": {
+      "fwhmMedian": 3.2,
+      "eccentricityMedian": 0.43,
+      "rejectionRate": 0.11
+    }
+  },
+  "preferences": {
+    "outputIntent": "NATURAL",
+    "aggressiveness": "MODERATE",
+    "starReductionPreference": "LOW",
+    "denoisePreference": "MEDIUM"
+  },
+  "constraints": {
+    "maxRuntimeMinutes": 120,
+    "allowLargeIntermediateFiles": true
+  },
+  "derived": {
+    "imageScaleArcsecPerPixel": 2.18,
+    "isNarrowbandOnly": false,
+    "qualityTier": "GOOD",
+    "recommendedWorkflowProfile": "mono-lrgb-general"
+  }
+}
+```
+
+### Field catalog
+
+| Field path | Classification | Source | Notes |
+| --- | --- | --- | --- |
+| `schemaVersion` | Required | System constant | Resolver emits fixed version string. |
+| `subject.subjectType` | Required | `WorkflowSession.subjectType` | Must be `POST` or `INTEGRATION_SET`. |
+| `subject.subjectId` | Required | `WorkflowSession.subjectId` | Canonical resource id for runtime context. |
+| `subject.postId` | Optional | `WorkflowSession`/`Post` relation | Required when orchestration targets a post. |
+| `subject.integrationSetId` | Optional | `WorkflowSession`/`IntegrationSet` relation | Required when orchestration targets an integration set. |
+| `subject.targetName` | Optional | `Post.targetName` | Missing values remain null; no fake values. |
+| `subject.targetType` | Optional | `Post.targetType` | Existing enum values reused. |
+| `subject.captureDate` | Optional | `Post.captureDate` | Existing metadata only. |
+| `subject.bortle` | Optional | `Post.bortle` | Existing metadata only. |
+| `acquisition.cameraProfileId` | Optional | New user profile selection | Stable key for camera defaults/calibration behavior. |
+| `acquisition.camera.model` | Optional | New user-supplied | Needed for camera-aware heuristics. |
+| `acquisition.camera.sensorType` | Optional | New user-supplied/profile default | `MONO` or `OSC` primarily drives branching. |
+| `acquisition.camera.pixelSizeUm` | Optional | New user-supplied/profile default | Used for image scale derivation. |
+| `acquisition.camera.binning` | Optional | New user-supplied | Impacts effective scale and SNR assumptions. |
+| `acquisition.camera.gain` | Optional | New user-supplied | Session-specific capture context. |
+| `acquisition.camera.offset` | Optional | New user-supplied | Session-specific capture context. |
+| `acquisition.camera.temperatureC` | Optional | New user-supplied | Calibration strategy input. |
+| `acquisition.optics.telescopeProfileId` | Optional | New user profile selection | Stable key for optics defaults. |
+| `acquisition.optics.focalLengthMm` | Optional | New user-supplied/profile default | Used for image scale derivation. |
+| `acquisition.optics.apertureMm` | Optional | New user-supplied/profile default | Optional signal for throughput assumptions. |
+| `acquisition.filters[]` | Optional | New user-supplied or parsed metadata | Drives narrowband/OSC decisions. |
+| `acquisition.sessionNotes` | Optional | Existing `IntegrationSet.notes` + new notes | Freeform operator hints only. |
+| `dataset.lightFrameCount` | Required | Derived from uploaded light assets | Must be explicit, including zero. |
+| `dataset.calibrationFrameCounts.*` | Optional | Derived from assets + user overrides | Darks/flats/bias can be null/zero. |
+| `dataset.totalExposureSeconds` | Optional | Derived from capture metadata | Null when exposure metadata is unavailable. |
+| `dataset.medianSubExposureSeconds` | Optional | Derived from capture metadata | Null when unavailable. |
+| `dataset.quality.*` | Optional | New stats ingestion pipeline | FWHM/eccentricity/rejection are additive. |
+| `preferences.outputIntent` | Required | User preference with default | Default `NATURAL` if not set. |
+| `preferences.aggressiveness` | Required | User preference with default | Default `MODERATE` if not set. |
+| `preferences.starReductionPreference` | Optional | User preference | Style preference, not a hard gate. |
+| `preferences.denoisePreference` | Optional | User preference | Style preference, not a hard gate. |
+| `constraints.maxRuntimeMinutes` | Optional | User/runtime policy | Allows orchestration to choose shorter variants. |
+| `constraints.allowLargeIntermediateFiles` | Optional | User/runtime policy | Governs storage-heavy branch selection. |
+| `derived.imageScaleArcsecPerPixel` | Derived | Resolver formula | `206.265 * pixelSizeUm / focalLengthMm` when inputs exist. |
+| `derived.isNarrowbandOnly` | Derived | Resolver from filters | True when all detected filters are narrowband families. |
+| `derived.qualityTier` | Derived | Resolver from quality metrics | Deterministic tiering (`LOW`, `MIXED`, `GOOD`). |
+| `derived.recommendedWorkflowProfile` | Derived | Resolver | Stable profile key, not freeform prompt text. |
+
+### Source boundaries: existing vs new inputs
+
+Existing metadata reused in v1:
+
+- `Post`: `targetName`, `targetType`, `captureDate`, `bortle`, ownership/visibility.
+- `IntegrationSet`: title/notes linkage and uploaded asset collection.
+- `Asset`: uploaded files, content type, size, relative path for frame grouping hints.
+- `WorkflowSession` + `WorkflowRun`: execution subject and ownership boundary.
+
+New user-supplied processing context needed:
+
+- camera/equipment profile linkage and per-session overrides
+- filter/channel declarations when filenames are insufficient
+- capture parameter values (gain/offset/binning/temperature)
+- processing intent and style preferences
+- runtime/storage budget constraints
+
+### How orchestration consumes ProcessingContextV1
+
+Runtime usage contract:
+
+1. Resolve context once at run start from persisted records + user overrides.
+2. Compute `derived` block via deterministic resolver functions (no model calls).
+3. Select workflow profile/step variants using declarative constraints (e.g. `requires.sensorType = MONO`), not ad hoc branch logic in prompts.
+4. Provide a compact context summary + profile ids to orchestrator prompts for tie-breaking and narrative guidance.
+5. Emit run events that include context hash/profile ids so operator UI can explain why a branch was chosen.
+
+### Heuristic placement contract
+
+| Where heuristic lives | Use for | Examples | Do not put here |
+| --- | --- | --- | --- |
+| Workflow definitions | Stable, repeatable execution rules and step structure | `MONO + LRGB` calibration order, mandatory review checkpoints | Per-user stylistic taste |
+| User preferences | Long-lived user style and tolerance settings | denoise level, star reduction appetite, color intent | Hard safety gates |
+| Reusable equipment profiles | Device defaults and known characteristics | camera read-noise assumptions, gain presets, focal length defaults | Session-only exceptions |
+| Orchestrator prompt layer | Soft ranking and explanation when multiple valid options remain | choosing between two valid denoise passes based on quality tier | Core deterministic eligibility rules |
+
+### Follow-up implementation slices
+
+Bounded slices after this modeling work:
+
+1. Context persistence + resolver foundations: add typed storage for ProcessingContextV1 and deterministic derived-field resolver utilities.
+2. Intake and profile surfaces: capture user-supplied camera/setup/preferences and map them to workflow subjects.
+3. Runtime integration: inject resolved context into orchestrator run startup and enforce declarative workflow/profile constraints.
+4. Observability and tests: add context-hash/profile telemetry in run events plus resolver and branch-selection tests.
+
 ## Implementation slices
 
 - `#127` - runtime/event schema spec (this doc)
 - `#128` - orchestrator execution engine implementation over authored workflow definitions
 - `#129` - operator station live updates and run controls
+- `#130` - PixInsight processing context model for target-aware and camera-aware orchestration
