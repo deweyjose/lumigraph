@@ -133,6 +133,14 @@
 - Resume rules: `POST /api/workflow-runs/:id/resume` creates a new run with trigger `RESUME` only when the source run is `PENDING` or `FAILED` and the parent session is still `ACTIVE`.
 - Retry rules: `POST /api/workflow-runs/:id/retry` creates a new run with trigger `RETRY` only when the source run is `FAILED` or `CANCELLED` and the parent session is still `ACTIVE`.
 
+## Orchestrator runtime contract
+
+- `#127` defines the runtime contract in `specs/workflow-orchestrator-runtime-v1/SPEC.md`.
+- Canonical run lifecycle for orchestration is `QUEUED -> RUNNING -> WAITING_FOR_INPUT -> terminal`.
+- Current persisted run statuses remain `PENDING | RUNNING | SUCCEEDED | FAILED | CANCELLED` until follow-up migration work adds an explicit waiting-for-input representation.
+- Runtime event streams are append-only and ordered per run, with lifecycle, step progress, tool-call intent/result, narration, and operator input events.
+- Operator interaction is split into bootstrap run/session reads, live run-event streaming, and explicit control commands (input submit/cancel + existing resume/retry endpoints).
+
 ## Security and authz invariants
 
 - Every mutating route requires auth.
