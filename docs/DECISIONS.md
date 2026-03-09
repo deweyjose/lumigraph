@@ -68,3 +68,10 @@ Record architecture and workflow decisions that affect future implementation.
 - Context: Users need explicit cleanup, not only TTL expiration.
 - Alternatives considered: DB-only delete and rely fully on bucket lifecycle.
 - Consequences: Immediate storage cleanup and clearer UX semantics.
+
+### 2026-03-08 - Model PixInsight processing context as a typed resolver-fed envelope
+
+- Decision: Define a typed `ProcessingContextV1` model (required/optional/derived fields) and require deterministic context derivation before orchestrator prompt selection.
+- Context: Target-aware and camera-aware orchestration needs stable inputs from post/integration metadata plus new user-supplied capture context. Without a typed envelope, orchestration would rely on brittle prompt-only branching.
+- Alternatives considered: Keep all context as freeform prompt text; hard-code camera/target branching in service logic without a shared model; wait for native PixInsight integration before modeling context.
+- Consequences: `#128` can consume a stable context contract, workflow/profile heuristics are placed intentionally (definitions, preferences, profiles, prompts), and follow-up implementation slices for intake/persistence/runtime wiring are clearer and bounded.
