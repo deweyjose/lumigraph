@@ -138,6 +138,7 @@
 ## Orchestrator runtime contract
 
 - `#127` defines the runtime contract in `specs/workflow-orchestrator-runtime-v1/SPEC.md`.
+- `#130` extends that spec with `ProcessingContextV1` for target-aware and camera-aware orchestration inputs.
 - Canonical run lifecycle for orchestration is `QUEUED -> RUNNING -> WAITING_FOR_INPUT -> terminal`.
 - Current persisted run statuses remain `PENDING | RUNNING | SUCCEEDED | FAILED | CANCELLED` until follow-up migration work adds an explicit waiting-for-input representation.
 - Runtime event streams are append-only and ordered per run, with lifecycle, step progress, tool-call intent/result, narration, and operator input events.
