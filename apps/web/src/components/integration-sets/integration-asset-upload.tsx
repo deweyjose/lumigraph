@@ -17,8 +17,10 @@ import {
   Archive,
   XCircle,
   Trash2,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   downloadUnavailableMessage,
   isExportJobActive,
@@ -210,6 +212,44 @@ function collectNodeMap(
   return map;
 }
 
+function filterTreeNodes(nodes: ExplorerNode[], query: string): ExplorerNode[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return nodes;
+
+  const filtered: ExplorerNode[] = [];
+  for (const node of nodes) {
+    const pathMatch =
+      node.name.toLowerCase().includes(normalized) ||
+      node.path.toLowerCase().includes(normalized);
+
+    if (node.kind === "file") {
+      if (pathMatch) filtered.push(node);
+      continue;
+    }
+
+    const children = filterTreeNodes(node.children, normalized);
+    if (pathMatch || children.length > 0) {
+      filtered.push({ ...node, children });
+    }
+  }
+
+  return filtered;
+}
+
+function collectFileNodeIds(
+  nodes: ExplorerNode[],
+  ids: string[] = []
+): string[] {
+  for (const node of nodes) {
+    if (node.kind === "file") {
+      ids.push(node.id);
+      continue;
+    }
+    collectFileNodeIds(node.children, ids);
+  }
+  return ids;
+}
+
 function deriveSelectedAssets(
   selectedPaths: string[],
   assets: AssetRow[]
@@ -330,8 +370,13 @@ export function IntegrationAssetUpload({
   const [downloadingJobIds, setDownloadingJobIds] = useState<string[]>([]);
   const [deletedJobIds, setDeletedJobIds] = useState<string[]>([]);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
+  const [lastPolledAt, setLastPolledAt] = useState<number | null>(null);
   const [treeWidth, setTreeWidth] = useState(800);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openTreeByDefault, setOpenTreeByDefault] = useState(false);
   const [treeResetToken, setTreeResetToken] = useState(0);
   const deletedJobIdSet = useMemo(
     () => new Set(deletedJobIds),
@@ -358,12 +403,21 @@ export function IntegrationAssetUpload({
     return () => observer.disconnect();
   }, []);
 
-  const treeData = useMemo(
+  const fullTreeData = useMemo(
     () => buildTreeNodes(displayAssets),
     [displayAssets]
   );
 
-  const nodeMap = useMemo(() => collectNodeMap(treeData), [treeData]);
+  const treeData = useMemo(
+    () => filterTreeNodes(fullTreeData, searchQuery),
+    [fullTreeData, searchQuery]
+  );
+
+  const nodeMap = useMemo(() => collectNodeMap(fullTreeData), [fullTreeData]);
+  const visibleFileNodeIds = useMemo(
+    () => collectFileNodeIds(treeData),
+    [treeData]
+  );
 
   const selectedNodes = useMemo(
     () =>
@@ -382,10 +436,39 @@ export function IntegrationAssetUpload({
     () => deriveSelectedAssets(selectedPaths, displayAssets),
     [displayAssets, selectedPaths]
   );
+
+  const selectedPathPreview = useMemo(
+    () => selectedPaths.slice(0, 3),
+    [selectedPaths]
+  );
+
   const hasActiveJobs = useMemo(
     () => displayJobs.some((job) => isExportJobActive(job.status)),
     [displayJobs]
   );
+
+  const totalStoredBytes = useMemo(
+    () => displayAssets.reduce((total, asset) => total + asset.sizeBytes, 0),
+    [displayAssets]
+  );
+
+  const exportCounts = useMemo(() => {
+    const result = {
+      pending: 0,
+      running: 0,
+      ready: 0,
+      failed: 0,
+      cancelled: 0,
+    };
+    for (const job of displayJobs) {
+      if (job.status === "PENDING") result.pending += 1;
+      if (job.status === "RUNNING") result.running += 1;
+      if (job.status === "READY") result.ready += 1;
+      if (job.status === "FAILED") result.failed += 1;
+      if (job.status === "CANCELLED") result.cancelled += 1;
+    }
+    return result;
+  }, [displayJobs]);
 
   const singleSelectedFileAssetId = useMemo(() => {
     if (selectedNodes.length !== 1) return null;
@@ -397,6 +480,7 @@ export function IntegrationAssetUpload({
   const addFiles = useCallback(
     (files: FileList | null, fromFolder: boolean) => {
       if (!files || files.length === 0) return;
+      setUploadNotice(null);
       const next: UploadEntry[] = [];
       for (let i = 0; i < files.length; i += 1) {
         const file = files[i];
@@ -418,9 +502,47 @@ export function IntegrationAssetUpload({
     []
   );
 
+  const retryFailedEntries = useCallback(() => {
+    let retried = 0;
+    setEntries((prev) =>
+      prev.map((entry) => {
+        if (entry.status !== "error") return entry;
+        retried += 1;
+        return {
+          ...entry,
+          status: "pending",
+          error: undefined,
+        };
+      })
+    );
+    if (retried > 0) {
+      setUploadNotice(`Moved ${retried} failed item(s) back to pending.`);
+    }
+  }, []);
+
+  const clearUploadedEntries = useCallback(() => {
+    let cleared = 0;
+    setEntries((prev) =>
+      prev.filter((entry) => {
+        const keep = entry.status !== "uploaded";
+        if (!keep) cleared += 1;
+        return keep;
+      })
+    );
+    if (cleared > 0) {
+      setUploadNotice(`Cleared ${cleared} uploaded item(s) from queue.`);
+    }
+  }, []);
+
+  const clearQueue = useCallback(() => {
+    setEntries([]);
+    setUploadNotice(null);
+  }, []);
+
   const downloadJob = useCallback(
     async (jobId: string) => {
       setExportError(null);
+      setExportNotice("Preparing secure download link...");
       setDownloadingJobIds((prev) =>
         prev.includes(jobId) ? prev : [...prev, jobId]
       );
@@ -451,6 +573,7 @@ export function IntegrationAssetUpload({
         }
         window.location.assign(data.job.downloadUrl);
       } catch (err) {
+        setExportNotice(null);
         setExportError(
           err instanceof Error ? err.message : "Failed to download export"
         );
@@ -464,6 +587,7 @@ export function IntegrationAssetUpload({
   const cancelJob = useCallback(
     async (jobId: string) => {
       setExportError(null);
+      setExportNotice(null);
       setCancelingJobIds((prev) =>
         prev.includes(jobId) ? prev : [...prev, jobId]
       );
@@ -486,6 +610,7 @@ export function IntegrationAssetUpload({
             (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
           );
         });
+        setExportNotice(`Cancelled export job ${jobId}.`);
       } catch (err) {
         setExportError(
           err instanceof Error ? err.message : "Failed to cancel export job"
@@ -500,6 +625,7 @@ export function IntegrationAssetUpload({
   const deleteJob = useCallback(
     async (jobId: string) => {
       setExportError(null);
+      setExportNotice(null);
       setDeletingJobIds((prev) =>
         prev.includes(jobId) ? prev : [...prev, jobId]
       );
@@ -519,6 +645,7 @@ export function IntegrationAssetUpload({
           prev.includes(jobId) ? prev : [...prev, jobId]
         );
         setDisplayJobs((prev) => prev.filter((job) => job.id !== jobId));
+        setExportNotice(`Deleted export job ${jobId}.`);
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to delete export job";
@@ -552,6 +679,7 @@ export function IntegrationAssetUpload({
         setDisplayJobs((prev) =>
           mergeExportJobsFromList(prev, data.jobs!, deletedJobIdSet)
         );
+        setLastPolledAt(Date.now());
       } catch {
         return;
       } finally {
@@ -574,8 +702,11 @@ export function IntegrationAssetUpload({
     const pending = entries.filter((entry) => entry.status === "pending");
     if (pending.length === 0) return;
 
+    setUploadNotice(null);
     setIsUploading(true);
     try {
+      let uploadedCount = 0;
+      let failedCount = 0;
       setEntries((prev) =>
         prev.map((entry) =>
           entry.status === "pending"
@@ -625,6 +756,7 @@ export function IntegrationAssetUpload({
                 : existing
             )
           );
+          failedCount += 1;
           continue;
         }
 
@@ -646,6 +778,7 @@ export function IntegrationAssetUpload({
                 : existing
             )
           );
+          failedCount += 1;
           continue;
         }
 
@@ -680,6 +813,7 @@ export function IntegrationAssetUpload({
                 : existing
             )
           );
+          failedCount += 1;
           continue;
         }
 
@@ -698,6 +832,7 @@ export function IntegrationAssetUpload({
                 : existing
             )
           );
+          failedCount += 1;
           continue;
         }
 
@@ -708,6 +843,7 @@ export function IntegrationAssetUpload({
               : existing
           )
         );
+        uploadedCount += 1;
 
         const uploadedAsset: AssetRow = {
           id: done.assetId,
@@ -724,9 +860,15 @@ export function IntegrationAssetUpload({
         });
       }
 
+      setUploadNotice(
+        failedCount > 0
+          ? `Uploaded ${uploadedCount} file(s). ${failedCount} file(s) failed. Retry failed items from queue actions.`
+          : `Uploaded ${uploadedCount} file(s) successfully.`
+      );
       router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Upload failed";
+      setUploadNotice(message);
       setEntries((prev) =>
         prev.map((entry) =>
           entry.status === "uploading"
@@ -743,6 +885,7 @@ export function IntegrationAssetUpload({
     if (selectedPaths.length === 0) return;
 
     setExportError(null);
+    setExportNotice(null);
     setIsStartingExport(true);
     try {
       const res = await fetch(
@@ -765,6 +908,9 @@ export function IntegrationAssetUpload({
         data.job!,
         ...prev.filter((job) => job.id !== data.job!.id),
       ]);
+      setExportNotice(
+        `Started export for ${selectedSummary.fileCount} file(s) across ${selectedPaths.length} selected path(s).`
+      );
       setTreeResetToken((x) => x + 1);
       setSelectedNodeIds([]);
     } catch (err) {
@@ -774,7 +920,7 @@ export function IntegrationAssetUpload({
     } finally {
       setIsStartingExport(false);
     }
-  }, [integrationSetId, selectedPaths]);
+  }, [integrationSetId, selectedPaths, selectedSummary.fileCount]);
 
   const counts = useMemo(() => {
     const result = { pending: 0, uploading: 0, uploaded: 0, error: 0 };
@@ -782,8 +928,52 @@ export function IntegrationAssetUpload({
     return result;
   }, [entries]);
 
+  const queueProgress = useMemo(() => {
+    if (entries.length === 0) return 0;
+    return Math.round(
+      ((counts.uploaded + counts.error) / entries.length) * 100
+    );
+  }, [counts.error, counts.uploaded, entries.length]);
+
+  const hasFailedQueueItems = counts.error > 0;
+
   return (
     <section className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded border p-3">
+          <p className="text-xs text-muted-foreground">Stored files</p>
+          <p className="mt-1 text-lg font-semibold">{displayAssets.length}</p>
+          <p className="text-xs text-muted-foreground">
+            {formatBytes(totalStoredBytes)} total
+          </p>
+        </article>
+        <article className="rounded border p-3">
+          <p className="text-xs text-muted-foreground">Upload queue</p>
+          <p className="mt-1 text-lg font-semibold">{entries.length}</p>
+          <p className="text-xs text-muted-foreground">
+            {counts.pending} pending • {counts.uploading} uploading •{" "}
+            {counts.error} failed
+          </p>
+        </article>
+        <article className="rounded border p-3">
+          <p className="text-xs text-muted-foreground">Exports</p>
+          <p className="mt-1 text-lg font-semibold">{displayJobs.length}</p>
+          <p className="text-xs text-muted-foreground">
+            {exportCounts.pending + exportCounts.running} active •{" "}
+            {exportCounts.ready} ready • {exportCounts.failed} failed
+          </p>
+        </article>
+        <article className="rounded border p-3">
+          <p className="text-xs text-muted-foreground">Current selection</p>
+          <p className="mt-1 text-lg font-semibold">
+            {selectedSummary.fileCount}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {formatBytes(selectedSummary.totalBytes)}
+          </p>
+        </article>
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <input
           ref={fileInputRef}
@@ -825,7 +1015,7 @@ export function IntegrationAssetUpload({
         <Button
           type="button"
           onClick={() => void uploadAll()}
-          disabled={isUploading}
+          disabled={isUploading || counts.pending === 0}
         >
           {isUploading ? (
             <>
@@ -836,6 +1026,34 @@ export function IntegrationAssetUpload({
             "Upload queued files"
           )}
         </Button>
+        {entries.length > 0 && (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={retryFailedEntries}
+              disabled={hasFailedQueueItems === false || isUploading}
+            >
+              Retry failed
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={clearUploadedEntries}
+              disabled={counts.uploaded === 0 || isUploading}
+            >
+              Clear uploaded
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={clearQueue}
+              disabled={isUploading}
+            >
+              Clear queue
+            </Button>
+          </>
+        )}
       </div>
 
       {entries.length > 0 && (
@@ -846,6 +1064,20 @@ export function IntegrationAssetUpload({
             {counts.uploading > 0 ? ` • ${counts.uploading} uploading` : ""}
             {counts.error > 0 ? ` • ${counts.error} failed` : ""}
           </p>
+          <div className="mb-2 h-1.5 w-full overflow-hidden rounded bg-muted">
+            <div
+              className="h-full bg-primary transition-[width] duration-300"
+              style={{ width: `${queueProgress}%` }}
+            />
+          </div>
+          {uploadNotice && (
+            <p
+              className={`mb-2 text-xs ${hasFailedQueueItems ? "text-amber-600" : "text-muted-foreground"}`}
+              role="status"
+            >
+              {uploadNotice}
+            </p>
+          )}
           <ul className="space-y-1 text-sm">
             {entries.map((entry) => (
               <li
@@ -869,6 +1101,21 @@ export function IntegrationAssetUpload({
                     {entry.error ? ` (${entry.error})` : ""}
                   </span>
                 </span>
+                {(entry.status === "pending" || entry.status === "error") && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      setEntries((prev) =>
+                        prev.filter((item) => item.clientId !== entry.clientId)
+                      )
+                    }
+                    disabled={isUploading}
+                  >
+                    Remove
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
@@ -900,7 +1147,6 @@ export function IntegrationAssetUpload({
               variant="outline"
               size="sm"
               onClick={() => {
-                setTreeResetToken((x) => x + 1);
                 setSelectedNodeIds([]);
               }}
             >
@@ -926,6 +1172,58 @@ export function IntegrationAssetUpload({
           </div>
         </div>
 
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Filter files or folders by path"
+              className="pl-8"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={visibleFileNodeIds.length === 0}
+            onClick={() => setSelectedNodeIds(visibleFileNodeIds)}
+          >
+            Select visible files
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setOpenTreeByDefault(true);
+              setTreeResetToken((x) => x + 1);
+            }}
+          >
+            Expand all
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setOpenTreeByDefault(false);
+              setTreeResetToken((x) => x + 1);
+            }}
+          >
+            Collapse all
+          </Button>
+        </div>
+
+        {selectedPathPreview.length > 0 && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            Selected paths: {selectedPathPreview.join(", ")}
+            {selectedPaths.length > selectedPathPreview.length
+              ? ` (+${selectedPaths.length - selectedPathPreview.length} more)`
+              : ""}
+          </p>
+        )}
+
         {exportError && (
           <p className="mb-3 text-sm text-red-500" role="alert">
             {exportError}
@@ -938,17 +1236,19 @@ export function IntegrationAssetUpload({
         >
           {treeData.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              No files uploaded yet.
+              {displayAssets.length === 0
+                ? "No files uploaded yet."
+                : "No files match the current filter."}
             </div>
           ) : (
             <Tree
-              key={treeResetToken}
+              key={`${treeResetToken}-${openTreeByDefault ? "open" : "closed"}-${searchQuery.trim().length > 0 ? "filtered" : "all"}`}
               data={treeData}
               width={treeWidth}
               height={360}
               rowHeight={32}
               indent={20}
-              openByDefault={false}
+              openByDefault={openTreeByDefault || searchQuery.trim().length > 0}
               overscanCount={8}
               onSelect={(nodes: NodeApi<ExplorerNode>[]) => {
                 setSelectedNodeIds(nodes.map((node) => String(node.id)));
@@ -967,9 +1267,21 @@ export function IntegrationAssetUpload({
             {displayJobs.length} jobs
           </span>
         </div>
+        {(exportNotice || hasActiveJobs) && (
+          <p className="mb-2 text-xs text-muted-foreground" role="status">
+            {exportNotice ??
+              `Auto-refreshing every ${Math.round(EXPORT_POLL_INTERVAL_MS / 1000)}s while exports are active.`}
+            {hasActiveJobs && lastPolledAt
+              ? ` Last sync ${new Date(lastPolledAt).toLocaleTimeString()}.`
+              : ""}
+          </p>
+        )}
 
         {displayJobs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No exports yet.</p>
+          <p className="text-sm text-muted-foreground">
+            No exports yet. Select files or folders in Explorer and start your
+            first ZIP export.
+          </p>
         ) : (
           <ul className="space-y-2 text-sm">
             {displayJobs.map((job) => {
@@ -1023,6 +1335,16 @@ export function IntegrationAssetUpload({
                     {job.errorMessage && (
                       <p className="mt-1 text-xs text-red-500">
                         {job.errorMessage}
+                      </p>
+                    )}
+                    {job.status === "READY" && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {job.outputSizeBytes
+                          ? `Output ${formatBytes(job.outputSizeBytes)}`
+                          : "Output size pending"}
+                        {job.expiresAt
+                          ? ` • Expires ${new Date(job.expiresAt).toLocaleString()}`
+                          : ""}
                       </p>
                     )}
                   </div>
