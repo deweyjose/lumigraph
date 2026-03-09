@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { authMock, launchWorkflowSessionFromDefinitionForOwnerMock } =
-  vi.hoisted(() => ({
-    authMock: vi.fn(),
-    launchWorkflowSessionFromDefinitionForOwnerMock: vi.fn(),
-  }));
+const {
+  authMock,
+  launchWorkflowSessionFromDefinitionForOwnerMock,
+  executeWorkflowRunForOwnerMock,
+} = vi.hoisted(() => ({
+  authMock: vi.fn(),
+  launchWorkflowSessionFromDefinitionForOwnerMock: vi.fn(),
+  executeWorkflowRunForOwnerMock: vi.fn(),
+}));
 
 vi.mock("auth", () => ({
   auth: authMock,
@@ -13,6 +17,10 @@ vi.mock("auth", () => ({
 vi.mock("@/server/services/workflow-runs", () => ({
   launchWorkflowSessionFromDefinitionForOwner:
     launchWorkflowSessionFromDefinitionForOwnerMock,
+}));
+
+vi.mock("@/server/services/workflow-orchestrator", () => ({
+  executeWorkflowRunForOwner: executeWorkflowRunForOwnerMock,
 }));
 
 import { POST } from "./route";
@@ -24,6 +32,7 @@ describe("POST /api/workflow-definitions/:id/launch", () => {
   beforeEach(() => {
     authMock.mockReset();
     launchWorkflowSessionFromDefinitionForOwnerMock.mockReset();
+    executeWorkflowRunForOwnerMock.mockReset();
   });
 
   it("rejects unauthenticated access", async () => {
@@ -162,6 +171,24 @@ describe("POST /api/workflow-definitions/:id/launch", () => {
         updatedAt: "2026-03-08T19:00:00.000Z",
       },
     });
+    executeWorkflowRunForOwnerMock.mockResolvedValue({
+      ok: true,
+      run: {
+        id: "run-1",
+        sessionId: "session-1",
+        status: "SUCCEEDED",
+        trigger: "MANUAL",
+        agentKind: "workflow-definition",
+        model: null,
+        summary: "Executed 1 step(s)",
+        errorMessage: null,
+        startedAt: "2026-03-08T19:00:00.000Z",
+        completedAt: "2026-03-08T19:00:02.000Z",
+        cancelledAt: null,
+        createdAt: "2026-03-08T19:00:00.000Z",
+        updatedAt: "2026-03-08T19:00:02.000Z",
+      },
+    });
 
     const response = await POST(
       new Request(
@@ -190,6 +217,10 @@ describe("POST /api/workflow-definitions/:id/launch", () => {
       agentKind: undefined,
       model: null,
     });
+    expect(executeWorkflowRunForOwnerMock).toHaveBeenCalledWith(
+      "user-1",
+      "run-1"
+    );
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({
       session: {
@@ -205,17 +236,17 @@ describe("POST /api/workflow-definitions/:id/launch", () => {
       run: {
         id: "run-1",
         sessionId: "session-1",
-        status: "RUNNING",
+        status: "SUCCEEDED",
         trigger: "MANUAL",
         agentKind: "workflow-definition",
         model: null,
-        summary: null,
+        summary: "Executed 1 step(s)",
         errorMessage: null,
         startedAt: "2026-03-08T19:00:00.000Z",
-        completedAt: null,
+        completedAt: "2026-03-08T19:00:02.000Z",
         cancelledAt: null,
         createdAt: "2026-03-08T19:00:00.000Z",
-        updatedAt: "2026-03-08T19:00:00.000Z",
+        updatedAt: "2026-03-08T19:00:02.000Z",
       },
     });
   });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
 import { apiError, apiValidationError } from "@/server/api-responses";
+import { executeWorkflowRunForOwner } from "@/server/services/workflow-orchestrator";
 import { resumeWorkflowRunForOwner } from "@/server/services/workflow-runs";
 
 const ParamsSchema = z.object({
@@ -34,5 +35,16 @@ export async function POST(
     );
   }
 
-  return NextResponse.json({ run: result.run }, { status: 202 });
+  const execution = await executeWorkflowRunForOwner(
+    session.user.id,
+    result.run.id,
+    {
+      sourceRunId: parsedParams.data.id,
+    }
+  );
+  if (!execution.ok) {
+    return apiError(400, execution.code, execution.message);
+  }
+
+  return NextResponse.json({ run: execution.run }, { status: 202 });
 }

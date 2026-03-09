@@ -55,6 +55,13 @@ Record architecture and workflow decisions that affect future implementation.
 - Alternatives considered: Keep status-only polling without a run-event stream; model human review as freeform chat text without state transitions; defer waiting-for-input semantics until operator UI exists.
 - Consequences: The executor and operator station share one runtime/event contract, review gates become explicit and resumable, and migration work can incrementally add waiting-for-input persistence without breaking current run APIs.
 
+### 2026-03-09 - Execute authored workflow definitions synchronously at launch/resume/retry
+
+- Decision: Execute workflow definition steps inline when a run is launched, resumed, or retried; persist ordered run events and move review steps into `WAITING_FOR_INPUT` until a later operator command surface is added.
+- Context: Runs were being created without step execution, making workflow launch appear complete while no orchestration happened. The first execution slice needed deterministic behavior without introducing background workers or distributed scheduling yet.
+- Alternatives considered: Keep run creation and execution fully decoupled behind a queue/worker; execute only tool steps and skip review semantics; defer event persistence until operator station delivery.
+- Consequences: `#128` delivers immediate end-to-end run execution with auditable step events and explicit pause state, while `#129` can build operator controls over an existing persisted event stream and waiting-state model.
+
 ### 2026-03-07 - Async ZIP export jobs
 
 - Decision: Use async worker callbacks for integration-set ZIP export progress and completion.

@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { authMock, retryWorkflowRunForOwnerMock } = vi.hoisted(() => ({
+const {
+  authMock,
+  retryWorkflowRunForOwnerMock,
+  executeWorkflowRunForOwnerMock,
+} = vi.hoisted(() => ({
   authMock: vi.fn(),
   retryWorkflowRunForOwnerMock: vi.fn(),
+  executeWorkflowRunForOwnerMock: vi.fn(),
 }));
 
 vi.mock("auth", () => ({
@@ -13,12 +18,17 @@ vi.mock("@/server/services/workflow-runs", () => ({
   retryWorkflowRunForOwner: retryWorkflowRunForOwnerMock,
 }));
 
+vi.mock("@/server/services/workflow-orchestrator", () => ({
+  executeWorkflowRunForOwner: executeWorkflowRunForOwnerMock,
+}));
+
 import { POST } from "./route";
 
 describe("POST /api/workflow-runs/:id/retry", () => {
   beforeEach(() => {
     authMock.mockReset();
     retryWorkflowRunForOwnerMock.mockReset();
+    executeWorkflowRunForOwnerMock.mockReset();
   });
 
   it("returns 404 for missing owned runs", async () => {
@@ -54,6 +64,10 @@ describe("POST /api/workflow-runs/:id/retry", () => {
       ok: true,
       run: { id: "run-3", trigger: "RETRY" },
     });
+    executeWorkflowRunForOwnerMock.mockResolvedValue({
+      ok: true,
+      run: { id: "run-3", trigger: "RETRY", status: "SUCCEEDED" },
+    });
 
     const response = await POST(
       new Request(
@@ -71,9 +85,16 @@ describe("POST /api/workflow-runs/:id/retry", () => {
       "user-1",
       "01957dfc-7b83-79d4-9a53-f91dc60cf4f2"
     );
+    expect(executeWorkflowRunForOwnerMock).toHaveBeenCalledWith(
+      "user-1",
+      "run-3",
+      {
+        sourceRunId: "01957dfc-7b83-79d4-9a53-f91dc60cf4f2",
+      }
+    );
     expect(response.status).toBe(202);
     await expect(response.json()).resolves.toEqual({
-      run: { id: "run-3", trigger: "RETRY" },
+      run: { id: "run-3", trigger: "RETRY", status: "SUCCEEDED" },
     });
   });
 });

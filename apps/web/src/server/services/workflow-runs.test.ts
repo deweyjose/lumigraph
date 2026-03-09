@@ -474,6 +474,56 @@ describe("workflow-runs service", () => {
     });
   });
 
+  it("resumes a waiting-for-input run by starting a new run in the same active session", async () => {
+    const prisma = makePrismaMock();
+    prisma.workflowRun.findUnique.mockResolvedValueOnce({
+      id: "run-1",
+      userId: "user-1",
+      sessionId: "session-1",
+      status: "WAITING_FOR_INPUT",
+      agentKind: "planner",
+      model: "gpt-4o-mini",
+      session: { status: "ACTIVE" },
+    });
+    prisma.workflowSession.findUnique.mockResolvedValueOnce({
+      id: "session-1",
+      userId: "user-1",
+      status: "ACTIVE",
+    });
+    prisma.workflowRun.create.mockResolvedValue({
+      id: "run-2",
+      sessionId: "session-1",
+      status: "RUNNING",
+      trigger: "RESUME",
+      agentKind: "planner",
+      model: "gpt-4o-mini",
+      summary: null,
+      errorMessage: null,
+      startedAt: new Date("2026-03-08T12:02:00.000Z"),
+      completedAt: null,
+      cancelledAt: null,
+      createdAt: new Date("2026-03-08T12:02:00.000Z"),
+      updatedAt: new Date("2026-03-08T12:02:00.000Z"),
+    });
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const result = await resumeWorkflowRunForOwner("user-1", "run-1");
+
+    expect(result).toEqual({
+      ok: true,
+      run: expect.objectContaining({
+        id: "run-2",
+        trigger: "RESUME",
+      }),
+    });
+    expect(prisma.workflowRun.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        sessionId: "session-1",
+        trigger: "RESUME",
+      }),
+    });
+  });
+
   it("rejects retry when the source run status is not retryable", async () => {
     const prisma = makePrismaMock();
     prisma.workflowRun.findUnique.mockResolvedValue({

@@ -102,6 +102,7 @@
 - `WorkflowRun` is one execution attempt within a session. A session may have many runs over time as the user retries, resumes, or switches agents/models. `#104` persists this model now.
 - `RunToolCall` is the audit log for one tool invocation during a run. It stores the tool name, validated input payload, output payload or error, timestamps, and status. `#105` persists this model now.
 - `RunArtifactRef` links a run to durable domain outputs such as posts, integration sets, assets, or export jobs instead of duplicating those records into agent tables. `#105` persists this model now.
+- `RunEvent` is an append-only ordered event stream for lifecycle updates, step transitions, tool-call intents/results, narration, and operator-input pauses during orchestration runs.
 
 ## Persist now vs later
 
@@ -163,7 +164,9 @@
 - Integration-set visibility is currently private-only.
 - Export jobs are async and progress through worker callbacks before a download URL is exposed.
 - Final image uploads enqueue auto-thumb jobs with `PENDING -> RUNNING -> READY|FAILED` lifecycle and idempotency keyed by post plus source checksum/version.
+- Auto-thumb worker batches now process pending jobs by claiming `PENDING` rows, generating deterministic WebP thumbnails, writing server-owned S3 keys, and retrying failures up to configured attempt limits before terminal `FAILED`.
 - Workflow execution persistence now stores private user-owned sessions, runs, tool-call audit rows, artifact references, and private inspection/restart APIs.
+- Workflow orchestrator execution now evaluates authored workflow definition steps on launch/resume/retry, records ordered run events, and pauses review steps with `WAITING_FOR_INPUT` status for resumable operator input.
 - Workflow capture now persists private workflow definitions and ordered step templates, exposes private CRUD and launch APIs for owned workflows, and includes a first list/editor UX for creating, updating, and launching those definitions into sessions and runs.
 
 ## Operational notes

@@ -45,7 +45,13 @@ export type WorkflowSessionView = {
 export type WorkflowRunView = {
   id: string;
   sessionId: string;
-  status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+  status:
+    | "PENDING"
+    | "RUNNING"
+    | "WAITING_FOR_INPUT"
+    | "SUCCEEDED"
+    | "FAILED"
+    | "CANCELLED";
   trigger: "MANUAL" | "RESUME" | "RETRY" | "SYSTEM";
   agentKind: string;
   model: string | null;
@@ -145,7 +151,13 @@ function toWorkflowSessionView(session: {
 function toWorkflowRunView(run: {
   id: string;
   sessionId: string;
-  status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+  status:
+    | "PENDING"
+    | "RUNNING"
+    | "WAITING_FOR_INPUT"
+    | "SUCCEEDED"
+    | "FAILED"
+    | "CANCELLED";
   trigger: "MANUAL" | "RESUME" | "RETRY" | "SYSTEM";
   agentKind: string;
   model: string | null;
@@ -526,14 +538,16 @@ async function restartWorkflowRunForOwner(
   }
 
   const allowedStatuses =
-    trigger === "RESUME" ? ["PENDING", "FAILED"] : ["FAILED", "CANCELLED"];
+    trigger === "RESUME"
+      ? ["PENDING", "FAILED", "WAITING_FOR_INPUT"]
+      : ["FAILED", "CANCELLED"];
   if (!allowedStatuses.includes(sourceRun.status)) {
     return {
       ok: false,
       code: "INVALID_STATE",
       message:
         trigger === "RESUME"
-          ? "Only pending or failed runs can be resumed"
+          ? "Only pending, failed, or waiting-for-input runs can be resumed"
           : "Only failed or cancelled runs can be retried",
     };
   }

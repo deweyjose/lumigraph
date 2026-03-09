@@ -81,6 +81,7 @@ enum WorkflowSessionStatus {
 enum WorkflowRunStatus {
   PENDING
   RUNNING
+  WAITING_FOR_INPUT
   SUCCEEDED
   FAILED
   CANCELLED
@@ -150,6 +151,7 @@ model User {
   workflowRuns     WorkflowRun[]
   runToolCalls     RunToolCall[]
   runArtifactRefs  RunArtifactRef[]
+  runEvents        RunEvent[]
 
   @@map("users")
 }
@@ -412,13 +414,37 @@ model WorkflowRun {
 
   session WorkflowSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  toolCalls RunToolCall[]
+  toolCalls    RunToolCall[]
   artifactRefs RunArtifactRef[]
+  events       RunEvent[]
 
   @@index([userId, createdAt])
   @@index([sessionId, createdAt])
   @@index([status, createdAt])
   @@map("workflow_runs")
+}
+
+model RunEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  runId       String   @db.Uuid @map("run_id")
+  userId      String   @db.Uuid @map("user_id")
+  sequence    Int
+  type        String
+  actor       String
+  stepKey     String?  @map("step_key")
+  payloadJson Json     @map("payload_json")
+  occurredAt  DateTime @map("occurred_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  run  WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, sequence])
+  @@index([userId, createdAt])
+  @@index([runId, sequence])
+  @@index([runId, occurredAt])
+  @@map("run_events")
 }
 
 model RunToolCall {

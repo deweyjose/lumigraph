@@ -2,6 +2,7 @@ import { z } from "zod";
 import { auth } from "auth";
 import { NextResponse } from "next/server";
 import { apiError, apiValidationError } from "@/server/api-responses";
+import { executeWorkflowRunForOwner } from "@/server/services/workflow-orchestrator";
 import { launchWorkflowSessionFromDefinitionForOwner } from "@/server/services/workflow-runs";
 import { WorkflowDefinitionParamsSchema } from "../../schema";
 
@@ -72,10 +73,18 @@ export async function POST(
     );
   }
 
+  const execution = await executeWorkflowRunForOwner(
+    session.user.id,
+    result.run.id
+  );
+  if (!execution.ok) {
+    return apiError(400, execution.code, execution.message);
+  }
+
   return NextResponse.json(
     {
       session: result.session,
-      run: result.run,
+      run: execution.run,
     },
     { status: 201 }
   );
