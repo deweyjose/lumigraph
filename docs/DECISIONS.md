@@ -48,6 +48,13 @@ Record architecture and workflow decisions that affect future implementation.
 - Alternatives considered: Start with shared/public workflows; add conditional branching, loops, or arbitrary expressions in v1; model each step as an unstructured freeform text block with implicit tool semantics.
 - Consequences: Workflow capture can ship sooner with simpler APIs and editor UX, while future agent/chat/runtime work can attach to explicit step order and tool names. More advanced orchestration features stay available as follow-up work rather than distorting the initial model.
 
+### 2026-03-08 - Adopt an evented orchestrator runtime contract with explicit human-input pauses
+
+- Decision: Define a canonical orchestrator lifecycle (`QUEUED`, `RUNNING`, `WAITING_FOR_INPUT`, terminal states) and require an append-only per-run event stream as the contract between executor and operator UI.
+- Context: Execution persistence exists for sessions, runs, tool calls, and artifact refs, but runtime behavior was still implicit. Without an explicit state machine and run-event schema, `#128` and `#129` risk diverging implementation contracts.
+- Alternatives considered: Keep status-only polling without a run-event stream; model human review as freeform chat text without state transitions; defer waiting-for-input semantics until operator UI exists.
+- Consequences: The executor and operator station share one runtime/event contract, review gates become explicit and resumable, and migration work can incrementally add waiting-for-input persistence without breaking current run APIs.
+
 ### 2026-03-07 - Async ZIP export jobs
 
 - Decision: Use async worker callbacks for integration-set ZIP export progress and completion.

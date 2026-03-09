@@ -28,6 +28,7 @@ This directory is intentionally lean. Keep long-lived context here and keep exec
 - `ROADMAP.md` - current roadmap themes and issue links
 - `DECISIONS.md` - decision log (ADR-lite)
 - `specs/workflow-capture-v1/SPEC.md` - workflow capture v1 domain model and API contract
+- `specs/workflow-orchestrator-runtime-v1/SPEC.md` - orchestrator runtime lifecycle, event schema, and operator interaction contract
 
 ## Maintenance rules
 
