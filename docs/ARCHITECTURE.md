@@ -22,6 +22,7 @@
 - `IntegrationSet`
 - `Asset`
 - `DownloadJob`
+- `AutoThumbJob`
 
 ## Core flows
 
@@ -30,6 +31,7 @@
 3. Start export job from selected integration paths.
 4. Worker streams ZIP and reports progress.
 5. Client fetches presigned URL and downloads ZIP.
+6. Final image upload completion enqueues an auto-thumb job keyed by post/source version.
 
 ## API surface
 
@@ -151,6 +153,7 @@
 
 - Integration-set visibility is currently private-only.
 - Export jobs are async and progress through worker callbacks before a download URL is exposed.
+- Final image uploads enqueue auto-thumb jobs with `PENDING -> RUNNING -> READY|FAILED` lifecycle and idempotency keyed by post plus source checksum/version.
 - Workflow execution persistence now stores private user-owned sessions, runs, tool-call audit rows, artifact references, and private inspection/restart APIs.
 - Workflow capture now persists private workflow definitions and ordered step templates, exposes private CRUD and launch APIs for owned workflows, and includes a first list/editor UX for creating, updating, and launching those definitions into sessions and runs.
 

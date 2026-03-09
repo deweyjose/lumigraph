@@ -55,6 +55,15 @@ enum DownloadJobStatus {
   @@map("download_job_status")
 }
 
+enum AutoThumbJobStatus {
+  PENDING
+  RUNNING
+  READY
+  FAILED
+
+  @@map("auto_thumb_job_status")
+}
+
 enum WorkflowSubjectType {
   POST
   INTEGRATION_SET
@@ -135,6 +144,7 @@ model User {
   integrationSets IntegrationSet[]
   assets          Asset[]
   downloadJobs    DownloadJob[]
+  autoThumbJobs   AutoThumbJob[]
   workflowDefinitions WorkflowDefinition[]
   workflowSessions WorkflowSession[]
   workflowRuns     WorkflowRun[]
@@ -199,6 +209,7 @@ model Post {
   assets           Asset[]          @relation("PostAssets")
   finalImageAsset  Asset?           @relation("PostFinalImage", fields: [finalImageAssetId], references: [id], onDelete: SetNull)
   finalThumbAsset  Asset?           @relation("PostFinalThumb", fields: [finalThumbAssetId], references: [id], onDelete: SetNull)
+  autoThumbJobs    AutoThumbJob[]
 
   @@index([userId])
   @@index([status, createdAt])
@@ -246,12 +257,44 @@ model Asset {
   post             Post?           @relation("PostAssets", fields: [postId], references: [id], onDelete: Cascade)
   finalImageForPost Post[]         @relation("PostFinalImage")
   finalThumbForPost Post[]         @relation("PostFinalThumb")
+  sourceForAutoThumbJobs AutoThumbJob[] @relation("AutoThumbSourceAsset")
 
   @@index([userId])
   @@index([integrationSetId, relativePath])
   @@index([postId, kind])
   @@index([s3Key])
   @@map("assets")
+}
+
+model AutoThumbJob {
+  id              String             @id @default(uuid()) @db.Uuid
+  userId          String             @db.Uuid @map("user_id")
+  postId          String             @db.Uuid @map("post_id")
+  sourceAssetId   String             @db.Uuid @map("source_asset_id")
+  sourceObjectKey String             @map("source_object_key")
+  sourceChecksum  String?            @map("source_checksum")
+  sourceVersion   String             @map("source_version")
+  idempotencyKey  String             @map("idempotency_key")
+  status          AutoThumbJobStatus @default(PENDING)
+  attempts        Int                @default(0)
+  outputThumbKey  String?            @map("output_thumb_key")
+  errorMessage    String?            @map("error_message")
+  startedAt       DateTime?          @map("started_at")
+  completedAt     DateTime?          @map("completed_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  user        User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post        Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  sourceAsset Asset @relation("AutoThumbSourceAsset", fields: [sourceAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([postId, createdAt])
+  @@index([status, updatedAt])
+  @@index([status, attempts, updatedAt])
+  @@index([sourceAssetId])
+  @@map("auto_thumb_jobs")
 }
 
 model DownloadJob {

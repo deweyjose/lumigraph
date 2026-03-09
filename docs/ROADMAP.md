@@ -77,6 +77,10 @@ Add links as items are created.
 - #105 - Persist run tool calls and artifact references
 - #103 - Add private run inspection and resume APIs
 - #90 - Roadmap: Harden export management UX and job lifecycle
+- #107 - Roadmap: Auto-thumb generation pipeline for final post images
+- #108 - Auto-thumb slice: data model and job state
+- #109 - Auto-thumb slice: worker runtime and thumbnail generation
+- #110 - Auto-thumb slice: publish/update integration and observability
 - #91 - Roadmap: Polish integration set workflow UX
 - #92 - Roadmap: Workflow capture v1 (spec and implementation slices)
 - #116 - Specify workflow capture v1 domain model and API contract
