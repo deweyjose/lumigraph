@@ -8,8 +8,13 @@ vi.mock("./auto-thumb-jobs", () => ({
   enqueueAutoThumbJobForUploadedFinalImage: vi.fn(),
 }));
 
+vi.mock("./auto-thumb-runtime", () => ({
+  dispatchAutoThumbJob: vi.fn(),
+}));
+
 const { getPrisma } = await import("@lumigraph/db");
 const autoThumbJobs = await import("./auto-thumb-jobs");
+const autoThumbRuntime = await import("./auto-thumb-runtime");
 const uploads = await import("./uploads");
 
 function makePrismaMock() {
@@ -46,6 +51,11 @@ describe("uploads service", () => {
         createdAt: "2026-03-08T12:00:00.000Z",
         updatedAt: "2026-03-08T12:00:00.000Z",
       },
+    });
+    vi.mocked(autoThumbRuntime.dispatchAutoThumbJob).mockReset();
+    vi.mocked(autoThumbRuntime.dispatchAutoThumbJob).mockResolvedValue({
+      ok: true,
+      invoked: true,
     });
   });
 
@@ -95,6 +105,12 @@ describe("uploads service", () => {
       },
       { prisma }
     );
+    expect(autoThumbRuntime.dispatchAutoThumbJob).toHaveBeenCalledWith(
+      "job-1",
+      {
+        requestOrigin: undefined,
+      }
+    );
   });
 
   it("treats duplicate complete events as idempotent for uploaded final image", async () => {
@@ -124,5 +140,11 @@ describe("uploads service", () => {
     expect(
       autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage
     ).toHaveBeenCalledOnce();
+    expect(autoThumbRuntime.dispatchAutoThumbJob).toHaveBeenCalledWith(
+      "job-1",
+      {
+        requestOrigin: undefined,
+      }
+    );
   });
 });

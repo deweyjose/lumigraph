@@ -54,6 +54,15 @@ type AutoThumbTransitionResult =
   | { ok: true; job: AutoThumbJobView }
   | { ok: false; code: "NOT_FOUND" | "INVALID_STATE"; message: string };
 
+export type AutoThumbJobRuntimeRecord = {
+  id: string;
+  userId: string;
+  postId: string;
+  status: AutoThumbJobStatus;
+  attempts: number;
+  sourceObjectKey: string;
+};
+
 function normalizeMaxAttempts(value: number | undefined): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return DEFAULT_MAX_ATTEMPTS;
@@ -206,6 +215,23 @@ export async function enqueueAutoThumbJobForUploadedFinalImage(
     }
     throw error;
   }
+}
+
+export async function getAutoThumbJobRuntimeRecord(
+  jobId: string
+): Promise<AutoThumbJobRuntimeRecord | null> {
+  const prisma = await getPrisma();
+  return prisma.autoThumbJob.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      userId: true,
+      postId: true,
+      status: true,
+      attempts: true,
+      sourceObjectKey: true,
+    },
+  });
 }
 
 export async function listPendingAutoThumbJobs(options?: {

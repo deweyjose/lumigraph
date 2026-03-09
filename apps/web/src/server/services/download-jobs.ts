@@ -317,11 +317,11 @@ export async function createDownloadExportJob(
     input.integrationSetId,
     input.userId
   );
-  if (!process.env.DOWNLOAD_CALLBACK_SECRET) {
+  if (!process.env.INTERNAL_CALLBACK_SECRET) {
     return {
       ok: false,
       message:
-        "DOWNLOAD_CALLBACK_SECRET is not configured for lambda export jobs.",
+        "INTERNAL_CALLBACK_SECRET is not configured for lambda export jobs.",
     };
   }
   if (!process.env.DOWNLOAD_ZIP_LAMBDA_NAME) {

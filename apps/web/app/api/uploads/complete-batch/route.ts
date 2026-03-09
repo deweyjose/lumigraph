@@ -30,7 +30,8 @@ export async function POST(request: Request) {
           session.user.id,
           item.assetId,
           BigInt(item.sizeBytes),
-          item.checksum ?? null
+          item.checksum ?? null,
+          { requestOrigin: new URL(request.url).origin }
         );
         if (!asset) {
           return {

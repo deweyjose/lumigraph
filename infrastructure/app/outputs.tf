@@ -52,3 +52,13 @@ output "download_zip_lambda_name" {
   description = "Name of the managed ZIP export Lambda, or null when using an external ARN."
   value       = local.create_download_zip_lambda ? aws_lambda_function.download_zip[0].function_name : null
 }
+
+output "auto_thumb_lambda_arn" {
+  description = "ARN of the auto-thumb Lambda used by final image thumbnail jobs."
+  value       = local.effective_auto_thumb_lambda_arn
+}
+
+output "auto_thumb_lambda_name" {
+  description = "Name of the managed auto-thumb Lambda, or null when using an external ARN."
+  value       = local.create_auto_thumb_lambda ? aws_lambda_function.auto_thumb[0].function_name : null
+}

@@ -1,6 +1,7 @@
 import { getPrisma } from "@lumigraph/db";
 import * as s3 from "./s3";
 import { enqueueAutoThumbJobForUploadedFinalImage } from "./auto-thumb-jobs";
+import { dispatchAutoThumbJob } from "./auto-thumb-runtime";
 
 export const ALLOWED_UPLOAD_CONTENT_TYPES = [
   "application/zip",
@@ -94,7 +95,8 @@ export async function completeUpload(
   userId: string,
   assetId: string,
   sizeBytes: bigint,
-  checksum?: string | null
+  checksum?: string | null,
+  options?: { requestOrigin?: string }
 ) {
   const prisma = await getPrisma();
   const asset = await prisma.asset.findUnique({ where: { id: assetId } });
@@ -104,7 +106,7 @@ export async function completeUpload(
 
   if (asset.status === "UPLOADED") {
     if (asset.kind === "FINAL_IMAGE" && asset.postId) {
-      await enqueueAutoThumbJobForUploadedFinalImage(
+      const enqueueResult = await enqueueAutoThumbJobForUploadedFinalImage(
         {
           userId: asset.userId,
           postId: asset.postId,
@@ -115,6 +117,11 @@ export async function completeUpload(
         },
         { prisma }
       );
+      if (enqueueResult.job.status === "PENDING") {
+        void dispatchAutoThumbJob(enqueueResult.job.id, {
+          requestOrigin: options?.requestOrigin,
+        }).catch(() => undefined);
+      }
     }
     return asset;
   }
@@ -131,7 +138,7 @@ export async function completeUpload(
   });
 
   if (updated.kind === "FINAL_IMAGE" && updated.postId) {
-    await enqueueAutoThumbJobForUploadedFinalImage(
+    const enqueueResult = await enqueueAutoThumbJobForUploadedFinalImage(
       {
         userId: updated.userId,
         postId: updated.postId,
@@ -142,6 +149,11 @@ export async function completeUpload(
       },
       { prisma }
     );
+    if (enqueueResult.job.status === "PENDING") {
+      void dispatchAutoThumbJob(enqueueResult.job.id, {
+        requestOrigin: options?.requestOrigin,
+      }).catch(() => undefined);
+    }
   }
 
   return updated;

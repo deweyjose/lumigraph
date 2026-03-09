@@ -153,7 +153,7 @@ variable "download_zip_lambda_package_path" {
   default     = ""
 }
 
-variable "download_callback_secret" {
+variable "internal_callback_secret" {
   description = "Shared secret used by Lambda callbacks to sign status updates."
   type        = string
   default     = ""
@@ -183,6 +183,54 @@ variable "download_zip_lambda_reserved_concurrency" {
   description = "Reserved concurrency for the managed ZIP export Lambda. Set null to use unreserved concurrency."
   type        = number
   default     = null
+}
+
+variable "auto_thumb_lambda_arn" {
+  description = "Optional external Lambda ARN used for async auto-thumbnail jobs. If null, this stack provisions one."
+  type        = string
+  default     = null
+}
+
+variable "auto_thumb_lambda_package_path" {
+  description = "Path to the ZIP package for the managed auto-thumb Lambda. Built in CI and passed via TF_VAR_auto_thumb_lambda_package_path."
+  type        = string
+  default     = ""
+}
+
+variable "auto_thumb_lambda_timeout_seconds" {
+  description = "Timeout for the managed auto-thumb Lambda."
+  type        = number
+  default     = 300
+}
+
+variable "auto_thumb_lambda_memory_mb" {
+  description = "Memory size for the managed auto-thumb Lambda."
+  type        = number
+  default     = 1024
+}
+
+variable "auto_thumb_lambda_reserved_concurrency" {
+  description = "Reserved concurrency for the managed auto-thumb Lambda. Set null to use unreserved concurrency."
+  type        = number
+  default     = null
+}
+
+variable "auto_thumb_max_width" {
+  description = "Maximum output width in pixels for generated thumbnails."
+  type        = number
+  default     = 1024
+}
+
+variable "auto_thumb_max_height" {
+  description = "Maximum output height in pixels for generated thumbnails."
+  type        = number
+  default     = 1024
+}
+
+variable "auto_thumb_webp_quality" {
+  description = "WebP quality for generated thumbnails."
+  type        = number
+  default     = 82
 }
 
 variable "download_exports_expiration_days" {
