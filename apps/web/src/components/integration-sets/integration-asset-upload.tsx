@@ -19,6 +19,13 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  downloadUnavailableMessage,
+  isExportJobActive,
+  isExportJobExpired,
+  mergeExportJobsFromList,
+  type ExportJobRow as DownloadJobRow,
+} from "./export-job-state";
 
 const EXPORT_POLL_INTERVAL_MS = 5000;
 
@@ -38,24 +45,6 @@ type AssetRow = {
   sizeBytes: number;
   kind: "INTEGRATION" | "FINAL_IMAGE" | "FINAL_THUMB";
   createdAt: string;
-};
-
-type DownloadJobRow = {
-  id: string;
-  status: "PENDING" | "RUNNING" | "READY" | "FAILED" | "CANCELLED";
-  selectedPaths: string[];
-  totalFiles: number | null;
-  completedFiles: number;
-  lastProgressAt: string | null;
-  outputS3Key: string | null;
-  outputSizeBytes: number | null;
-  errorMessage: string | null;
-  createdAt: string;
-  updatedAt: string;
-  completedAt: string | null;
-  expiresAt: string | null;
-  downloadUrl?: string;
-  isExpired?: boolean;
 };
 
 type Props = {
@@ -266,27 +255,6 @@ function runningProgress(job: DownloadJobRow): {
   return { completed: bounded, total, percent };
 }
 
-function mergeJobsFromList(
-  existing: DownloadJobRow[],
-  incoming: DownloadJobRow[]
-): DownloadJobRow[] {
-  const existingById = new Map(existing.map((job) => [job.id, job]));
-  const merged = incoming.map((job) => {
-    const prev = existingById.get(job.id);
-    if (!prev) return job;
-
-    const shouldKeepUrl =
-      job.status === "READY" && !job.downloadUrl && Boolean(prev.downloadUrl);
-    return {
-      ...job,
-      ...(shouldKeepUrl && { downloadUrl: prev.downloadUrl }),
-      ...(typeof prev.isExpired === "boolean" && { isExpired: prev.isExpired }),
-    };
-  });
-
-  return merged;
-}
-
 function NodeRow({ node, style, dragHandle }: NodeRendererProps<ExplorerNode>) {
   const data = node.data;
 
@@ -360,18 +328,25 @@ export function IntegrationAssetUpload({
   const [cancelingJobIds, setCancelingJobIds] = useState<string[]>([]);
   const [deletingJobIds, setDeletingJobIds] = useState<string[]>([]);
   const [downloadingJobIds, setDownloadingJobIds] = useState<string[]>([]);
+  const [deletedJobIds, setDeletedJobIds] = useState<string[]>([]);
   const [exportError, setExportError] = useState<string | null>(null);
   const [treeWidth, setTreeWidth] = useState(800);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [treeResetToken, setTreeResetToken] = useState(0);
+  const deletedJobIdSet = useMemo(
+    () => new Set(deletedJobIds),
+    [deletedJobIds]
+  );
 
   useEffect(() => {
     setDisplayAssets(assets);
   }, [assets]);
 
   useEffect(() => {
-    setDisplayJobs(downloadJobs);
-  }, [downloadJobs]);
+    setDisplayJobs((prev) =>
+      mergeExportJobsFromList(prev, downloadJobs, deletedJobIdSet)
+    );
+  }, [deletedJobIdSet, downloadJobs]);
 
   useEffect(() => {
     if (!treeContainerRef.current) return;
@@ -408,10 +383,7 @@ export function IntegrationAssetUpload({
     [displayAssets, selectedPaths]
   );
   const hasActiveJobs = useMemo(
-    () =>
-      displayJobs.some(
-        (job) => job.status === "PENDING" || job.status === "RUNNING"
-      ),
+    () => displayJobs.some((job) => isExportJobActive(job.status)),
     [displayJobs]
   );
 
@@ -464,19 +436,19 @@ export function IntegrationAssetUpload({
         if (!res.ok || !data.job) {
           throw new Error(data.message ?? "Failed to prepare download");
         }
-        if (data.job.status !== "READY") {
-          throw new Error("Export is not ready yet");
+        setDisplayJobs((prev) => {
+          const withoutCurrent = prev.filter((job) => job.id !== data.job!.id);
+          if (deletedJobIdSet.has(data.job!.id)) return withoutCurrent;
+          return [data.job!, ...withoutCurrent];
+        });
+
+        const unavailableMessage = downloadUnavailableMessage(data.job);
+        if (unavailableMessage) {
+          throw new Error(unavailableMessage);
         }
         if (!data.job.downloadUrl) {
-          if (data.job.isExpired) {
-            throw new Error("Export has expired. Create a new export.");
-          }
-          throw new Error("Download link is not available yet");
+          throw new Error("Download link is not available yet. Try again.");
         }
-
-        setDisplayJobs((prev) =>
-          prev.map((job) => (job.id === data.job!.id ? data.job! : job))
-        );
         window.location.assign(data.job.downloadUrl);
       } catch (err) {
         setExportError(
@@ -486,7 +458,7 @@ export function IntegrationAssetUpload({
         setDownloadingJobIds((prev) => prev.filter((id) => id !== jobId));
       }
     },
-    [integrationSetId]
+    [deletedJobIdSet, integrationSetId]
   );
 
   const cancelJob = useCallback(
@@ -507,9 +479,13 @@ export function IntegrationAssetUpload({
         if (!res.ok || !data.job) {
           throw new Error(data.message ?? "Failed to cancel export job");
         }
-        setDisplayJobs((prev) =>
-          prev.map((job) => (job.id === data.job!.id ? data.job! : job))
-        );
+        setDisplayJobs((prev) => {
+          const withoutCurrent = prev.filter((job) => job.id !== data.job!.id);
+          if (deletedJobIdSet.has(data.job!.id)) return withoutCurrent;
+          return [data.job!, ...withoutCurrent].sort(
+            (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)
+          );
+        });
       } catch (err) {
         setExportError(
           err instanceof Error ? err.message : "Failed to cancel export job"
@@ -518,7 +494,7 @@ export function IntegrationAssetUpload({
         setCancelingJobIds((prev) => prev.filter((id) => id !== jobId));
       }
     },
-    [integrationSetId]
+    [deletedJobIdSet, integrationSetId]
   );
 
   const deleteJob = useCallback(
@@ -539,10 +515,17 @@ export function IntegrationAssetUpload({
         if (!res.ok || !data.ok) {
           throw new Error(data.message ?? "Failed to delete export job");
         }
+        setDeletedJobIds((prev) =>
+          prev.includes(jobId) ? prev : [...prev, jobId]
+        );
         setDisplayJobs((prev) => prev.filter((job) => job.id !== jobId));
       } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to delete export job";
         setExportError(
-          err instanceof Error ? err.message : "Failed to delete export job"
+          message.includes("Failed to delete export object")
+            ? `${message}. Try again in a moment.`
+            : message
         );
       } finally {
         setDeletingJobIds((prev) => prev.filter((id) => id !== jobId));
@@ -566,7 +549,9 @@ export function IntegrationAssetUpload({
         );
         const data = (await res.json()) as { jobs?: DownloadJobRow[] };
         if (cancelled || !res.ok || !data.jobs) return;
-        setDisplayJobs((prev) => mergeJobsFromList(prev, data.jobs!));
+        setDisplayJobs((prev) =>
+          mergeExportJobsFromList(prev, data.jobs!, deletedJobIdSet)
+        );
       } catch {
         return;
       } finally {
@@ -583,7 +568,7 @@ export function IntegrationAssetUpload({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [hasActiveJobs, integrationSetId]);
+  }, [deletedJobIdSet, hasActiveJobs, integrationSetId]);
 
   const uploadAll = useCallback(async () => {
     const pending = entries.filter((entry) => entry.status === "pending");
@@ -989,8 +974,8 @@ export function IntegrationAssetUpload({
           <ul className="space-y-2 text-sm">
             {displayJobs.map((job) => {
               const progress = runningProgress(job);
-              const isActive =
-                job.status === "PENDING" || job.status === "RUNNING";
+              const isActive = isExportJobActive(job.status);
+              const isExpired = isExportJobExpired(job);
               const hasDeterminateProgress =
                 job.status === "RUNNING" && progress.total > 0;
               const progressLabel =
@@ -1047,14 +1032,14 @@ export function IntegrationAssetUpload({
                       className={`text-xs font-medium ${statusTone(job.status)}`}
                     >
                       {job.status}
-                      {job.isExpired ? " (expired)" : ""}
+                      {isExpired ? " (expired)" : ""}
                     </span>
 
-                    {(job.status === "PENDING" || job.status === "RUNNING") && (
+                    {isActive && (
                       <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     )}
 
-                    {(job.status === "PENDING" || job.status === "RUNNING") && (
+                    {isActive && (
                       <Button
                         type="button"
                         size="sm"
@@ -1090,7 +1075,7 @@ export function IntegrationAssetUpload({
                       </Button>
                     )}
 
-                    {job.status === "READY" && (
+                    {job.status === "READY" && !isExpired && (
                       <Button
                         type="button"
                         size="sm"
@@ -1105,6 +1090,12 @@ export function IntegrationAssetUpload({
                         )}
                         Download ZIP
                       </Button>
+                    )}
+
+                    {job.status === "READY" && isExpired && (
+                      <span className="text-xs text-amber-600">
+                        Expired. Start a new export.
+                      </span>
                     )}
                   </div>
                 </li>
