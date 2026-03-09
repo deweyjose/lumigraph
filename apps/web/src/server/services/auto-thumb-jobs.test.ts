@@ -56,7 +56,10 @@ function makeJob(
 }
 
 describe("auto-thumb-jobs service", () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
+    process.env = { ...originalEnv };
     vi.mocked(getPrisma).mockReset();
   });
 
@@ -78,6 +81,11 @@ describe("auto-thumb-jobs service", () => {
     expect(key).toBe(
       autoThumbJobs.buildAutoThumbIdempotencyKey("post-1", "checksum:abc123")
     );
+  });
+
+  it("uses AUTO_THUMB_MAX_ATTEMPTS when configured", () => {
+    process.env.AUTO_THUMB_MAX_ATTEMPTS = "7";
+    expect(autoThumbJobs.getAutoThumbMaxAttempts()).toBe(7);
   });
 
   it("creates a pending job for a newly uploaded final image", async () => {
@@ -204,6 +212,41 @@ describe("auto-thumb-jobs service", () => {
       ok: false,
       code: "INVALID_STATE",
       message: "Auto-thumb job cannot transition from status FAILED.",
+    });
+  });
+
+  it("requeues running job to pending with error detail", async () => {
+    const prisma = makePrismaMock();
+    prisma.autoThumbJob.updateMany.mockResolvedValue({ count: 1 });
+    prisma.autoThumbJob.findUniqueOrThrow.mockResolvedValue(
+      makeJob({
+        id: "job-1",
+        status: "PENDING",
+        attempts: 2,
+        errorMessage: "temporary processing failure",
+        startedAt: null,
+      })
+    );
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const out = await autoThumbJobs.markAutoThumbJobRetryPending(
+      "job-1",
+      "temporary processing failure"
+    );
+
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.job.status).toBe("PENDING");
+    expect(out.job.errorMessage).toContain("temporary processing failure");
+    expect(prisma.autoThumbJob.updateMany).toHaveBeenCalledWith({
+      where: { id: "job-1", status: "RUNNING" },
+      data: {
+        status: "PENDING",
+        errorMessage: "temporary processing failure",
+        startedAt: null,
+        completedAt: null,
+        outputThumbKey: null,
+      },
     });
   });
 });

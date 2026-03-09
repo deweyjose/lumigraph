@@ -37,6 +37,14 @@ describe("s3 service", () => {
     });
   });
 
+  describe("imageAutoThumbKey", () => {
+    it("returns path users/{userId}/posts/{postId}/final/thumbs/{jobId}.webp", () => {
+      expect(s3Service.imageAutoThumbKey("user-1", "post-1", "job-1")).toBe(
+        "users/user-1/posts/post-1/final/thumbs/job-1.webp"
+      );
+    });
+  });
+
   describe("integrationSetAssetKey", () => {
     it("returns path users/{userId}/integration-sets/{integrationSetId}/{relativePath}", () => {
       expect(

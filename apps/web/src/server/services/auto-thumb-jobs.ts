@@ -54,6 +54,20 @@ type AutoThumbTransitionResult =
   | { ok: true; job: AutoThumbJobView }
   | { ok: false; code: "NOT_FOUND" | "INVALID_STATE"; message: string };
 
+function normalizeMaxAttempts(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_MAX_ATTEMPTS;
+  }
+  return Math.max(1, Math.floor(value));
+}
+
+export function getAutoThumbMaxAttempts(): number {
+  const raw = process.env.AUTO_THUMB_MAX_ATTEMPTS;
+  if (!raw) return DEFAULT_MAX_ATTEMPTS;
+  const parsed = Number.parseInt(raw, 10);
+  return normalizeMaxAttempts(parsed);
+}
+
 export function normalizeAutoThumbChecksum(
   checksum: string | null | undefined
 ): string | null {
@@ -202,10 +216,11 @@ export async function listPendingAutoThumbJobs(options?: {
     typeof options?.limit === "number" && options.limit > 0
       ? Math.min(options.limit, 200)
       : DEFAULT_PENDING_JOB_LIMIT;
-  const maxAttempts =
-    typeof options?.maxAttempts === "number" && options.maxAttempts > 0
+  const maxAttempts = normalizeMaxAttempts(
+    typeof options?.maxAttempts === "number"
       ? options.maxAttempts
-      : DEFAULT_MAX_ATTEMPTS;
+      : getAutoThumbMaxAttempts()
+  );
 
   const prisma = await getPrisma();
   const jobs = await prisma.autoThumbJob.findMany({
@@ -280,6 +295,33 @@ export async function markAutoThumbJobFailed(
       status: "FAILED",
       errorMessage: message,
       completedAt: new Date(),
+    },
+  });
+  if (updated.count === 1) {
+    const job = await prisma.autoThumbJob.findUniqueOrThrow({
+      where: { id: jobId },
+    });
+    return { ok: true, job: toAutoThumbJobView(job) };
+  }
+  return getTransitionFailure(prisma, jobId);
+}
+
+export async function markAutoThumbJobRetryPending(
+  jobId: string,
+  errorMessage?: string
+): Promise<AutoThumbTransitionResult> {
+  const prisma = await getPrisma();
+  const message = (errorMessage ?? "Auto-thumb generation failed")
+    .trim()
+    .slice(0, MAX_ERROR_MESSAGE_LENGTH);
+  const updated = await prisma.autoThumbJob.updateMany({
+    where: { id: jobId, status: "RUNNING" },
+    data: {
+      status: "PENDING",
+      errorMessage: message,
+      startedAt: null,
+      completedAt: null,
+      outputThumbKey: null,
     },
   });
   if (updated.count === 1) {
