@@ -1,5 +1,6 @@
 import { getPrisma } from "@lumigraph/db";
 import * as s3 from "./s3";
+import { enqueueAutoThumbJobForUploadedFinalImage } from "./auto-thumb-jobs";
 
 export const ALLOWED_UPLOAD_CONTENT_TYPES = [
   "application/zip",
@@ -97,10 +98,30 @@ export async function completeUpload(
 ) {
   const prisma = await getPrisma();
   const asset = await prisma.asset.findUnique({ where: { id: assetId } });
-  if (!asset || asset.userId !== userId || asset.status !== "PRESIGNED") {
+  if (!asset || asset.userId !== userId) {
     return null;
   }
-  return prisma.asset.update({
+
+  if (asset.status === "UPLOADED") {
+    if (asset.kind === "FINAL_IMAGE" && asset.postId) {
+      await enqueueAutoThumbJobForUploadedFinalImage(
+        {
+          userId: asset.userId,
+          postId: asset.postId,
+          sourceAssetId: asset.id,
+          sourceObjectKey: asset.s3Key,
+          sourceChecksum: asset.checksum,
+          sourceUpdatedAt: asset.updatedAt,
+        },
+        { prisma }
+      );
+    }
+    return asset;
+  }
+
+  if (asset.status !== "PRESIGNED") return null;
+
+  const updated = await prisma.asset.update({
     where: { id: assetId },
     data: {
       status: "UPLOADED",
@@ -108,6 +129,22 @@ export async function completeUpload(
       checksum: checksum ?? null,
     },
   });
+
+  if (updated.kind === "FINAL_IMAGE" && updated.postId) {
+    await enqueueAutoThumbJobForUploadedFinalImage(
+      {
+        userId: updated.userId,
+        postId: updated.postId,
+        sourceAssetId: updated.id,
+        sourceObjectKey: updated.s3Key,
+        sourceChecksum: updated.checksum,
+        sourceUpdatedAt: updated.updatedAt,
+      },
+      { prisma }
+    );
+  }
+
+  return updated;
 }
 
 function sanitizeRelativePath(input: string): string | null {
