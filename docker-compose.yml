@@ -58,7 +58,6 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       AUTO_THUMB_LAMBDA_NAME: lumigraph-auto-thumb-local
       INTERNAL_CALLBACK_SECRET: lumigraph-local-callback-secret
-      AUTO_THUMB_CALLBACK_BASE_URL: http://integration:3999
       # LocalStack does not support SDK default request checksums
       AWS_REQUEST_CHECKSUM_CALCULATION: "WHEN_REQUIRED"
     volumes:

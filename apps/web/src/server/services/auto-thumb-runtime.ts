@@ -128,15 +128,6 @@ async function invokeAutoThumbLambda(payload: object): Promise<void> {
   await client.send(new InvokeCommand(input));
 }
 
-function getAutoThumbCallbackBaseUrl(requestOrigin?: string): string | null {
-  const explicit = process.env.AUTO_THUMB_CALLBACK_BASE_URL;
-  if (explicit && explicit.length > 0) return explicit.replace(/\/$/, "");
-  if (requestOrigin && requestOrigin.length > 0) {
-    return requestOrigin.replace(/\/$/, "");
-  }
-  return null;
-}
-
 function formatInvokeError(err: unknown): string {
   if (err instanceof Error) return err.message;
   return "Auto-thumb Lambda invoke failed";
@@ -166,10 +157,10 @@ export async function dispatchAutoThumbJob(
     return { ok: false, message };
   }
 
-  const callbackBaseUrl = getAutoThumbCallbackBaseUrl(options?.requestOrigin);
+  const callbackBaseUrl = options?.requestOrigin?.replace(/\/$/, "");
   if (!callbackBaseUrl) {
     const message =
-      "AUTO_THUMB_CALLBACK_BASE_URL or request origin is required for auto-thumb jobs.";
+      "Request origin is required for auto-thumb jobs.";
     await failPendingAutoThumbJob(runtimeJob.id, message);
     return { ok: false, message };
   }

@@ -296,12 +296,6 @@ async function invokeZipLambda(payload: object): Promise<void> {
   await client.send(new InvokeCommand(input));
 }
 
-function getCallbackBaseUrl(origin: string): string {
-  const explicit = process.env.DOWNLOAD_CALLBACK_BASE_URL;
-  if (explicit && explicit.length > 0) return explicit.replace(/\/$/, "");
-  return origin.replace(/\/$/, "");
-}
-
 export async function createDownloadExportJob(
   input: CreateDownloadJobInput
 ): Promise<
@@ -378,7 +372,7 @@ export async function createDownloadExportJob(
     data: { outputS3Key },
   });
 
-  const callbackBaseUrl = getCallbackBaseUrl(input.requestOrigin);
+  const callbackBaseUrl = input.requestOrigin.replace(/\/$/, "");
   const callbackUrl = `${callbackBaseUrl}/api/internal/export-jobs/${created.id}/callback`;
   void invokeZipLambda({
     jobId: created.id,
