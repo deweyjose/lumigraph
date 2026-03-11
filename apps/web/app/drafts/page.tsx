@@ -63,6 +63,7 @@ export default async function DraftsPage() {
                   updatedAt: post.updatedAt,
                 }}
                 hrefBase="/posts"
+                tone="workspace"
               />
             </li>
           ))}
