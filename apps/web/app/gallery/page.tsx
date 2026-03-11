@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { auth } from "auth";
 import { listPublicPosts } from "@/server/services/posts";
 import { PostCard, type PostCardPost } from "@/components/gallery/post-card";
@@ -13,6 +14,9 @@ export const metadata: Metadata = {
 
 export default async function GalleryPage() {
   const session = await auth();
+  if (!session?.user?.id) {
+    redirect("/auth/signin?callbackUrl=/gallery");
+  }
   const publicPosts = await listPublicPosts({ limit: 50 });
 
   return (
@@ -70,11 +74,9 @@ export default async function GalleryPage() {
             <p className="mt-1 text-center text-sm text-muted-foreground">
               When someone publishes an image, it will appear here.
             </p>
-            {!session && (
-              <Button asChild className="mt-6" size="lg">
-                <Link href="/auth/signin">Sign in to get started</Link>
-              </Button>
-            )}
+            <Button asChild className="mt-6" size="lg">
+              <Link href="/posts/new">Create the first post</Link>
+            </Button>
           </div>
         )}
       </section>

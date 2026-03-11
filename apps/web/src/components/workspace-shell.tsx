@@ -32,9 +32,9 @@ const authenticatedNavItems = [
     icon: FilePenLine,
   },
   {
-    href: "/gallery",
+    href: "/#posts",
     label: "Posts",
-    description: "Published work",
+    description: "Published image stories",
     icon: GalleryVerticalEnd,
   },
   {

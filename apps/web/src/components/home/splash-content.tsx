@@ -12,9 +12,8 @@ import {
 
 /**
  * Logged-out splash screen. Per contracts/home-page-ui.md:
- * - Hero with title, tagline, primary CTA
- * - Primary CTA: "Browse Posts" only (no login button in main content)
- * - Login is in header (UserNav) only
+ * - Hero with title, tagline, and product-marketing CTA
+ * - Logged-out state explains each workspace surface in-place
  */
 export function SplashContent() {
   return (
@@ -42,10 +41,10 @@ export function SplashContent() {
               Publish the sky with the story behind the image.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
-              Lumigraph brings public posts, integration data, drafts, and a
+              Lumigraph brings posts, integration data, drafts, and a
               mission-control home base into one astrophotography workspace.
-              Share the final image and preserve the processing journey that got
-              you there.
+              Capture the story behind each image before you decide what is
+              ready to share.
             </p>
           </div>
 
@@ -55,8 +54,8 @@ export function SplashContent() {
               size="lg"
               className="rounded-full border border-cyan-200/20 bg-cyan-400/12 px-7 text-cyan-50 hover:bg-cyan-400/20"
             >
-              <Link href="/gallery">
-                Browse Posts
+              <Link href="/auth/signin">
+                Sign in to start
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -66,13 +65,13 @@ export function SplashContent() {
               variant="outline"
               className="rounded-full border-white/10 bg-white/4 px-7 text-slate-100 hover:bg-white/8 hover:text-white dark:border-white/10 dark:bg-white/4 dark:hover:bg-white/8"
             >
-              <Link href="/#drafts">See the workflow</Link>
+              <Link href="/#posts">See how posts work</Link>
             </Button>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <Metric label="Astro Hub" value="Live home base" />
-            <Metric label="Posts" value="Public gallery" />
+            <Metric label="Posts" value="Published stories" />
             <Metric label="Integration Sets" value="Private source data" />
           </div>
         </div>
@@ -203,6 +202,68 @@ export function SplashContent() {
         </FeaturePanel>
       </section>
 
+      <section id="posts" className="mx-auto max-w-7xl px-5 py-8">
+        <FeaturePanel
+          eyebrow="Posts"
+          title="Posts turn a finished image into a proper published record."
+          description="A post is where the final image, the observing story, and the core target metadata come together. Keep the draft private while you iterate, then publish when the work is ready."
+          accent={<Eye className="h-5 w-5 text-cyan-100" />}
+          cta={{ href: "/auth/signin", label: "Sign in to publish posts" }}
+        >
+          <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    Published image record
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    A post combines the final image with target details, capture
+                    metadata, and the narrative behind the processing decisions.
+                  </p>
+                </div>
+                <Eye className="h-5 w-5 text-cyan-100" />
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <CompactStat
+                  label="Target metadata"
+                  value="Object, type, night, equipment"
+                />
+                <CompactStat
+                  label="Final asset"
+                  value="Processed image with thumbnail"
+                />
+                <CompactStat
+                  label="Story"
+                  value="Description and processing notes"
+                />
+                <CompactStat
+                  label="Visibility"
+                  value="Shared only when you publish"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3">
+              <PreviewTile
+                title="Draft -> Post"
+                meta="Review"
+                detail="Work privately until the image, metadata, and copy are ready for the published version."
+              />
+              <PreviewTile
+                title="Single source of truth"
+                meta="Structured"
+                detail="The published post carries the image, target facts, and narrative together instead of scattering them across tools."
+              />
+              <PreviewTile
+                title="Later public gallery"
+                meta="Planned"
+                detail="Community browsing can come later. Right now Posts are part of the signed-in workspace flow."
+              />
+            </div>
+          </div>
+        </FeaturePanel>
+      </section>
+
       <section id="integration-sets" className="mx-auto max-w-7xl px-5 py-8">
         <FeaturePanel
           eyebrow="Integration Sets"
@@ -264,7 +325,7 @@ export function SplashContent() {
           <FeatureCard
             icon={<Eye className="h-8 w-8" />}
             title="Discover stronger work"
-            description="Browse a public gallery of astrophotography while preserving the richer private workspace for planning, iteration, and documentation."
+            description="Move from private drafts to published image stories without losing the richer workspace context behind them."
           />
         </div>
       </section>
