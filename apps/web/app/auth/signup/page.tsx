@@ -132,7 +132,7 @@ function SignUpContent() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         {submitError && (
           <div
-            className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200"
             role="alert"
           >
             {submitError}
@@ -184,7 +184,7 @@ function SignUpContent() {
         <Button
           type="submit"
           size="lg"
-          className="h-12"
+          className="h-12 rounded-2xl border border-cyan-200/20 bg-cyan-400/12 text-cyan-50 hover:bg-cyan-400/20"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Creating account…" : "Create account"}

@@ -51,11 +51,12 @@ export function FormField({
     <div className="space-y-2">
       <Label
         htmlFor={id}
-        className={
+        className={cn(
+          "text-sm font-medium text-slate-100",
           required
             ? "after:content-['*'] after:ml-0.5 after:text-destructive"
             : undefined
-        }
+        )}
       >
         {label}
       </Label>
@@ -72,11 +73,14 @@ export function FormField({
         disabled={disabled}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={cn("h-12 bg-card/80 text-base", inputClassName)}
+        className={cn(
+          "h-12 rounded-2xl border-white/10 bg-white/[0.03] text-base text-white placeholder:text-slate-500 focus-visible:border-cyan-200/20 focus-visible:ring-cyan-200/15",
+          inputClassName
+        )}
         {...inputProps}
       />
       {error && (
-        <p id={`${id}-error`} className="text-sm text-destructive" role="alert">
+        <p id={`${id}-error`} className="text-sm text-red-300/90" role="alert">
           {error}
         </p>
       )}

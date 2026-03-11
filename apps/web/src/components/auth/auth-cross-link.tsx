@@ -8,11 +8,11 @@ type AuthCrossLinkProps = {
 
 export function AuthCrossLink({ prompt, href, label }: AuthCrossLinkProps) {
   return (
-    <p className="mt-6 text-center text-sm text-muted-foreground">
+    <p className="mt-6 text-center text-sm text-slate-400">
       {prompt}{" "}
       <Link
         href={href}
-        className="font-medium text-primary underline-offset-4 hover:underline"
+        className="font-medium text-cyan-100 underline-offset-4 hover:underline"
       >
         {label}
       </Link>

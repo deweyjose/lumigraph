@@ -77,13 +77,17 @@ function ResetPasswordContent() {
         title="Invalid reset link"
         description="This link is missing or invalid. Request a new password reset from the sign-in page."
       >
-        <Button asChild size="lg" className="h-12 w-full">
+        <Button
+          asChild
+          size="lg"
+          className="h-12 w-full rounded-2xl border border-cyan-200/20 bg-cyan-400/12 text-cyan-50 hover:bg-cyan-400/20"
+        >
           <Link href="/auth/forgot-password">Request new reset link</Link>
         </Button>
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="mt-6 text-center text-sm text-slate-400">
           <Link
             href="/auth/signin"
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-cyan-100 underline-offset-4 hover:underline"
           >
             Back to sign in
           </Link>
@@ -100,7 +104,7 @@ function ResetPasswordContent() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         {error && (
           <div
-            className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200"
             role="alert"
           >
             {error}
@@ -137,16 +141,16 @@ function ResetPasswordContent() {
         <Button
           type="submit"
           size="lg"
-          className="h-12"
+          className="h-12 rounded-2xl border border-cyan-200/20 bg-cyan-400/12 text-cyan-50 hover:bg-cyan-400/20"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving…" : "Save new password"}
         </Button>
       </form>
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-center text-sm text-slate-400">
         <Link
           href="/auth/signin"
-          className="font-medium text-primary underline-offset-4 hover:underline"
+          className="font-medium text-cyan-100 underline-offset-4 hover:underline"
         >
           Back to sign in
         </Link>

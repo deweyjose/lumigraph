@@ -64,7 +64,7 @@ function ForgotPasswordContent() {
         description="If an account exists for that email, we sent a link to reset your password."
       >
         <div
-          className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-4 text-sm text-foreground"
+          className="rounded-2xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-4 text-sm text-slate-100"
           role="status"
         >
           <p>
@@ -72,10 +72,10 @@ function ForgotPasswordContent() {
             will expire after a short time.
           </p>
         </div>
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="mt-6 text-center text-sm text-slate-400">
           <Link
             href="/auth/signin"
-            className="font-medium text-primary underline-offset-4 hover:underline"
+            className="font-medium text-cyan-100 underline-offset-4 hover:underline"
           >
             Back to sign in
           </Link>
@@ -92,7 +92,7 @@ function ForgotPasswordContent() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         {error && (
           <div
-            className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            className="rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200"
             role="alert"
           >
             {error}
@@ -115,16 +115,16 @@ function ForgotPasswordContent() {
         <Button
           type="submit"
           size="lg"
-          className="h-12"
+          className="h-12 rounded-2xl border border-cyan-200/20 bg-cyan-400/12 text-cyan-50 hover:bg-cyan-400/20"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Sending…" : "Send reset link"}
         </Button>
       </form>
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-6 text-center text-sm text-slate-400">
         <Link
           href="/auth/signin"
-          className="font-medium text-primary underline-offset-4 hover:underline"
+          className="font-medium text-cyan-100 underline-offset-4 hover:underline"
         >
           Back to sign in
         </Link>
