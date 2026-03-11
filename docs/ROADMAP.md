@@ -13,6 +13,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Astro Hub revamp: Mission Control-style live astronomy experience
 - Shared app-shell polish across Astro Hub, Posts, Drafts, and Integration Sets
 - Public post/detail polish and download ergonomics
+- Post image inspection with zoom and magnifier controls
 - Collaborative post critique with region-based image annotation threads
 - Integration set detail IA refresh for metadata visibility and dense file workflows
 - AI drafting improvements for posts
@@ -34,6 +35,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #140 - final Astro Hub polish pass
 - Follow with broader page polish once the shell and live Astro Hub modules settle:
   - #60 - site-wide polish and consistency
+  - #158 - add image inspection zoom and magnifier controls on post detail
   - #156 - restructure integration set detail into accessible, collapsible workspace sections
   - #157 - improve integration explorer density and keyboard accessibility for large file sets
   - #151 - post annotation thread data model and API contract
@@ -52,7 +54,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Lane C: drafting/product intelligence
   - #93
 - Lane D: post collaboration and critique
-  - #151, #152, #153
+  - #158, #151, #152, #153
 - Lane E: agent critique and coaching
   - #154, #155
 - Lane F: integration-set workflow ergonomics
@@ -120,6 +122,7 @@ Add links as items are created.
 - #139 - Build an Astro Hub astronomy calendar and event detail experience
 - #140 - Polish Astro Hub performance, accessibility, and mobile tuning after live data integration
 - #60 - Site-wide layout and page polish
+- #158 - Add image inspection zoom and magnifier controls on post detail
 - #156 - Restructure integration set detail into accessible, collapsible workspace sections
 - #157 - Improve integration explorer density and keyboard accessibility for large file sets
 - #151 - Add post annotation thread data model and API contract
