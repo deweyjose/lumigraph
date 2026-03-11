@@ -46,7 +46,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Keep one git worktree per issue or tightly-coupled issue pair.
 - Avoid sharing migrations, generated files, or route contracts across parallel branches unless one issue is explicitly the base dependency for the others.
 - Merge in this order when lanes depend on each other:
-  - specs/contracts before service/runtime work
+  - contracts and UX docs before service/runtime work
   - backend contracts before frontend integration
   - mocked-data UX before live provider wiring
 - Rebase long-running worktrees frequently against `main` after each merged slice.

@@ -16,7 +16,7 @@ Lumigraph is an astrophotography publishing and dataset platform.
 - `prisma` - schema + migrations
 - `infrastructure` - Terraform + infra docs
 - `docs` - concise product/architecture/engineering docs
-- `specs` - Speckit feature specs and implementation plans
+- `docs/archive/specs` - archived feature specs kept only for historical context
 
 ## Quick start
 
@@ -95,7 +95,7 @@ Roadmap discussions should become GitHub issues.
 
 - High-level plan: `docs/ROADMAP.md`
 - Execution tracking: GitHub Issues + PRs
-- Specs: `specs/<feature>/`
+- Archived specs: `docs/archive/specs/<feature>/` (historical only)
 - Canonical repo context: `docs/README.md`
 
 ## Key docs

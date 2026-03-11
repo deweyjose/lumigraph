@@ -7,7 +7,7 @@ This directory is intentionally lean. Keep long-lived context here and keep exec
 - Runtime setup and repo layout: `README.md`
 - Agent operating rules: `AGENTS.md`
 - Execution state: GitHub Issues and PRs
-- Feature design details: `specs/<feature>/`
+- Archived feature specs: `docs/archive/specs/<feature>/`
 - Long-lived product and engineering context: files in this directory
 
 ## Read order
@@ -32,5 +32,6 @@ This directory is intentionally lean. Keep long-lived context here and keep exec
 
 - Prefer editing an existing doc over adding a new one.
 - Put each concern in one canonical place instead of repeating it in multiple docs.
-- Keep roadmap themes here and execution detail in issues, PRs, and specs.
+- Keep roadmap themes here and execution detail in issues and PRs.
+- Keep old feature specs under `docs/archive/specs/` only when they still add historical value.
 - Delete redirect-only or duplicate docs once callers no longer need them.
