@@ -19,27 +19,27 @@ import {
 export function SplashContent() {
   return (
     <div className="relative overflow-hidden">
-      <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_top,_rgba(92,138,255,0.18),_transparent_32%),linear-gradient(180deg,_rgba(6,10,19,0.2),_rgba(6,10,19,0.92)_55%,_rgba(6,10,19,1))]" />
+      <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.08),transparent_24%),linear-gradient(180deg,rgba(6,12,25,1),rgba(9,14,23,1))]" />
       <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(circle_at_center,black,transparent_82%)]" />
 
       <section className="mx-auto grid min-h-[76vh] max-w-7xl gap-14 px-4 pb-20 pt-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:items-center">
         <div className="flex flex-col gap-8">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium tracking-[0.2em] text-primary uppercase">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-white/5 px-3 py-1 text-xs font-medium tracking-[0.2em] text-cyan-100 uppercase">
             <Sparkles className="h-3.5 w-3.5" />
             Astrophotography workspace
           </div>
 
           <div className="space-y-5">
-            <div className="flex items-center gap-3 text-primary">
+            <div className="flex items-center gap-3 text-cyan-100">
               <Telescope className="h-9 w-9" strokeWidth={1.6} />
-              <span className="text-lg font-semibold tracking-[0.18em] uppercase text-foreground/80">
+              <span className="text-lg font-semibold tracking-[0.18em] uppercase text-white/85">
                 Lumigraph
               </span>
             </div>
-            <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-balance sm:text-6xl lg:text-7xl">
+            <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-balance text-white sm:text-6xl lg:text-7xl">
               Publish the sky with the story behind the image.
             </h1>
-            <p className="max-w-2xl text-lg leading-8 text-muted-foreground sm:text-xl">
+            <p className="max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
               Lumigraph brings public posts, integration data, drafts, and a
               mission-control home base into one astrophotography workspace.
               Share the final image and preserve the processing journey that got
@@ -48,7 +48,11 @@ export function SplashContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button asChild size="lg" className="rounded-full px-7">
+            <Button
+              asChild
+              size="lg"
+              className="rounded-full border border-cyan-200/20 bg-cyan-400/12 px-7 text-cyan-50 hover:bg-cyan-400/20"
+            >
               <Link href="/gallery">
                 Browse Posts
                 <ArrowRight className="h-4 w-4" />
@@ -58,7 +62,7 @@ export function SplashContent() {
               asChild
               size="lg"
               variant="outline"
-              className="rounded-full px-7"
+              className="rounded-full border-white/10 bg-white/4 px-7 text-slate-100 hover:bg-white/8 hover:text-white dark:border-white/10 dark:bg-white/4 dark:hover:bg-white/8"
             >
               <Link href="/#workspace">See the workspace</Link>
             </Button>
@@ -75,21 +79,23 @@ export function SplashContent() {
           id="workspace"
           className="relative rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl"
         >
-          <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+          <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent" />
           <div className="grid gap-4">
             <div className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(13,19,35,0.98),rgba(9,13,24,0.94))] p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
-                  <p className="text-xs font-medium tracking-[0.24em] text-primary uppercase">
+                  <p className="text-xs font-medium tracking-[0.24em] text-cyan-100 uppercase">
                     Mission control
                   </p>
-                  <h2 className="text-2xl font-semibold">Astro Hub</h2>
-                  <p className="max-w-sm text-sm leading-6 text-muted-foreground">
+                  <h2 className="text-2xl font-semibold text-white">
+                    Astro Hub
+                  </h2>
+                  <p className="max-w-sm text-sm leading-6 text-slate-400">
                     Start with today&apos;s sky, orbital telemetry, and your
                     next target instead of a blank dashboard.
                   </p>
                 </div>
-                <div className="rounded-2xl border border-primary/20 bg-primary/10 p-3 text-primary">
+                <div className="rounded-2xl border border-cyan-200/20 bg-cyan-400/10 p-3 text-cyan-100">
                   <Orbit className="h-5 w-5" />
                 </div>
               </div>
@@ -122,15 +128,15 @@ export function SplashContent() {
               <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-medium text-white">
                       Drafts and publishing
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-slate-400">
                       Write once, refine metadata, publish when the image is
                       ready.
                     </p>
                   </div>
-                  <FileStack className="h-5 w-5 text-primary" />
+                  <FileStack className="h-5 w-5 text-cyan-100" />
                 </div>
                 <div className="mt-4 space-y-3">
                   <WorkspaceRow
@@ -149,15 +155,15 @@ export function SplashContent() {
               <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-sm font-medium text-white">
                       Integration sets
                     </p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-slate-400">
                       Keep masters, stacks, and calibration assets attached to
                       the work.
                     </p>
                   </div>
-                  <Upload className="h-5 w-5 text-primary" />
+                  <Upload className="h-5 w-5 text-cyan-100" />
                 </div>
                 <div className="mt-4 grid gap-3">
                   <CompactStat label="Folders indexed" value="128" />
@@ -205,13 +211,11 @@ function FeatureCard({
 }) {
   return (
     <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-7 shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-200/20 bg-cyan-400/10 text-cyan-100">
         {icon}
       </div>
-      <h3 className="mt-5 text-xl font-semibold">{title}</h3>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        {description}
-      </p>
+      <h3 className="mt-5 text-xl font-semibold text-white">{title}</h3>
+      <p className="mt-3 text-sm leading-6 text-slate-400">{description}</p>
     </div>
   );
 }
@@ -219,10 +223,10 @@ function FeatureCard({
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-      <p className="text-xs font-medium tracking-[0.2em] text-muted-foreground uppercase">
+      <p className="text-xs font-medium tracking-[0.2em] text-slate-500 uppercase">
         {label}
       </p>
-      <p className="mt-2 text-base font-semibold text-foreground">{value}</p>
+      <p className="mt-2 text-base font-semibold text-white">{value}</p>
     </div>
   );
 }
@@ -239,10 +243,10 @@ function PreviewTile({
   return (
     <div className="rounded-2xl border border-white/8 bg-white/[0.04] p-4">
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm font-medium text-foreground">{title}</p>
-        <span className="text-xs text-primary">{meta}</span>
+        <p className="text-sm font-medium text-white">{title}</p>
+        <span className="text-xs text-cyan-100">{meta}</span>
       </div>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-400">{detail}</p>
     </div>
   );
 }
@@ -259,12 +263,12 @@ function WorkspaceRow({
   return (
     <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-medium text-foreground">{title}</p>
-        <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+        <p className="font-medium text-white">{title}</p>
+        <span className="rounded-full border border-cyan-200/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-medium text-cyan-100">
           {status}
         </span>
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
+      <p className="mt-2 text-sm text-slate-400">{detail}</p>
     </div>
   );
 }
@@ -272,10 +276,10 @@ function WorkspaceRow({
 function CompactStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-3">
-      <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
+      <p className="text-xs font-medium tracking-[0.18em] text-slate-500 uppercase">
         {label}
       </p>
-      <p className="mt-2 text-sm font-medium text-foreground">{value}</p>
+      <p className="mt-2 text-sm font-medium text-white">{value}</p>
     </div>
   );
 }
