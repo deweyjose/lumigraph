@@ -46,7 +46,7 @@ export function SplashContent() {
         <FeatureCard
           icon={<Eye className="h-8 w-8" />}
           title="Discover"
-          description="Browse a curated gallery of astrophotography from the community. Find workflows and data for your favorite targets."
+          description="Browse a curated gallery of astrophotography from the community. Explore targets, posts, and integration data."
         />
       </section>
     </div>

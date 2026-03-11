@@ -4,7 +4,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 
 ## Now
 
-- Agentic platform foundation: API contracts, AI boundary, and tool surface
+- Core product cleanup around Astro Hub, posts, drafts, and integration sets
 - Export management UX hardening
 - Integration set workflow polish
 - Docs and context cleanup
@@ -13,13 +13,11 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 
 - Astro Hub revamp: Mission Control-style live astronomy experience
 - Public post/detail polish and download ergonomics
-- Guided processing planner v1: setup intake, tailored plan generation, and plan workspace
-- Workflow orchestration v1: runtime spec, execution engine, and operator station
 - AI drafting improvements for posts
-- PixInsight-aware processing context for target/camera-driven guidance
 
 ## Later
 
+- Optional private checklists/todos tied to posts or integration sets
 - PixInsight copilot capabilities
 - Cloud execution pipeline
 
@@ -29,15 +27,6 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #90 - export management hardening
   - #107 through #112 - automatic thumbnail generation slices
   - #91 - integration set workflow polish
-- Keep workflow work moving, but treat orchestration as the next major backend lane after capture:
-  - #127 - orchestrator runtime spec
-  - #128 - orchestrator execution engine
-  - #129 - operator station
-  - #130 - PixInsight-aware processing context
-- Start planner work once the orchestration spec clarifies runtime and context boundaries:
-  - #132 - guided planner intake
-  - #133 - tailored plan generation
-  - #134 - processing plan workspace
 - Treat Astro Hub as the main parallel frontend/product lane once one owner is available to push the visual system:
   - #136 - Mission Control redesign with mocked data
   - #137 - daily media contract and module
@@ -49,11 +38,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 
 - Lane A: reliability and user-facing polish
   - #90, #107 through #112, #91
-- Lane B: workflow orchestration backend
-  - #127, #128, #130
-- Lane C: planner-first product UX
-  - #132, #133, #134
-- Lane D: Astro Hub frontend revamp
+- Lane B: Astro Hub frontend revamp
   - #136, #137, #138, #139
 
 ## Worktree guidance
@@ -77,11 +62,10 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 ## Astro Hub design guidance
 
 - Treat Astro Hub as a distinct Lumigraph product theme, not a generic dashboard page.
-- Keep the current information architecture direction: Astro Hub, Posts, Workflows, Todos, and Integration Data remain a coherent grouping.
+- Keep the current information architecture direction focused on Astro Hub, Posts, Drafts, and Integration Data.
 - Do not port the Figma Make styling wholesale. Use it as a structural reference and implementation prompt, not the final design system.
 - Prioritize one dominant Astro Hub hero surface, fewer stronger modules, clearer hierarchy, and explicit freshness/trust signals for live data.
 - Design mobile behavior intentionally rather than shrinking the desktop sidebar-and-cards layout.
-- Favor the Make patterns for Workflows run monitoring and Todos more directly than Astro Hub, which needs a stronger custom visual treatment.
 - Preserve the current backend and auth architecture while selectively adopting UI patterns from the Make file.
 
 ## Astro Hub references
@@ -98,12 +82,10 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - Strong information architecture and useful command-center framing.
   - Weak brand distinctiveness, flat hierarchy, and template-like dashboard styling.
   - Astro Hub should move toward a more cinematic Mission Control experience with stronger hero treatment and telemetry trust signals.
-  - Workflows and Todos are the most directly reusable UI patterns from the Make exploration.
 
 ## Make frame mapping
 
 - AstroHub dashboard frames primarily inform #135, #136, #137, #138, #139, and #140.
-- Workflow run-monitor and assistant patterns should inform planner workspace follow-on work in #134 more than the older execution-engine framing.
 - Integration Data screen patterns can inform UX cleanup in #91 without replacing the current storage/auth architecture.
 - Posts list patterns are secondary reference material and should only influence future post-management polish where they improve clarity.
 - The login screen is secondary reference material for shared auth and brand presentation, not a direct Astro Hub implementation target.
@@ -116,31 +98,12 @@ Add links as items are created.
 - #95 - Normalize API contracts for machine clients
 - #96 - Extract a shared AI integration boundary
 - #97 - Expose typed agent tool surfaces over domain services
-- #98 - Define workflow, session, and run persistence for agent execution
-- #104 - Persist workflow sessions and run records
-- #105 - Persist run tool calls and artifact references
-- #103 - Add private run inspection and resume APIs
 - #90 - Roadmap: Harden export management UX and job lifecycle
 - #107 - Roadmap: Auto-thumb generation pipeline for final post images
 - #108 - Auto-thumb slice: data model and job state
 - #109 - Auto-thumb slice: worker runtime and thumbnail generation
 - #110 - Auto-thumb slice: publish/update integration and observability
 - #91 - Roadmap: Polish integration set workflow UX
-- #92 - Roadmap: Workflow capture v1 (spec and implementation slices)
-- #116 - Specify workflow capture v1 domain model and API contract
-- #117 - Persist workflow definitions and ordered step definitions
-- #118 - Add private workflow definition CRUD APIs
-- #119 - Build workflow capture v1 list and editor UX
-- #120 - Launch workflow sessions from authored definitions
-- #126 - Workflow orchestration v1 (agent runtime, event stream, operator station)
-- #127 - Specify workflow orchestrator runtime, run-event schema, and operator interaction model
-- #128 - Execute authored workflow definitions through an orchestrator agent
-- #129 - Build an operator station for live orchestrator updates and run control
-- #130 - Model PixInsight processing context for target-aware and camera-aware orchestration
-- #131 - Guided processing planner v1 (setup intake, tailored plan, workflow instance)
-- #132 - Capture astrophotography setup and session context through a guided planner intake
-- #133 - Generate tailored preprocessing and integration plans from setup context
-- #134 - Build a processing plan workspace for checklist, settings, and rationale review
 - #135 - Astro Hub revamp: Mission Control-style live astronomy experience
 - #136 - Redesign Astro Hub as a dynamic Mission Control experience with mocked data
 - #137 - Add Astro Hub daily photo/media module with normalized provider contract and fallback gallery

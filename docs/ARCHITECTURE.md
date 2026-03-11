@@ -71,14 +71,6 @@
 - Internal callbacks:
   - `POST /api/internal/export-jobs/:jobId/callback`
   - `POST /api/internal/auto-thumb-jobs/:jobId/callback`
-- Workflow sessions:
-  - `GET /api/workflow-sessions`
-  - `GET /api/workflow-sessions/:id`
-- Workflow runs:
-  - `GET /api/workflow-runs`
-  - `GET /api/workflow-runs/:id`
-  - `POST /api/workflow-runs/:id/resume`
-  - `POST /api/workflow-runs/:id/retry`
 
 ## Path conventions
 
@@ -87,7 +79,6 @@
 - Artifact upload is initiated through `/api/uploads/...` after the server verifies the target post or integration set.
 - Artifact viewing/downloading is exposed by asset id through `/api/assets/:id/view` and `/api/assets/:id/download`.
 - Export job lifecycle stays nested under the owning integration set via `/api/integration-sets/:id/export-jobs/...`.
-- Workflow inspection stays private-first under `/api/workflow-sessions/...` and `/api/workflow-runs/...`.
 
 ## Tool surfaces
 
@@ -96,54 +87,14 @@
 - Tool handlers call existing services so ownership checks, visibility rules, and state transitions stay centralized.
 - Routes and tools are sibling transport layers over the same service logic; routes exist for HTTP clients, tools exist for agent/runtime callers.
 
-## Agent execution persistence model
+## Product shape
 
-- `WorkflowDefinition` and `WorkflowStepDefinition` describe reusable authored process templates. `#117` persists these private owned records and their ordered step lists.
-- `WorkflowSession` is the durable execution context for one user's working thread around a goal or resource. It can point at an authored workflow definition and at subject resources such as a post or integration set. Launch flows now persist that owned linkage through the session record.
-- `WorkflowRun` is one execution attempt within a session. A session may have many runs over time as the user retries, resumes, or switches agents/models. `#104` persists this model now.
-- `RunToolCall` is the audit log for one tool invocation during a run. It stores the tool name, validated input payload, output payload or error, timestamps, and status. `#105` persists this model now.
-- `RunArtifactRef` links a run to durable domain outputs such as posts, integration sets, assets, or export jobs instead of duplicating those records into agent tables. `#105` persists this model now.
-
-## Persist now vs later
-
-- Persist now:
-  - `WorkflowSession`
-  - `WorkflowRun`
-  - `RunToolCall`
-  - `RunArtifactRef`
-- Reuse existing domain entities for durable outputs rather than creating agent-owned copies.
-- Defer:
-  - full message transcript persistence
-  - token/billing accounting
-  - speculative branch trees and rollback snapshots
-  - long-term semantic memory/vector storage
-  - cross-user collaboration and shared visibility modes
-
-## Ownership, visibility, and auditability
-
-- Sessions and runs are user-owned records by default; access follows the same server-side ownership enforcement used by posts, integration sets, assets, and export jobs.
-- Visibility for execution records should remain private-first until workflow sharing is explicitly designed.
-- Tool inputs and outputs should be persisted as structured JSON so runs are auditable and resumable without reverse-engineering log text.
-- Run records should keep immutable timestamps and terminal status so operators and users can distinguish in-progress, failed, cancelled, and completed attempts.
-- Artifact references should point at existing domain objects by id and type, preserving the source-of-truth ownership and visibility rules on those underlying objects.
-
-## Dependency and sequencing model
-
-- `#92` defines reusable workflow definitions and step structure.
-- `#97` defines the tool names and input/output contracts that run logs will record.
-- Execution persistence can start with sessions/runs/tool-call audit trails even before a full autonomous runtime exists.
-- Resume/retry APIs should come after the persistence schema exists so callers can rely on stable ids and status transitions.
-- Resume rules: `POST /api/workflow-runs/:id/resume` creates a new run with trigger `RESUME` only when the source run is `PENDING` or `FAILED` and the parent session is still `ACTIVE`.
-- Retry rules: `POST /api/workflow-runs/:id/retry` creates a new run with trigger `RETRY` only when the source run is `FAILED` or `CANCELLED` and the parent session is still `ACTIVE`.
-
-## Orchestrator runtime contract
-
-- `#127` defines the runtime contract in `specs/workflow-orchestrator-runtime-v1/SPEC.md`.
-- `#130` extends that spec with `ProcessingContextV1` for target-aware and camera-aware orchestration inputs.
-- Canonical run lifecycle for orchestration is `QUEUED -> RUNNING -> WAITING_FOR_INPUT -> terminal`.
-- Current persisted run statuses remain `PENDING | RUNNING | SUCCEEDED | FAILED | CANCELLED` until follow-up migration work adds an explicit waiting-for-input representation.
-- Runtime event streams are append-only and ordered per run, with lifecycle, step progress, tool-call intent/result, narration, and operator input events.
-- Operator interaction is split into bootstrap run/session reads, live run-event streaming, and explicit control commands (input submit/cancel + existing resume/retry endpoints).
+- The current product centers on four owned feature surfaces:
+  - Astro Hub
+  - Posts
+  - Drafts
+  - Integration Sets
+- Generic workflow/orchestration code has been removed. If checklist or todo support returns later, it should attach directly to posts or integration sets rather than introducing a reusable execution engine.
 
 ## Security and authz invariants
 
@@ -164,8 +115,6 @@
 - Integration-set visibility is currently private-only.
 - Export jobs are async and progress through worker callbacks before a download URL is exposed.
 - Final image uploads enqueue auto-thumb jobs and asynchronously invoke an AWS Lambda worker, with signed callback updates driving `PENDING -> RUNNING -> READY|FAILED` transitions and idempotency keyed by post plus source checksum/version.
-- Workflow execution persistence now stores private user-owned sessions, runs, tool-call audit rows, artifact references, and private inspection/restart APIs.
-- Workflow capture now persists private workflow definitions and ordered step templates, exposes private CRUD and launch APIs for owned workflows, and includes a first list/editor UX for creating, updating, and launching those definitions into sessions and runs.
 
 ## Operational notes
 

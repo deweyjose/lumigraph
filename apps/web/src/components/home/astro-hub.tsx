@@ -42,7 +42,7 @@ export function AstroHub() {
                 </h1>
                 <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
                   Mocked data stream to evaluate hero hierarchy, live telemetry,
-                  time windows, and exploration workflows before provider
+                  time windows, and exploration patterns before provider
                   integration.
                 </p>
               </div>

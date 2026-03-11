@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lumigraph helps astrophotographers publish outcomes and share the process behind those outcomes.
+Lumigraph helps astrophotographers publish outcomes, manage integration data, and explore relevant astronomy context.
 
 ## Primary users
 
@@ -12,9 +12,9 @@ Lumigraph helps astrophotographers publish outcomes and share the process behind
 ## Phase model
 
 - Phase 1: posts + integration datasets + downloads
-- Phase 2: structured workflow capture
-- Phase 3: AI copilot for workflow assistance
-- Phase 4: optional cloud execution
+- Phase 2: Astro Hub and stronger publishing ergonomics
+- Phase 3: optional lightweight checklists/todos tied to owned content
+- Phase 4: AI assistance around posts and integration data
 
 ## Current priorities
 

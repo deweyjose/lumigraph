@@ -13,6 +13,12 @@ export function SiteHeader() {
           </Link>
           <nav className="hidden items-center gap-4 text-sm md:flex">
             <Link
+              href="/"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Astro Hub
+            </Link>
+            <Link
               href="/integration-sets"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
@@ -23,12 +29,6 @@ export function SiteHeader() {
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               Drafts
-            </Link>
-            <Link
-              href="/workflows"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Workflows
             </Link>
             <Link
               href="/gallery"
