@@ -33,14 +33,16 @@ export default async function PostDetailPage({ params }: Props) {
       : null;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12">
+    <div className="mx-auto w-full max-w-5xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <div className="mb-6 flex items-center gap-2">
         <VisibilityBadge visibility={post.status} />
         <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-muted-foreground">
           {post.slug}
         </code>
       </div>
-      <h1 className="text-3xl font-bold tracking-tight">{post.title}</h1>
+      <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+        {post.title}
+      </h1>
       {(post.targetName || post.captureDate) && (
         <p className="mt-1 text-muted-foreground">
           {[post.targetName, post.captureDate?.toLocaleDateString()]

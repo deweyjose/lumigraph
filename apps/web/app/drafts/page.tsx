@@ -22,11 +22,16 @@ export default async function DraftsPage() {
   const myPosts = await listMyPosts(session.user.id);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <header className="mb-10">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Drafts</h1>
+          <div className="max-w-3xl">
+            <p className="text-xs font-medium tracking-[0.24em] text-cyan-200 uppercase">
+              Workspace
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              Drafts
+            </h1>
             <p className="mt-2 text-muted-foreground">
               Your drafts and published posts in one place.
             </p>
@@ -64,7 +69,7 @@ export default async function DraftsPage() {
         </ul>
       ) : (
         <div
-          className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/60 bg-muted/20 px-4 py-16"
+          className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/4 px-4 py-16"
           role="status"
           aria-label="No posts yet"
         >

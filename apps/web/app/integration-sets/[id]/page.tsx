@@ -34,7 +34,7 @@ export default async function IntegrationSetDetailPage({ params }: Props) {
   if (!set || !assets || !downloadJobs) notFound();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <div className="mb-4">
         <Button asChild variant="ghost" size="sm">
           <Link href="/integration-sets" className="gap-2">
@@ -43,7 +43,9 @@ export default async function IntegrationSetDetailPage({ params }: Props) {
         </Button>
       </div>
 
-      <h1 className="text-2xl font-bold tracking-tight">{set.title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+        {set.title}
+      </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Private integration set. Upload files or folders and browse by path.
       </p>

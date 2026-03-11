@@ -16,9 +16,14 @@ export default async function GalleryPage() {
   const publicPosts = await listPublicPosts({ limit: 50 });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
-      <header className="mb-10">
-        <h1 className="text-3xl font-bold tracking-tight">Posts</h1>
+    <div className="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
+      <header className="mb-10 max-w-3xl">
+        <p className="text-xs font-medium tracking-[0.24em] text-cyan-200 uppercase">
+          Explore
+        </p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+          Posts
+        </h1>
         <p className="mt-2 text-muted-foreground">
           Public astrophotography from the Lumigraph community.
         </p>
@@ -52,7 +57,7 @@ export default async function GalleryPage() {
           </ul>
         ) : (
           <div
-            className="mt-6 flex flex-col items-center justify-center rounded-lg border border-dashed border-border/60 bg-muted/20 py-16 px-4"
+            className="mt-6 flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/4 px-4 py-16"
             role="status"
             aria-label="No public posts yet"
           >

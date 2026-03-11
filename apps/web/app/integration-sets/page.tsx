@@ -19,13 +19,16 @@ export default async function IntegrationSetsPage() {
   const sets = await listMyIntegrationSets(session.user.id);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <header className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+        <div className="max-w-3xl">
+          <p className="text-xs font-medium tracking-[0.24em] text-cyan-200 uppercase">
+            Data Bay
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
             Integration Sets
           </h1>
-          <p className="mt-1 text-muted-foreground">
+          <p className="mt-2 text-muted-foreground">
             Organize lights, darks, flats, and calibration data.
           </p>
         </div>
@@ -37,7 +40,7 @@ export default async function IntegrationSetsPage() {
       </header>
 
       {sets.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
+        <div className="rounded-3xl border border-dashed border-white/10 bg-white/4 p-10 text-center">
           <FolderOpen className="mx-auto h-10 w-10 text-muted-foreground" />
           <p className="mt-3 text-sm text-muted-foreground">
             No integration sets yet.
