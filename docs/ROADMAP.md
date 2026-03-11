@@ -13,11 +13,13 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Astro Hub revamp: Mission Control-style live astronomy experience
 - Shared app-shell polish across Astro Hub, Posts, Drafts, and Integration Sets
 - Public post/detail polish and download ergonomics
+- Collaborative post critique with region-based image annotation threads
 - AI drafting improvements for posts
 
 ## Later
 
 - Optional private checklists/todos tied to posts or integration sets
+- Agent-assisted post critique and image comment suggestions
 - PixInsight copilot capabilities
 - Cloud execution pipeline
 
@@ -31,6 +33,11 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #140 - final Astro Hub polish pass
 - Follow with broader page polish once the shell and live Astro Hub modules settle:
   - #60 - site-wide polish and consistency
+  - #151 - post annotation thread data model and API contract
+  - #152 - interactive region-based comment threads on post images
+  - #153 - annotation discussion polish, moderation, and trust cues
+  - #154 - agent-assisted image critique suggestions for post annotation threads
+  - #155 - review and trust UX for agent-authored image critique comments
   - #93 - AI drafting improvements
 
 ## Parallel lanes
@@ -41,6 +48,10 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #137, #138, #139, #140
 - Lane C: drafting/product intelligence
   - #93
+- Lane D: post collaboration and critique
+  - #151, #152, #153
+- Lane E: agent critique and coaching
+  - #154, #155
 
 ## Worktree guidance
 
@@ -104,4 +115,9 @@ Add links as items are created.
 - #139 - Build an Astro Hub astronomy calendar and event detail experience
 - #140 - Polish Astro Hub performance, accessibility, and mobile tuning after live data integration
 - #60 - Site-wide layout and page polish
+- #151 - Add post annotation thread data model and API contract
+- #152 - Build interactive region-based comment threads on post images
+- #153 - Polish annotation discussion with moderation, lifecycle, and trust cues
+- #154 - Add agent-assisted image critique suggestions for post annotation threads
+- #155 - Build review and trust UX for agent-authored image critique comments
 - #93 - AI drafting improvements for posts
