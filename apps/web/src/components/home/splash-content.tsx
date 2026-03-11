@@ -150,23 +150,48 @@ export function SplashContent() {
                 </div>
               </div>
 
-              <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-white">
-                      Integration sets
-                    </p>
-                    <p className="text-sm text-slate-400">
-                      Keep masters, stacks, and calibration assets attached to
-                      the work.
-                    </p>
+              <div className="grid gap-4">
+                <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">Posts</p>
+                      <p className="text-sm text-slate-400">
+                        Turn a finished image into a published record with the
+                        story and core target data attached.
+                      </p>
+                    </div>
+                    <Eye className="h-5 w-5 text-cyan-100" />
                   </div>
-                  <Upload className="h-5 w-5 text-cyan-100" />
+                  <div className="mt-4 grid gap-3">
+                    <CompactStat
+                      label="Publish flow"
+                      value="Draft -> review -> post"
+                    />
+                    <CompactStat
+                      label="What ships"
+                      value="Final image, metadata, narrative"
+                    />
+                  </div>
                 </div>
-                <div className="mt-4 grid gap-3">
-                  <CompactStat label="Folders indexed" value="128" />
-                  <CompactStat label="Current target" value="Sh2-155" />
-                  <CompactStat label="Export ready" value="Source package" />
+
+                <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">
+                        Integration sets
+                      </p>
+                      <p className="text-sm text-slate-400">
+                        Keep masters, stacks, and calibration assets attached to
+                        the work.
+                      </p>
+                    </div>
+                    <Upload className="h-5 w-5 text-cyan-100" />
+                  </div>
+                  <div className="mt-4 grid gap-3">
+                    <CompactStat label="Folders indexed" value="128" />
+                    <CompactStat label="Current target" value="Sh2-155" />
+                    <CompactStat label="Export ready" value="Source package" />
+                  </div>
                 </div>
               </div>
             </div>
