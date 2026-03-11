@@ -9,6 +9,7 @@ import {
   GalleryVerticalEnd,
   Telescope,
 } from "lucide-react";
+import { BrandMark } from "@/components/brand-mark";
 import { UserNav } from "@/components/user-nav";
 import { cn } from "@/lib/utils";
 
@@ -56,19 +57,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r border-white/6 bg-black/20 lg:flex lg:flex-col">
           <div className="flex h-20 items-center border-b border-white/6 px-6">
-            <Link href="/" className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                <Telescope className="h-5 w-5 text-cyan-200" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold text-white">
-                  Lumigraph
-                </span>
-                <span className="block text-xs text-slate-400">
-                  Astrophotography workspace
-                </span>
-              </span>
-            </Link>
+            <BrandMark />
           </div>
 
           <div className="flex-1 px-4 py-5">
@@ -136,19 +125,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="border-b border-white/8 bg-black/20 lg:hidden">
             <div className="flex items-center justify-between px-4 py-4">
-              <Link href="/" className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                  <Telescope className="h-4 w-4 text-cyan-200" />
-                </span>
-                <span>
-                  <span className="block text-sm font-semibold text-white">
-                    Lumigraph
-                  </span>
-                  <span className="block text-xs text-slate-400">
-                    Mission control
-                  </span>
-                </span>
-              </Link>
+              <BrandMark compact subtitle="Mission control" />
               <UserNav />
             </div>
             <nav className="flex gap-2 overflow-x-auto px-4 pb-4">
