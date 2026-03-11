@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ChartNoAxesCombined,
   FilePenLine,
@@ -59,7 +59,7 @@ const publicNavItems = [
     icon: FilePenLine,
   },
   {
-    href: "/gallery",
+    href: "/#posts",
     label: "Posts",
     description: "Published work",
     icon: GalleryVerticalEnd,
@@ -75,11 +75,12 @@ const publicNavItems = [
 function isActivePath(
   pathname: string,
   href: string,
-  mode: WorkspaceShellProps["mode"]
+  mode: WorkspaceShellProps["mode"],
+  activePublicSection: string
 ): boolean {
   if (href === "/") return pathname === "/";
   if (mode === "public" && href.startsWith("/#")) {
-    return pathname === "/" && href === "/#astro-hub";
+    return pathname === "/" && href === `/#${activePublicSection}`;
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -89,14 +90,96 @@ export function WorkspaceShell({
   mode = "authenticated",
 }: WorkspaceShellProps) {
   const pathname = usePathname();
+  const mainRef = useRef<HTMLElement | null>(null);
   const navItems =
     mode === "authenticated" ? authenticatedNavItems : publicNavItems;
   const isPublic = mode === "public";
+  const [activePublicSection, setActivePublicSection] = useState("astro-hub");
+
+  useEffect(() => {
+    if (!isPublic) return;
+
+    const root = mainRef.current;
+    if (!root) return;
+
+    const sectionIds = ["astro-hub", "drafts", "posts", "integration-sets"];
+    const sections = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter((section): section is HTMLElement => Boolean(section));
+
+    const syncHash = () => {
+      const nextHash = window.location.hash.replace("#", "");
+      setActivePublicSection(nextHash || "astro-hub");
+    };
+
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+
+    const updateActiveSectionFromScroll = () => {
+      const rootTop = root.getBoundingClientRect().top;
+      const probeLine = rootTop + Math.min(root.clientHeight * 0.3, 240);
+
+      let nextSection = sectionIds[0];
+
+      for (const section of sections) {
+        const rect = section.getBoundingClientRect();
+        if (rect.top - probeLine <= 0) {
+          nextSection = section.id;
+        } else {
+          break;
+        }
+      }
+
+      setActivePublicSection(nextSection);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+        const topEntry = visibleEntries[0];
+        if (topEntry?.target.id) {
+          setActivePublicSection(topEntry.target.id);
+        } else {
+          updateActiveSectionFromScroll();
+        }
+      },
+      {
+        root,
+        rootMargin: "-18% 0px -52% 0px",
+        threshold: [0.2, 0.4, 0.6],
+      }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    root.addEventListener("scroll", updateActiveSectionFromScroll, {
+      passive: true,
+    });
+    updateActiveSectionFromScroll();
+
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+      root.removeEventListener("scroll", updateActiveSectionFromScroll);
+      observer.disconnect();
+    };
+  }, [isPublic]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_26%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.08),transparent_22%),linear-gradient(180deg,rgba(6,12,25,1),rgba(9,14,23,1))]">
+    <div
+      className={cn(
+        "min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_26%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.08),transparent_22%),linear-gradient(180deg,rgba(6,12,25,1),rgba(9,14,23,1))]",
+        isPublic && "lg:h-screen lg:overflow-hidden"
+      )}
+    >
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-white/6 bg-black/20 lg:flex lg:flex-col">
+        <aside
+          className={cn(
+            "hidden w-72 shrink-0 border-r border-white/6 bg-black/20 lg:flex lg:flex-col",
+            isPublic && "lg:h-screen"
+          )}
+        >
           <div className="flex h-20 items-center border-b border-white/6 px-6">
             <BrandMark />
           </div>
@@ -107,7 +190,12 @@ export function WorkspaceShell({
             </p>
             <nav className="mt-4 space-y-1.5">
               {navItems.map((item) => {
-                const active = isActivePath(pathname, item.href, mode);
+                const active = isActivePath(
+                  pathname,
+                  item.href,
+                  mode,
+                  activePublicSection
+                );
                 const Icon = item.icon;
                 return (
                   <Link
@@ -171,7 +259,12 @@ export function WorkspaceShell({
           </div>
         </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col",
+            isPublic && "lg:h-screen lg:overflow-hidden"
+          )}
+        >
           <div className="border-b border-white/8 bg-black/20 lg:hidden">
             <div className="flex items-center justify-between px-4 py-4">
               <BrandMark
@@ -184,7 +277,12 @@ export function WorkspaceShell({
             </div>
             <nav className="flex gap-2 overflow-x-auto px-4 pb-4">
               {navItems.map((item) => {
-                const active = isActivePath(pathname, item.href, mode);
+                const active = isActivePath(
+                  pathname,
+                  item.href,
+                  mode,
+                  activePublicSection
+                );
                 return (
                   <Link
                     key={item.href}
@@ -203,7 +301,13 @@ export function WorkspaceShell({
             </nav>
           </div>
 
-          <main className="min-w-0 flex-1 p-3 sm:p-4 lg:p-5">
+          <main
+            ref={mainRef}
+            className={cn(
+              "min-w-0 flex-1 p-3 sm:p-4 lg:p-5",
+              isPublic && "scroll-smooth lg:overflow-y-auto"
+            )}
+          >
             <div className="min-h-full overflow-hidden rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,23,42,0.9),rgba(8,15,28,0.88))] shadow-[0_18px_70px_rgba(2,8,23,0.45)]">
               {children}
             </div>

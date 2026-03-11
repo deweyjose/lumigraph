@@ -20,7 +20,10 @@ export function SplashContent() {
     <div className="relative overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.08),transparent_28%)]" />
 
-      <section id="astro-hub" className="mx-auto max-w-7xl px-5 pb-14 pt-12">
+      <section
+        id="astro-hub"
+        className="mx-auto max-w-7xl scroll-mt-6 px-5 pb-14 pt-12 lg:scroll-mt-8"
+      >
         <div className="max-w-5xl space-y-8">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-white/5 px-3 py-1 text-xs font-medium tracking-[0.2em] text-cyan-100 uppercase">
             <Sparkles className="h-3.5 w-3.5" />
@@ -99,7 +102,10 @@ export function SplashContent() {
         </div>
       </section>
 
-      <section id="drafts" className="mx-auto max-w-7xl px-5 pb-8 pt-4">
+      <section
+        id="drafts"
+        className="mx-auto max-w-7xl scroll-mt-6 px-5 pb-8 pt-4 lg:scroll-mt-8"
+      >
         <FeaturePanel
           eyebrow="Drafts"
           title="Keep working images private until they are ready."
@@ -127,7 +133,10 @@ export function SplashContent() {
         </FeaturePanel>
       </section>
 
-      <section id="posts" className="mx-auto max-w-7xl px-5 py-8">
+      <section
+        id="posts"
+        className="mx-auto max-w-7xl scroll-mt-6 px-5 py-8 lg:scroll-mt-8"
+      >
         <FeaturePanel
           eyebrow="Posts"
           title="Posts turn a finished image into a proper published record."
@@ -189,7 +198,10 @@ export function SplashContent() {
         </FeaturePanel>
       </section>
 
-      <section id="integration-sets" className="mx-auto max-w-7xl px-5 py-8">
+      <section
+        id="integration-sets"
+        className="mx-auto max-w-7xl scroll-mt-6 px-5 py-8 lg:scroll-mt-8"
+      >
         <FeaturePanel
           eyebrow="Integration Sets"
           title="Organize source frames, calibration data, and exports in one place."
