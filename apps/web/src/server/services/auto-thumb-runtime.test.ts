@@ -9,9 +9,16 @@ vi.mock("@aws-sdk/client-lambda", () => ({
   LambdaClient: LambdaClientMock,
 }));
 
+vi.mock("@lumigraph/db", () => ({
+  getPrisma: vi.fn(),
+}));
+
 vi.mock("./auto-thumb-jobs", () => ({
+  cancelAutoThumbJobForOwner: vi.fn(),
+  enqueueAutoThumbJobForUploadedFinalImage: vi.fn(),
   getAutoThumbJobRuntimeRecord: vi.fn(),
   getAutoThumbMaxAttempts: vi.fn(() => 3),
+  getLatestAutoThumbJobForPostOwner: vi.fn(),
   markAutoThumbJobFailed: vi.fn(),
   markAutoThumbJobReady: vi.fn(),
   markAutoThumbJobRetryPending: vi.fn(),
@@ -27,13 +34,14 @@ vi.mock("./s3", () => ({
 }));
 
 const autoThumbJobs = await import("./auto-thumb-jobs");
+const { getPrisma } = await import("@lumigraph/db");
 const runtime = await import("./auto-thumb-runtime");
 
 type RuntimeJob = {
   id: string;
   userId: string;
   postId: string;
-  status: "PENDING" | "RUNNING" | "READY" | "FAILED";
+  status: "PENDING" | "RUNNING" | "READY" | "FAILED" | "CANCELLED";
   attempts: number;
   sourceObjectKey: string;
 };
@@ -80,7 +88,12 @@ describe("auto-thumb-runtime service", () => {
     LambdaClientMock.mockClear();
 
     vi.mocked(autoThumbJobs.getAutoThumbJobRuntimeRecord).mockReset();
+    vi.mocked(autoThumbJobs.cancelAutoThumbJobForOwner).mockReset();
+    vi.mocked(
+      autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage
+    ).mockReset();
     vi.mocked(autoThumbJobs.getAutoThumbMaxAttempts).mockReset();
+    vi.mocked(autoThumbJobs.getLatestAutoThumbJobForPostOwner).mockReset();
     vi.mocked(autoThumbJobs.getAutoThumbMaxAttempts).mockReturnValue(3);
     vi.mocked(autoThumbJobs.markAutoThumbJobFailed).mockReset();
     vi.mocked(autoThumbJobs.markAutoThumbJobReady).mockReset();
@@ -102,6 +115,11 @@ describe("auto-thumb-runtime service", () => {
       ok: true,
       job: { id: "job-1", attempts: 1 },
     } as never);
+    vi.mocked(autoThumbJobs.cancelAutoThumbJobForOwner).mockResolvedValue({
+      ok: true,
+      job: { id: "job-1", status: "CANCELLED" },
+    } as never);
+    vi.mocked(getPrisma).mockReset();
   });
 
   it("dispatches pending jobs to Lambda with deterministic callback and output key", async () => {
@@ -211,6 +229,64 @@ describe("auto-thumb-runtime service", () => {
     expect(autoThumbJobs.markAutoThumbJobReady).not.toHaveBeenCalled();
   });
 
+  it("ignores callbacks for cancelled jobs", async () => {
+    vi.mocked(autoThumbJobs.getAutoThumbJobRuntimeRecord).mockResolvedValue(
+      makeRuntimeJob({ status: "CANCELLED" }) as never
+    );
+
+    const result = await runtime.applyAutoThumbJobCallback("job-1", {
+      status: "READY",
+      outputThumbKey: "users/user-1/posts/post-1/final/thumbs/job-1.webp",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(autoThumbJobs.markAutoThumbJobReady).not.toHaveBeenCalled();
+  });
+
+  it("attaches a generated thumb asset when READY callback succeeds", async () => {
+    const prisma = {
+      autoThumbJob: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "job-1",
+          userId: "user-1",
+          postId: "post-1",
+        }),
+      },
+      asset: {
+        create: vi.fn().mockResolvedValue({ id: "asset-thumb-1" }),
+      },
+      post: {
+        update: vi.fn().mockResolvedValue({ id: "post-1" }),
+      },
+    };
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+    vi.mocked(autoThumbJobs.getAutoThumbJobRuntimeRecord).mockResolvedValue(
+      makeRuntimeJob({ status: "RUNNING" }) as never
+    );
+
+    const result = await runtime.applyAutoThumbJobCallback("job-1", {
+      status: "READY",
+      outputThumbKey: "users/user-1/posts/post-1/final/thumbs/job-1.webp",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(prisma.asset.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: "user-1",
+        postId: "post-1",
+        kind: "FINAL_THUMB",
+        filename: "job-1.webp",
+        contentType: "image/webp",
+        s3Key: "users/user-1/posts/post-1/final/thumbs/job-1.webp",
+        status: "UPLOADED",
+      }),
+    });
+    expect(prisma.post.update).toHaveBeenCalledWith({
+      where: { id: "post-1" },
+      data: { finalThumbAssetId: "asset-thumb-1" },
+    });
+  });
+
   it("verifies callback signatures and rejects stale timestamps", () => {
     const secret = "test-secret";
     const freshTimestamp = String(Math.floor(Date.now() / 1000));
@@ -246,5 +322,118 @@ describe("auto-thumb-runtime service", () => {
         body
       )
     ).toBe(false);
+  });
+
+  it("triggers a manual auto-thumb job for an owned post", async () => {
+    vi.mocked(getPrisma).mockResolvedValue({
+      post: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "post-1",
+          userId: "user-1",
+          finalImageAsset: {
+            id: "asset-1",
+            userId: "user-1",
+            postId: "post-1",
+            status: "UPLOADED",
+            s3Key: "users/user-1/posts/post-1/final/main.png",
+            checksum: "abc123",
+            updatedAt: new Date("2026-03-10T12:00:00.000Z"),
+          },
+        }),
+      },
+    } as never);
+    vi.mocked(
+      autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage
+    ).mockResolvedValue({
+      created: false,
+      job: {
+        id: "job-1",
+        status: "PENDING",
+        attempts: 0,
+        sourceObjectKey: "users/user-1/posts/post-1/final/main.png",
+        sourceChecksum: "abc123",
+        sourceVersion: "checksum:abc123",
+        idempotencyKey: "key-1",
+        outputThumbKey: null,
+        errorMessage: null,
+        startedAt: null,
+        completedAt: null,
+        createdAt: "2026-03-10T12:00:00.000Z",
+        updatedAt: "2026-03-10T12:00:00.000Z",
+      },
+    } as never);
+    vi.mocked(
+      autoThumbJobs.getLatestAutoThumbJobForPostOwner
+    ).mockResolvedValue({
+      id: "job-1",
+      status: "PENDING",
+      attempts: 0,
+      sourceObjectKey: "users/user-1/posts/post-1/final/main.png",
+      sourceChecksum: "abc123",
+      sourceVersion: "checksum:abc123",
+      idempotencyKey: "key-1",
+      outputThumbKey: null,
+      errorMessage: null,
+      startedAt: null,
+      completedAt: null,
+      createdAt: "2026-03-10T12:00:00.000Z",
+      updatedAt: "2026-03-10T12:00:00.000Z",
+    } as never);
+    vi.mocked(autoThumbJobs.getAutoThumbJobRuntimeRecord).mockResolvedValue(
+      makeRuntimeJob({ status: "PENDING" }) as never
+    );
+
+    const result = await runtime.triggerAutoThumbForPostOwner(
+      "user-1",
+      "post-1",
+      { requestOrigin: "http://localhost:3000" }
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      invoked: true,
+      job: expect.objectContaining({
+        id: "job-1",
+        status: "PENDING",
+      }),
+    });
+  });
+
+  it("cancels the latest job for an owned post", async () => {
+    vi.mocked(
+      autoThumbJobs.getLatestAutoThumbJobForPostOwner
+    ).mockResolvedValue({
+      id: "job-1",
+      status: "RUNNING",
+      attempts: 1,
+      sourceObjectKey: "users/user-1/posts/post-1/final/main.png",
+      sourceChecksum: "abc123",
+      sourceVersion: "checksum:abc123",
+      idempotencyKey: "key-1",
+      outputThumbKey: null,
+      errorMessage: null,
+      startedAt: null,
+      completedAt: null,
+      createdAt: "2026-03-10T12:00:00.000Z",
+      updatedAt: "2026-03-10T12:00:00.000Z",
+    } as never);
+
+    const result = await runtime.cancelAutoThumbForPostOwner(
+      "user-1",
+      "post-1"
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      job: expect.objectContaining({
+        id: "job-1",
+        status: "CANCELLED",
+      }),
+    });
+    expect(autoThumbJobs.cancelAutoThumbJobForOwner).toHaveBeenCalledWith(
+      "user-1",
+      "post-1",
+      "job-1"
+    );
   });
 });

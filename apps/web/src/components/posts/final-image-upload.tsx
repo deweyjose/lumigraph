@@ -1,8 +1,14 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImageIcon, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  ImageIcon,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -24,11 +30,26 @@ function mapFileToContentType(
 
 type UploadSlot = "image" | "thumb";
 type SlotStatus = "idle" | "uploading" | "done" | "error";
+type AutoThumbJobStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "READY"
+  | "FAILED"
+  | "CANCELLED";
+
+type AutoThumbJobState = {
+  id: string;
+  status: AutoThumbJobStatus;
+  attempts: number;
+  errorMessage: string | null;
+  updatedAt: string;
+} | null;
 
 type FinalImageUploadProps = {
   postId: string;
   currentImageAssetId: string | null;
   currentThumbAssetId: string | null;
+  initialAutoThumbJob: AutoThumbJobState;
   className?: string;
 };
 
@@ -36,6 +57,7 @@ export function FinalImageUpload({
   postId,
   currentImageAssetId,
   currentThumbAssetId,
+  initialAutoThumbJob,
   className,
 }: FinalImageUploadProps) {
   const router = useRouter();
@@ -45,6 +67,22 @@ export function FinalImageUpload({
   const [thumbStatus, setThumbStatus] = useState<SlotStatus>("idle");
   const [imageError, setImageError] = useState<string | null>(null);
   const [thumbError, setThumbError] = useState<string | null>(null);
+  const [autoThumbJob, setAutoThumbJob] =
+    useState<AutoThumbJobState>(initialAutoThumbJob);
+  const [autoThumbError, setAutoThumbError] = useState<string | null>(null);
+  const lastImageAssetIdRef = useRef<string | null>(currentImageAssetId);
+  const lastAutoThumbStatusRef = useRef<AutoThumbJobStatus | null>(
+    initialAutoThumbJob?.status ?? null
+  );
+  const autoThumbBusy =
+    autoThumbJob?.status === "PENDING" || autoThumbJob?.status === "RUNNING";
+  const showAutoThumbStatus =
+    !currentThumbAssetId &&
+    currentImageAssetId != null &&
+    autoThumbJob != null &&
+    (autoThumbBusy ||
+      autoThumbJob.status === "FAILED" ||
+      autoThumbJob.status === "CANCELLED");
 
   const uploadFile = useCallback(
     async (file: File, role: UploadSlot) => {
@@ -125,6 +163,84 @@ export function FinalImageUpload({
     },
     [postId, router]
   );
+
+  const refreshAutoThumbJob = useCallback(async () => {
+    const res = await fetch(`/api/posts/${postId}/auto-thumb`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { job: AutoThumbJobState };
+    setAutoThumbJob(data.job);
+  }, [postId]);
+
+  const triggerAutoThumb = useCallback(async () => {
+    setAutoThumbError(null);
+    try {
+      const res = await fetch(`/api/posts/${postId}/auto-thumb`, {
+        method: "POST",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        job?: AutoThumbJobState;
+        message?: string;
+      };
+      if (!res.ok) {
+        throw new Error(data.message ?? "Failed to start thumbnail generation");
+      }
+      setAutoThumbJob(data.job ?? null);
+    } catch (err) {
+      setAutoThumbError(
+        err instanceof Error ? err.message : "Failed to start generation"
+      );
+    }
+  }, [postId]);
+
+  const cancelAutoThumb = useCallback(async () => {
+    setAutoThumbError(null);
+    try {
+      const res = await fetch(`/api/posts/${postId}/auto-thumb`, {
+        method: "DELETE",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        job?: AutoThumbJobState;
+        message?: string;
+      };
+      if (!res.ok) {
+        throw new Error(
+          data.message ?? "Failed to cancel thumbnail generation"
+        );
+      }
+      setAutoThumbJob(data.job ?? null);
+    } catch (err) {
+      setAutoThumbError(
+        err instanceof Error ? err.message : "Failed to cancel generation"
+      );
+    }
+  }, [postId]);
+
+  useEffect(() => {
+    if (!autoThumbBusy) return;
+    const timer = window.setInterval(() => {
+      void refreshAutoThumbJob();
+    }, 2000);
+    void refreshAutoThumbJob();
+    return () => window.clearInterval(timer);
+  }, [autoThumbBusy, refreshAutoThumbJob]);
+
+  useEffect(() => {
+    const previousStatus = lastAutoThumbStatusRef.current;
+    const currentStatus = autoThumbJob?.status ?? null;
+    lastAutoThumbStatusRef.current = currentStatus;
+    if (currentStatus === "READY" && previousStatus !== "READY") {
+      router.refresh();
+    }
+  }, [autoThumbJob?.status, router]);
+
+  useEffect(() => {
+    if (lastImageAssetIdRef.current === currentImageAssetId) return;
+    lastImageAssetIdRef.current = currentImageAssetId;
+    setAutoThumbJob(null);
+    setAutoThumbError(null);
+  }, [currentImageAssetId]);
 
   return (
     <section
@@ -241,6 +357,84 @@ export function FinalImageUpload({
               </>
             )}
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="mt-3 ml-2 gap-2"
+            onClick={() => void triggerAutoThumb()}
+            disabled={!currentImageAssetId || autoThumbBusy}
+          >
+            {autoThumbBusy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                {autoThumbJob?.status === "PENDING"
+                  ? "Queued..."
+                  : "Generating..."}
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" aria-hidden />
+                {autoThumbJob ? "Regenerate" : "Generate"}
+              </>
+            )}
+          </Button>
+          {autoThumbBusy && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3 ml-2 gap-2"
+              onClick={() => void cancelAutoThumb()}
+            >
+              Cancel
+            </Button>
+          )}
+          {!currentImageAssetId ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Upload a main image before generating a thumbnail.
+            </p>
+          ) : showAutoThumbStatus ? (
+            <p
+              className={cn(
+                "mt-2 flex items-center gap-1.5 text-sm",
+                autoThumbJob.status === "FAILED"
+                  ? "text-destructive"
+                  : autoThumbJob.status === "CANCELLED"
+                    ? "text-muted-foreground"
+                    : autoThumbJob.status === "READY"
+                      ? "text-green-700"
+                      : "text-muted-foreground"
+              )}
+            >
+              {autoThumbJob.status === "FAILED" ? (
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+              ) : autoThumbBusy ? (
+                <Loader2
+                  className="h-4 w-4 shrink-0 animate-spin"
+                  aria-hidden
+                />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              {autoThumbJob.status === "PENDING"
+                ? "Thumbnail generation queued."
+                : autoThumbJob.status === "RUNNING"
+                  ? "Generating thumbnail..."
+                  : autoThumbJob.status === "CANCELLED"
+                    ? "Thumbnail generation cancelled."
+                    : autoThumbJob.status === "READY"
+                      ? "Thumbnail generation finished."
+                      : autoThumbJob.errorMessage ??
+                        "Thumbnail generation failed."}
+            </p>
+          ) : null}
+          {autoThumbError && (
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
+              {autoThumbError}
+            </p>
+          )}
           {thumbError && (
             <p className="mt-2 flex items-center gap-1.5 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />

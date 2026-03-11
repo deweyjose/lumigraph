@@ -4,17 +4,7 @@ vi.mock("@lumigraph/db", () => ({
   getPrisma: vi.fn(),
 }));
 
-vi.mock("./auto-thumb-jobs", () => ({
-  enqueueAutoThumbJobForUploadedFinalImage: vi.fn(),
-}));
-
-vi.mock("./auto-thumb-runtime", () => ({
-  dispatchAutoThumbJob: vi.fn(),
-}));
-
 const { getPrisma } = await import("@lumigraph/db");
-const autoThumbJobs = await import("./auto-thumb-jobs");
-const autoThumbRuntime = await import("./auto-thumb-runtime");
 const uploads = await import("./uploads");
 
 function makePrismaMock() {
@@ -29,37 +19,9 @@ function makePrismaMock() {
 describe("uploads service", () => {
   beforeEach(() => {
     vi.mocked(getPrisma).mockReset();
-    vi.mocked(
-      autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage
-    ).mockReset();
-    vi.mocked(
-      autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage
-    ).mockResolvedValue({
-      created: true,
-      job: {
-        id: "job-1",
-        status: "PENDING",
-        attempts: 0,
-        sourceObjectKey: "users/user-1/posts/post-1/final.fits",
-        sourceChecksum: "abc123",
-        sourceVersion: "checksum:abc123",
-        idempotencyKey: "key-1",
-        outputThumbKey: null,
-        errorMessage: null,
-        startedAt: null,
-        completedAt: null,
-        createdAt: "2026-03-08T12:00:00.000Z",
-        updatedAt: "2026-03-08T12:00:00.000Z",
-      },
-    });
-    vi.mocked(autoThumbRuntime.dispatchAutoThumbJob).mockReset();
-    vi.mocked(autoThumbRuntime.dispatchAutoThumbJob).mockResolvedValue({
-      ok: true,
-      invoked: true,
-    });
   });
 
-  it("queues auto-thumb job after final image upload completes", async () => {
+  it("marks a presigned final image upload as uploaded", async () => {
     const prisma = makePrismaMock();
     prisma.asset.findUnique.mockResolvedValue({
       id: "asset-1",
@@ -92,25 +54,7 @@ describe("uploads service", () => {
     );
 
     expect(result?.status).toBe("UPLOADED");
-    expect(
-      autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage
-    ).toHaveBeenCalledWith(
-      {
-        userId: "user-1",
-        postId: "post-1",
-        sourceAssetId: "asset-1",
-        sourceObjectKey: "users/user-1/posts/post-1/final.fits",
-        sourceChecksum: "abc123",
-        sourceUpdatedAt: new Date("2026-03-08T12:01:00.000Z"),
-      },
-      { prisma }
-    );
-    expect(autoThumbRuntime.dispatchAutoThumbJob).toHaveBeenCalledWith(
-      "job-1",
-      {
-        requestOrigin: undefined,
-      }
-    );
+    expect(prisma.asset.update).toHaveBeenCalledOnce();
   });
 
   it("treats duplicate complete events as idempotent for uploaded final image", async () => {
@@ -137,14 +81,5 @@ describe("uploads service", () => {
 
     expect(result?.status).toBe("UPLOADED");
     expect(prisma.asset.update).not.toHaveBeenCalled();
-    expect(
-      autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage
-    ).toHaveBeenCalledOnce();
-    expect(autoThumbRuntime.dispatchAutoThumbJob).toHaveBeenCalledWith(
-      "job-1",
-      {
-        requestOrigin: undefined,
-      }
-    );
   });
 });

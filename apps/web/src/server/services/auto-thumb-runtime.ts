@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { getPrisma } from "@lumigraph/db";
 import {
   type InvokeCommandInput,
   InvokeCommand,
@@ -6,13 +7,18 @@ import {
   type LambdaClientConfig,
 } from "@aws-sdk/client-lambda";
 import {
+  cancelAutoThumbJobForOwner,
+  enqueueAutoThumbJobForUploadedFinalImage,
   getAutoThumbJobRuntimeRecord,
   getAutoThumbMaxAttempts,
+  getLatestAutoThumbJobForPostOwner,
   markAutoThumbJobFailed,
   markAutoThumbJobReady,
   markAutoThumbJobRetryPending,
   markAutoThumbJobRunning,
+  type AutoThumbJobView,
 } from "./auto-thumb-jobs";
+import { resolveCallbackBaseUrl } from "./local-dev-callback-origin";
 import { getS3Bucket, imageAutoThumbKey } from "./s3";
 
 const CALLBACK_TTL_SECONDS = 300;
@@ -46,6 +52,26 @@ export type DispatchAutoThumbJobResult =
 export type ApplyAutoThumbJobCallbackResult =
   | { ok: true }
   | { ok: false; message: string };
+
+export type TriggerAutoThumbForPostOwnerResult =
+  | { ok: true; job: AutoThumbJobView; invoked: boolean }
+  | {
+      ok: false;
+      code:
+        | "NOT_FOUND"
+        | "NO_FINAL_IMAGE"
+        | "INVALID_SOURCE"
+        | "DISPATCH_FAILED";
+      message: string;
+    };
+
+export type CancelAutoThumbForPostOwnerResult =
+  | { ok: true; job: AutoThumbJobView }
+  | {
+      ok: false;
+      code: "NOT_FOUND" | "INVALID_STATE";
+      message: string;
+    };
 
 function parsePositiveInt(raw: string | undefined, fallback: number): number {
   if (!raw) return fallback;
@@ -137,6 +163,94 @@ async function failPendingAutoThumbJob(jobId: string, message: string) {
   await markAutoThumbJobFailed(jobId, message.slice(0, 1000));
 }
 
+export async function triggerAutoThumbForPostOwner(
+  userId: string,
+  postId: string,
+  options?: { requestOrigin?: string }
+): Promise<TriggerAutoThumbForPostOwnerResult> {
+  const prisma = await getPrisma();
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    include: { finalImageAsset: true },
+  });
+  if (!post || post.userId !== userId) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Post not found or you do not own it",
+    };
+  }
+
+  const sourceAsset = post.finalImageAsset;
+  if (!sourceAsset) {
+    return {
+      ok: false,
+      code: "NO_FINAL_IMAGE",
+      message: "Upload a final image before generating a thumbnail.",
+    };
+  }
+
+  if (
+    sourceAsset.userId !== userId ||
+    sourceAsset.postId !== postId ||
+    sourceAsset.status !== "UPLOADED"
+  ) {
+    return {
+      ok: false,
+      code: "INVALID_SOURCE",
+      message: "The current final image is not ready for thumbnail generation.",
+    };
+  }
+
+  const enqueueResult = await enqueueAutoThumbJobForUploadedFinalImage(
+    {
+      userId,
+      postId,
+      sourceAssetId: sourceAsset.id,
+      sourceObjectKey: sourceAsset.s3Key,
+      sourceChecksum: sourceAsset.checksum,
+      sourceUpdatedAt: sourceAsset.updatedAt,
+    },
+    { prisma, requeueCompleted: true }
+  );
+
+  if (enqueueResult.job.status !== "PENDING") {
+    return { ok: true, job: enqueueResult.job, invoked: false };
+  }
+
+  const dispatched = await dispatchAutoThumbJob(enqueueResult.job.id, {
+    requestOrigin: options?.requestOrigin,
+  });
+  if (!dispatched.ok) {
+    const latest = await getLatestAutoThumbJobForPostOwner(userId, postId);
+    return {
+      ok: false,
+      code: "DISPATCH_FAILED",
+      message: latest?.errorMessage ?? dispatched.message,
+    };
+  }
+
+  const latest =
+    (await getLatestAutoThumbJobForPostOwner(userId, postId)) ??
+    enqueueResult.job;
+  return { ok: true, job: latest, invoked: dispatched.invoked };
+}
+
+export async function cancelAutoThumbForPostOwner(
+  userId: string,
+  postId: string
+): Promise<CancelAutoThumbForPostOwnerResult> {
+  const job = await getLatestAutoThumbJobForPostOwner(userId, postId);
+  if (!job) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Auto-thumb job not found",
+    };
+  }
+  return cancelAutoThumbJobForOwner(userId, postId, job.id);
+}
+
 export async function dispatchAutoThumbJob(
   jobId: string,
   options?: { requestOrigin?: string }
@@ -157,10 +271,11 @@ export async function dispatchAutoThumbJob(
     return { ok: false, message };
   }
 
-  const callbackBaseUrl = options?.requestOrigin?.replace(/\/$/, "");
+  const callbackBaseUrl = resolveCallbackBaseUrl(options?.requestOrigin, {
+    localDevOverride: process.env.LOCAL_DEV_CALLBACK_URL_OVERRIDE,
+  });
   if (!callbackBaseUrl) {
-    const message =
-      "Request origin is required for auto-thumb jobs.";
+    const message = "Request origin is required for auto-thumb jobs.";
     await failPendingAutoThumbJob(runtimeJob.id, message);
     return { ok: false, message };
   }
@@ -255,6 +370,50 @@ function canIgnoreTransitionFailure(message: string): boolean {
   return message.includes("cannot transition from status");
 }
 
+async function attachGeneratedThumbAsset(
+  jobId: string,
+  outputThumbKey: string
+) {
+  const prisma = await getPrisma();
+  const job = await prisma.autoThumbJob.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      userId: true,
+      postId: true,
+    },
+  });
+  if (!job) {
+    return { ok: false as const, message: "Auto-thumb job not found" };
+  }
+
+  const filename = outputThumbKey.split("/").pop();
+  if (!filename) {
+    return { ok: false as const, message: "Invalid output thumb key" };
+  }
+
+  const asset = await prisma.asset.create({
+    data: {
+      userId: job.userId,
+      postId: job.postId,
+      kind: "FINAL_THUMB",
+      relativePath: filename,
+      filename,
+      contentType: "image/webp",
+      sizeBytes: 0n,
+      s3Key: outputThumbKey,
+      status: "UPLOADED",
+    },
+  });
+
+  await prisma.post.update({
+    where: { id: job.postId },
+    data: { finalThumbAssetId: asset.id },
+  });
+
+  return { ok: true as const };
+}
+
 export async function applyAutoThumbJobCallback(
   jobId: string,
   payload: AutoThumbCallbackPayload,
@@ -267,7 +426,8 @@ export async function applyAutoThumbJobCallback(
     if (
       job.status === "RUNNING" ||
       job.status === "READY" ||
-      job.status === "FAILED"
+      job.status === "FAILED" ||
+      job.status === "CANCELLED"
     ) {
       return { ok: true };
     }
@@ -287,7 +447,11 @@ export async function applyAutoThumbJobCallback(
       };
     }
 
-    if (job.status === "READY" || job.status === "FAILED") {
+    if (
+      job.status === "READY" ||
+      job.status === "FAILED" ||
+      job.status === "CANCELLED"
+    ) {
       return { ok: true };
     }
 
@@ -299,12 +463,25 @@ export async function applyAutoThumbJobCallback(
     }
 
     const ready = await markAutoThumbJobReady(jobId, payload.outputThumbKey);
-    if (ready.ok) return { ok: true };
+    if (ready.ok) {
+      const attached = await attachGeneratedThumbAsset(
+        jobId,
+        payload.outputThumbKey
+      );
+      if (!attached.ok) {
+        return { ok: false, message: attached.message };
+      }
+      return { ok: true };
+    }
     if (ready.code === "INVALID_STATE") return { ok: true };
     return { ok: false, message: ready.message };
   }
 
-  if (job.status === "READY" || job.status === "FAILED") {
+  if (
+    job.status === "READY" ||
+    job.status === "FAILED" ||
+    job.status === "CANCELLED"
+  ) {
     return { ok: true };
   }
 

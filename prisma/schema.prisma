@@ -60,6 +60,7 @@ enum AutoThumbJobStatus {
   RUNNING
   READY
   FAILED
+  CANCELLED
 
   @@map("auto_thumb_job_status")
 }

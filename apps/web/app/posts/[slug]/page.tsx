@@ -8,6 +8,7 @@ import { PublishButton } from "@/components/posts/publish-button";
 import { PostEditorForm } from "@/components/posts/post-editor-form";
 import { Button } from "@/components/ui/button";
 import { VisibilityBadge } from "@/components/gallery/visibility-badge";
+import { getLatestAutoThumbJobForPostOwner } from "@/server/services/auto-thumb-jobs";
 import { getPostBySlugForView } from "@/server/services/posts";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -26,6 +27,10 @@ export default async function PostDetailPage({ params }: Props) {
   const isOwner = session?.user?.id === post.userId;
   const imageAssetId = post.finalImageAssetId ?? null;
   const thumbAssetId = post.finalThumbAssetId ?? null;
+  const autoThumbJob =
+    isOwner && session?.user?.id
+      ? await getLatestAutoThumbJobForPostOwner(session.user.id, post.id)
+      : null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
@@ -75,6 +80,17 @@ export default async function PostDetailPage({ params }: Props) {
             postId={post.id}
             currentImageAssetId={post.finalImageAssetId}
             currentThumbAssetId={post.finalThumbAssetId}
+            initialAutoThumbJob={
+              autoThumbJob
+                ? {
+                    id: autoThumbJob.id,
+                    status: autoThumbJob.status,
+                    attempts: autoThumbJob.attempts,
+                    errorMessage: autoThumbJob.errorMessage,
+                    updatedAt: autoThumbJob.updatedAt,
+                  }
+                : null
+            }
             className="mt-6"
           />
         </>

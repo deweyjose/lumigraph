@@ -6,6 +6,7 @@ import {
   LambdaClient,
   type LambdaClientConfig,
 } from "@aws-sdk/client-lambda";
+import { resolveCallbackBaseUrl } from "./local-dev-callback-origin";
 import { createPresignedDownloadUrl, deleteS3Object, getS3Bucket } from "./s3";
 
 const DEFAULT_DOWNLOAD_MAX_FILES = 1000;
@@ -372,7 +373,15 @@ export async function createDownloadExportJob(
     data: { outputS3Key },
   });
 
-  const callbackBaseUrl = input.requestOrigin.replace(/\/$/, "");
+  const callbackBaseUrl = resolveCallbackBaseUrl(input.requestOrigin, {
+    localDevOverride: process.env.LOCAL_DEV_CALLBACK_URL_OVERRIDE,
+  });
+  if (!callbackBaseUrl) {
+    return {
+      ok: false,
+      message: "Request origin is required for export jobs.",
+    };
+  }
   const callbackUrl = `${callbackBaseUrl}/api/internal/export-jobs/${created.id}/callback`;
   void invokeZipLambda({
     jobId: created.id,

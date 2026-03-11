@@ -23,8 +23,7 @@ export async function POST(request: Request) {
       session.user.id,
       body.assetId,
       BigInt(body.sizeBytes),
-      body.checksum ?? null,
-      { requestOrigin: new URL(request.url).origin }
+      body.checksum ?? null
     );
     if (!asset) {
       return NextResponse.json(

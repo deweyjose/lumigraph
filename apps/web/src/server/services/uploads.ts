@@ -1,7 +1,5 @@
 import { getPrisma } from "@lumigraph/db";
 import * as s3 from "./s3";
-import { enqueueAutoThumbJobForUploadedFinalImage } from "./auto-thumb-jobs";
-import { dispatchAutoThumbJob } from "./auto-thumb-runtime";
 
 export const ALLOWED_UPLOAD_CONTENT_TYPES = [
   "application/zip",
@@ -95,8 +93,7 @@ export async function completeUpload(
   userId: string,
   assetId: string,
   sizeBytes: bigint,
-  checksum?: string | null,
-  options?: { requestOrigin?: string }
+  checksum?: string | null
 ) {
   const prisma = await getPrisma();
   const asset = await prisma.asset.findUnique({ where: { id: assetId } });
@@ -105,24 +102,6 @@ export async function completeUpload(
   }
 
   if (asset.status === "UPLOADED") {
-    if (asset.kind === "FINAL_IMAGE" && asset.postId) {
-      const enqueueResult = await enqueueAutoThumbJobForUploadedFinalImage(
-        {
-          userId: asset.userId,
-          postId: asset.postId,
-          sourceAssetId: asset.id,
-          sourceObjectKey: asset.s3Key,
-          sourceChecksum: asset.checksum,
-          sourceUpdatedAt: asset.updatedAt,
-        },
-        { prisma }
-      );
-      if (enqueueResult.job.status === "PENDING") {
-        void dispatchAutoThumbJob(enqueueResult.job.id, {
-          requestOrigin: options?.requestOrigin,
-        }).catch(() => undefined);
-      }
-    }
     return asset;
   }
 
@@ -136,25 +115,6 @@ export async function completeUpload(
       checksum: checksum ?? null,
     },
   });
-
-  if (updated.kind === "FINAL_IMAGE" && updated.postId) {
-    const enqueueResult = await enqueueAutoThumbJobForUploadedFinalImage(
-      {
-        userId: updated.userId,
-        postId: updated.postId,
-        sourceAssetId: updated.id,
-        sourceObjectKey: updated.s3Key,
-        sourceChecksum: updated.checksum,
-        sourceUpdatedAt: updated.updatedAt,
-      },
-      { prisma }
-    );
-    if (enqueueResult.job.status === "PENDING") {
-      void dispatchAutoThumbJob(enqueueResult.job.id, {
-        requestOrigin: options?.requestOrigin,
-      }).catch(() => undefined);
-    }
-  }
 
   return updated;
 }
