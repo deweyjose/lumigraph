@@ -19,10 +19,12 @@ import {
 export function SplashContent() {
   return (
     <div className="relative overflow-hidden">
-      <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.08),transparent_24%),linear-gradient(180deg,rgba(6,12,25,1),rgba(9,14,23,1))]" />
-      <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:72px_72px] [mask-image:radial-gradient(circle_at_center,black,transparent_82%)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.08),transparent_28%)]" />
 
-      <section className="mx-auto grid min-h-[76vh] max-w-7xl gap-14 px-4 pb-20 pt-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:items-center">
+      <section
+        id="astro-hub"
+        className="mx-auto grid min-h-[76vh] max-w-7xl gap-14 px-5 pb-18 pt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:items-center"
+      >
         <div className="flex flex-col gap-8">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-white/5 px-3 py-1 text-xs font-medium tracking-[0.2em] text-cyan-100 uppercase">
             <Sparkles className="h-3.5 w-3.5" />
@@ -64,7 +66,7 @@ export function SplashContent() {
               variant="outline"
               className="rounded-full border-white/10 bg-white/4 px-7 text-slate-100 hover:bg-white/8 hover:text-white dark:border-white/10 dark:bg-white/4 dark:hover:bg-white/8"
             >
-              <Link href="/#workspace">See the workspace</Link>
+              <Link href="/#drafts">See the workflow</Link>
             </Button>
           </div>
 
@@ -75,10 +77,7 @@ export function SplashContent() {
           </div>
         </div>
 
-        <section
-          id="workspace"
-          className="relative rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl"
-        >
+        <section className="relative rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl">
           <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent" />
           <div className="grid gap-4">
             <div className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(13,19,35,0.98),rgba(9,13,24,0.94))] p-5">
@@ -176,25 +175,98 @@ export function SplashContent() {
         </section>
       </section>
 
-      <section
-        id="features"
-        className="mx-auto grid max-w-7xl gap-6 px-4 pb-24 md:grid-cols-3"
-      >
-        <FeatureCard
-          icon={<Telescope className="h-8 w-8" />}
-          title="Publish with context"
-          description="Turn a finished image into a proper record with target metadata, acquisition details, processing notes, and final asset management."
-        />
-        <FeatureCard
-          icon={<Upload className="h-8 w-8" />}
-          title="Keep the source data"
-          description="Store integration masters, calibration frames, and intermediate stacks in organized integration sets instead of scattering them across folders."
-        />
-        <FeatureCard
-          icon={<Eye className="h-8 w-8" />}
-          title="Discover stronger work"
-          description="Browse a public gallery of astrophotography while preserving the richer private workspace for planning, iteration, and documentation."
-        />
+      <section id="drafts" className="mx-auto max-w-7xl px-5 pb-8 pt-4">
+        <FeaturePanel
+          eyebrow="Drafts"
+          title="Keep working images private until they are ready."
+          description="Drafts hold processing notes, pending metadata, and staging assets so you can iterate before publishing."
+          accent={<FileStack className="h-5 w-5 text-cyan-100" />}
+          cta={{ href: "/auth/signin", label: "Sign in to start drafting" }}
+        >
+          <div className="grid gap-3 md:grid-cols-3">
+            <PreviewTile
+              title="Version notes"
+              meta="Private"
+              detail="Track edits, crop decisions, and processing changes before anything goes public."
+            />
+            <PreviewTile
+              title="Metadata review"
+              meta="Queued"
+              detail="Target, telescope, camera, location, and acquisition details stay attached to the draft."
+            />
+            <PreviewTile
+              title="Publish handoff"
+              meta="Ready"
+              detail="Move the finished image into the public gallery once the story and data are complete."
+            />
+          </div>
+        </FeaturePanel>
+      </section>
+
+      <section id="integration-sets" className="mx-auto max-w-7xl px-5 py-8">
+        <FeaturePanel
+          eyebrow="Integration Sets"
+          title="Organize source frames, calibration data, and exports in one place."
+          description="Keep the raw side of the work close to the final image instead of burying it in local folders."
+          accent={<Upload className="h-5 w-5 text-cyan-100" />}
+          cta={{ href: "/auth/signin", label: "Sign in to manage frames" }}
+        >
+          <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.03] p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-white">
+                    Source package
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Lights, darks, flats, masters, and intermediate exports
+                    grouped by target.
+                  </p>
+                </div>
+                <Upload className="h-5 w-5 text-cyan-100" />
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <CompactStat
+                  label="Folder structure"
+                  value="Target / Night / Filters"
+                />
+                <CompactStat
+                  label="Export package"
+                  value="Ready for collaborators"
+                />
+                <CompactStat label="Link to post" value="Not published yet" />
+                <CompactStat label="Retention" value="Private workspace data" />
+              </div>
+            </div>
+            <div className="grid gap-3">
+              <FeatureCard
+                icon={<Upload className="h-8 w-8" />}
+                title="Keep the source data"
+                description="Store integration masters, calibration frames, and intermediate stacks in organized integration sets instead of scattering them across folders."
+              />
+            </div>
+          </div>
+        </FeaturePanel>
+      </section>
+
+      <section id="features" className="mx-auto max-w-7xl px-5 pb-18 pt-8">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <FeatureCard
+            icon={<Telescope className="h-8 w-8" />}
+            title="Publish with context"
+            description="Turn a finished image into a proper record with target metadata, acquisition details, processing notes, and final asset management."
+          />
+          <FeatureCard
+            icon={<Upload className="h-8 w-8" />}
+            title="Private data where it belongs"
+            description="Separate public-facing posts from the source files and work-in-progress artifacts that support them."
+          />
+          <FeatureCard
+            icon={<Eye className="h-8 w-8" />}
+            title="Discover stronger work"
+            description="Browse a public gallery of astrophotography while preserving the richer private workspace for planning, iteration, and documentation."
+          />
+        </div>
       </section>
     </div>
   );
@@ -281,5 +353,48 @@ function CompactStat({ label, value }: { label: string; value: string }) {
       </p>
       <p className="mt-2 text-sm font-medium text-white">{value}</p>
     </div>
+  );
+}
+
+function FeaturePanel({
+  eyebrow,
+  title,
+  description,
+  accent,
+  cta,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  accent: React.ReactNode;
+  cta: { href: string; label: string };
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[2rem] border border-white/8 bg-white/[0.025] p-6 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.8)] sm:p-7">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200/15 bg-cyan-400/10 px-3 py-1 text-xs font-medium tracking-[0.2em] text-cyan-100 uppercase">
+            {accent}
+            {eyebrow}
+          </div>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            {title}
+          </h2>
+          <p className="mt-3 text-base leading-7 text-slate-400">
+            {description}
+          </p>
+        </div>
+        <Button
+          asChild
+          variant="outline"
+          className="rounded-full border-white/10 bg-white/4 px-6 text-slate-100 hover:bg-white/8 hover:text-white dark:border-white/10 dark:bg-white/4 dark:hover:bg-white/8"
+        >
+          <Link href={cta.href}>{cta.label}</Link>
+        </Button>
+      </div>
+      <div className="mt-8">{children}</div>
+    </section>
   );
 }

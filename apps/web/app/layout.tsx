@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { auth } from "auth";
 import { Providers } from "@/components/providers";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import "./globals.css";
 
@@ -33,15 +31,9 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <Providers>
-          {session?.user ? (
-            <WorkspaceShell>{children}</WorkspaceShell>
-          ) : (
-            <>
-              <SiteHeader />
-              <main className="flex-1">{children}</main>
-              <SiteFooter />
-            </>
-          )}
+          <WorkspaceShell mode={session?.user ? "authenticated" : "public"}>
+            {children}
+          </WorkspaceShell>
         </Providers>
       </body>
     </html>

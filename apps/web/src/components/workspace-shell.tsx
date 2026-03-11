@@ -15,9 +15,10 @@ import { cn } from "@/lib/utils";
 
 type WorkspaceShellProps = {
   children: ReactNode;
+  mode?: "authenticated" | "public";
 };
 
-const navItems = [
+const authenticatedNavItems = [
   {
     href: "/",
     label: "Astro Hub",
@@ -44,13 +45,53 @@ const navItems = [
   },
 ];
 
-function isActivePath(pathname: string, href: string): boolean {
+const publicNavItems = [
+  {
+    href: "/#astro-hub",
+    label: "Astro Hub",
+    description: "Live astronomy context",
+    icon: Telescope,
+  },
+  {
+    href: "/#drafts",
+    label: "Drafts",
+    description: "Working image notes",
+    icon: FilePenLine,
+  },
+  {
+    href: "/gallery",
+    label: "Posts",
+    description: "Published work",
+    icon: GalleryVerticalEnd,
+  },
+  {
+    href: "/#integration-sets",
+    label: "Integration Sets",
+    description: "Frames and exports",
+    icon: ChartNoAxesCombined,
+  },
+];
+
+function isActivePath(
+  pathname: string,
+  href: string,
+  mode: WorkspaceShellProps["mode"]
+): boolean {
   if (href === "/") return pathname === "/";
+  if (mode === "public" && href.startsWith("/#")) {
+    return pathname === "/" && href === "/#astro-hub";
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function WorkspaceShell({ children }: WorkspaceShellProps) {
+export function WorkspaceShell({
+  children,
+  mode = "authenticated",
+}: WorkspaceShellProps) {
   const pathname = usePathname();
+  const navItems =
+    mode === "authenticated" ? authenticatedNavItems : publicNavItems;
+  const isPublic = mode === "public";
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_26%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.08),transparent_22%),linear-gradient(180deg,rgba(6,12,25,1),rgba(9,14,23,1))]">
@@ -66,7 +107,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
             </p>
             <nav className="mt-4 space-y-1.5">
               {navItems.map((item) => {
-                const active = isActivePath(pathname, item.href);
+                const active = isActivePath(pathname, item.href, mode);
                 const Icon = item.icon;
                 return (
                   <Link
@@ -106,16 +147,24 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
           <div className="border-t border-white/6 px-5 py-4">
             <div className="mb-3 rounded-2xl border border-white/8 bg-white/4 px-4 py-3">
               <p className="text-xs font-medium text-slate-300">
-                Mission control
+                {isPublic ? "Public preview" : "Mission control"}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                One shell for Astro Hub, posts, drafts, and integration data.
+                {isPublic
+                  ? "Explore the product structure first, then sign in to save drafts and manage source data."
+                  : "One shell for Astro Hub, posts, drafts, and integration data."}
               </p>
             </div>
             <div className="flex items-center justify-between rounded-2xl border border-white/8 bg-black/15 px-4 py-3">
               <div>
-                <p className="text-xs font-medium text-slate-200">Account</p>
-                <p className="text-xs text-slate-500">Workspace settings</p>
+                <p className="text-xs font-medium text-slate-200">
+                  {isPublic ? "Get access" : "Account"}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {isPublic
+                    ? "Sign in to unlock the workspace"
+                    : "Workspace settings"}
+                </p>
               </div>
               <UserNav />
             </div>
@@ -125,12 +174,17 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="border-b border-white/8 bg-black/20 lg:hidden">
             <div className="flex items-center justify-between px-4 py-4">
-              <BrandMark compact subtitle="Mission control" />
+              <BrandMark
+                compact
+                subtitle={
+                  isPublic ? "Astrophotography workspace" : "Mission control"
+                }
+              />
               <UserNav />
             </div>
             <nav className="flex gap-2 overflow-x-auto px-4 pb-4">
               {navItems.map((item) => {
-                const active = isActivePath(pathname, item.href);
+                const active = isActivePath(pathname, item.href, mode);
                 return (
                   <Link
                     key={item.href}
