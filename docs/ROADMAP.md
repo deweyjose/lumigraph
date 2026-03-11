@@ -16,6 +16,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Post image inspection with zoom and magnifier controls
 - Collaborative post critique with region-based image annotation threads
 - Integration set detail IA refresh for metadata visibility and dense file workflows
+- Auth standards alignment and email delivery hardening
 - AI drafting improvements for posts
 
 ## Later
@@ -35,6 +36,9 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #140 - final Astro Hub polish pass
 - Follow with broader page polish once the shell and live Astro Hub modules settle:
   - #60 - site-wide polish and consistency
+  - #160 - document auth model, dormant email paths, and standards-aligned auth direction
+  - #161 - activate transactional email for password reset and email-link auth
+  - #162 - harden password reset and auth flows to OWASP-aligned practices
   - #158 - add image inspection zoom and magnifier controls on post detail
   - #156 - restructure integration set detail into accessible, collapsible workspace sections
   - #157 - improve integration explorer density and keyboard accessibility for large file sets
@@ -59,6 +63,8 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #154, #155
 - Lane F: integration-set workflow ergonomics
   - #156, #157
+- Lane G: auth and account lifecycle
+  - #160, #161, #162
 
 ## Worktree guidance
 
@@ -110,6 +116,15 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Posts list patterns are secondary reference material and should only influence future post-management polish where they improve clarity.
 - The login screen is secondary reference material for shared auth and brand presentation, not a direct Astro Hub implementation target.
 
+## Auth references
+
+- OWASP Forgot Password Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html
+- OWASP Password Storage Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+- Better Auth email/password: https://www.better-auth.com/docs/authentication/email-password
+- Better Auth magic link: https://www.better-auth.com/docs/plugins/magic-link
+- Clerk forgot-password docs: https://clerk.com/docs/authentication/forgot-password
+- Supabase reset-password docs: https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail
+
 ## Issue index
 
 Add links as items are created.
@@ -122,6 +137,9 @@ Add links as items are created.
 - #139 - Build an Astro Hub astronomy calendar and event detail experience
 - #140 - Polish Astro Hub performance, accessibility, and mobile tuning after live data integration
 - #60 - Site-wide layout and page polish
+- #160 - Document Lumigraph auth model, dormant email paths, and standards-aligned auth direction
+- #161 - Activate transactional email for password reset and email-link auth
+- #162 - Harden password reset and auth flows to OWASP-aligned practices
 - #158 - Add image inspection zoom and magnifier controls on post detail
 - #156 - Restructure integration set detail into accessible, collapsible workspace sections
 - #157 - Improve integration explorer density and keyboard accessibility for large file sets
