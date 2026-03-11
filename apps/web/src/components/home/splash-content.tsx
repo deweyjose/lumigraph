@@ -24,13 +24,13 @@ export function SplashContent() {
         id="astro-hub"
         className="mx-auto max-w-7xl scroll-mt-6 px-5 pb-14 pt-12 lg:scroll-mt-8"
       >
-        <div className="max-w-5xl space-y-8">
+        <div className="max-w-5xl space-y-8 xl:mx-auto xl:flex xl:flex-col xl:items-center xl:text-center">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-white/5 px-3 py-1 text-xs font-medium tracking-[0.2em] text-cyan-100 uppercase">
             <Sparkles className="h-3.5 w-3.5" />
             Astrophotography workspace
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-5 xl:flex xl:flex-col xl:items-center">
             <div className="flex items-center gap-3 text-cyan-100">
               <Telescope className="h-9 w-9" strokeWidth={1.6} />
               <span className="text-lg font-semibold tracking-[0.18em] uppercase text-white/85">
@@ -40,7 +40,7 @@ export function SplashContent() {
             <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-balance text-white sm:text-6xl xl:text-[5.25rem] xl:leading-[0.94]">
               Publish the sky with the story behind the image.
             </h1>
-            <p className="max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
+            <p className="max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl xl:mx-auto">
               Lumigraph brings posts, integration data, drafts, and a
               mission-control home base into one astrophotography workspace.
               Capture the story behind each image before you decide what is
@@ -48,7 +48,7 @@ export function SplashContent() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 xl:justify-center">
             <Button
               asChild
               size="lg"
