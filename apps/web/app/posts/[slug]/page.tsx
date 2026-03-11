@@ -36,7 +36,7 @@ export default async function PostDetailPage({ params }: Props) {
     <div className="mx-auto w-full max-w-5xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <div className="mb-6 flex items-center gap-2">
         <VisibilityBadge visibility={post.status} />
-        <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-muted-foreground">
+        <code className="rounded bg-white/8 px-1.5 py-0.5 text-sm font-mono text-slate-300">
           {post.slug}
         </code>
       </div>
@@ -57,7 +57,7 @@ export default async function PostDetailPage({ params }: Props) {
       )}
 
       {imageAssetId || thumbAssetId ? (
-        <figure className="mt-6 overflow-hidden rounded-lg border bg-muted/30">
+        <figure className="mt-6 overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.04] shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
           <img
             src={`/api/assets/${imageAssetId ?? thumbAssetId}/view`}
             alt={post.title}
@@ -65,7 +65,7 @@ export default async function PostDetailPage({ params }: Props) {
           />
         </figure>
       ) : (
-        <div className="mt-6 flex min-h-[220px] items-center justify-center rounded-lg border border-dashed bg-muted/20">
+        <div className="mt-6 flex min-h-[220px] items-center justify-center rounded-[1.6rem] border border-dashed border-white/12 bg-white/[0.03] shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
           <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
         </div>
       )}
@@ -99,7 +99,7 @@ export default async function PostDetailPage({ params }: Props) {
       )}
 
       {isOwner && post.status === "DRAFT" && (
-        <div className="mt-8 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+        <div className="mt-8 rounded-[1.6rem] border border-amber-500/30 bg-amber-500/8 p-4 shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
           <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
             This post is a draft. Publish to make it public.
           </p>
@@ -112,7 +112,10 @@ export default async function PostDetailPage({ params }: Props) {
           <h2 className="text-lg font-semibold">Integration Sets</h2>
           <div className="mt-3 space-y-4">
             {post.integrationSets.map((set) => (
-              <div key={set.id} className="rounded-lg border p-4">
+              <div
+                key={set.id}
+                className="rounded-[1.4rem] border border-white/10 bg-white/[0.035] p-4 shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm"
+              >
                 <div className="flex items-center justify-between">
                   <h3 className="font-medium">{set.title}</h3>
                   {isOwner && (
@@ -126,7 +129,7 @@ export default async function PostDetailPage({ params }: Props) {
                     {set.assets.map((asset) => (
                       <li
                         key={asset.id}
-                        className="flex items-center justify-between gap-2 rounded border bg-muted/20 px-3 py-2"
+                        className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2"
                       >
                         <span className="truncate font-mono text-sm">
                           {asset.relativePath}
