@@ -22,9 +22,9 @@ export function SplashContent() {
 
       <section
         id="astro-hub"
-        className="mx-auto grid min-h-[76vh] max-w-7xl gap-14 px-5 pb-18 pt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:items-center"
+        className="mx-auto grid min-h-[76vh] max-w-7xl gap-10 px-5 pb-18 pt-12 xl:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] xl:items-start"
       >
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8 xl:pt-8">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-white/5 px-3 py-1 text-xs font-medium tracking-[0.2em] text-cyan-100 uppercase">
             <Sparkles className="h-3.5 w-3.5" />
             Astrophotography workspace
@@ -37,7 +37,7 @@ export function SplashContent() {
                 Lumigraph
               </span>
             </div>
-            <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-balance text-white sm:text-6xl lg:text-7xl">
+            <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-balance text-white sm:text-6xl xl:text-[5.25rem] xl:leading-[0.94]">
               Publish the sky with the story behind the image.
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
@@ -76,7 +76,7 @@ export function SplashContent() {
           </div>
         </div>
 
-        <section className="relative rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+        <section className="relative rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.85)] backdrop-blur-xl xl:mt-2">
           <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/60 to-transparent" />
           <div className="grid gap-4">
             <div className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(13,19,35,0.98),rgba(9,13,24,0.94))] p-5">
@@ -122,7 +122,7 @@ export function SplashContent() {
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="grid gap-4 2xl:grid-cols-[1.15fr_0.85fr]">
               <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
