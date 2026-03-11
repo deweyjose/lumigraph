@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
-  applyDownloadJobCallback,
-  verifyDownloadJobCallbackSignature,
-} from "@/server/services/download-jobs";
+  applyAutoThumbJobCallback,
+  verifyAutoThumbJobCallbackSignature,
+} from "@/server/services/auto-thumb-runtime";
 
 const ParamsSchema = z.object({ jobId: z.string().uuid() });
 
 const BodySchema = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("RUNNING"),
-    totalFiles: z.number().int().positive().optional(),
-    completedFiles: z.number().int().nonnegative().optional(),
   }),
   z.object({
     status: z.literal("FAILED"),
@@ -19,8 +17,7 @@ const BodySchema = z.discriminatedUnion("status", [
   }),
   z.object({
     status: z.literal("READY"),
-    outputS3Key: z.string().min(1),
-    outputSizeBytes: z.number().int().nonnegative().optional(),
+    outputThumbKey: z.string().min(1),
   }),
 ]);
 
@@ -58,6 +55,7 @@ export async function POST(
     request.headers.get("x-lumigraph-signature") ??
     requestUrl.searchParams.get("sig") ??
     requestUrl.searchParams.get("signature");
+
   if (!timestamp || !signature) {
     return NextResponse.json(
       {
@@ -69,7 +67,7 @@ export async function POST(
   }
 
   const rawBody = await request.text();
-  const isValid = verifyDownloadJobCallbackSignature(
+  const isValid = verifyAutoThumbJobCallbackSignature(
     callbackSecret,
     timestamp,
     signature,
@@ -100,10 +98,12 @@ export async function POST(
     );
   }
 
-  const result = await applyDownloadJobCallback(
+  const result = await applyAutoThumbJobCallback(
     parsedParams.data.jobId,
-    parsedBody
+    parsedBody,
+    { requestOrigin: requestUrl.origin }
   );
+
   if (!result.ok) {
     return NextResponse.json(
       {

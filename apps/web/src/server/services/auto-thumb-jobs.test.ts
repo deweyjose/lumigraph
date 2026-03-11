@@ -12,6 +12,7 @@ function makePrismaMock() {
     autoThumbJob: {
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -23,7 +24,7 @@ function makePrismaMock() {
 function makeJob(
   overrides: Partial<{
     id: string;
-    status: "PENDING" | "RUNNING" | "READY" | "FAILED";
+    status: "PENDING" | "RUNNING" | "READY" | "FAILED" | "CANCELLED";
     attempts: number;
     sourceObjectKey: string;
     sourceChecksum: string | null;
@@ -56,7 +57,10 @@ function makeJob(
 }
 
 describe("auto-thumb-jobs service", () => {
+  const originalEnv = process.env;
+
   beforeEach(() => {
+    process.env = { ...originalEnv };
     vi.mocked(getPrisma).mockReset();
   });
 
@@ -78,6 +82,11 @@ describe("auto-thumb-jobs service", () => {
     expect(key).toBe(
       autoThumbJobs.buildAutoThumbIdempotencyKey("post-1", "checksum:abc123")
     );
+  });
+
+  it("uses AUTO_THUMB_MAX_ATTEMPTS when configured", () => {
+    process.env.AUTO_THUMB_MAX_ATTEMPTS = "7";
+    expect(autoThumbJobs.getAutoThumbMaxAttempts()).toBe(7);
   });
 
   it("creates a pending job for a newly uploaded final image", async () => {
@@ -166,6 +175,75 @@ describe("auto-thumb-jobs service", () => {
     expect(prisma.autoThumbJob.update).toHaveBeenCalledOnce();
   });
 
+  it("requeues a completed job when manual regenerate is requested", async () => {
+    const prisma = makePrismaMock();
+    prisma.autoThumbJob.findUnique.mockResolvedValue(
+      makeJob({
+        id: "job-ready",
+        status: "READY",
+        outputThumbKey: "users/u1/posts/p1/final/thumbs/job-ready.webp",
+        completedAt: new Date("2026-03-08T12:05:00.000Z"),
+      })
+    );
+    prisma.autoThumbJob.update.mockResolvedValue(
+      makeJob({
+        id: "job-ready",
+        status: "PENDING",
+        outputThumbKey: null,
+        completedAt: null,
+      })
+    );
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const out = await autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage(
+      {
+        userId: "user-1",
+        postId: "post-1",
+        sourceAssetId: "asset-1",
+        sourceObjectKey: "users/user-1/posts/post-1/final.fits",
+        sourceChecksum: "abc123",
+        sourceUpdatedAt: new Date("2026-03-08T12:10:00.000Z"),
+      },
+      { requeueCompleted: true }
+    );
+
+    expect(out.created).toBe(false);
+    expect(out.job.status).toBe("PENDING");
+    expect(prisma.autoThumbJob.update).toHaveBeenCalledOnce();
+  });
+
+  it("requeues a cancelled job when generate is requested again", async () => {
+    const prisma = makePrismaMock();
+    prisma.autoThumbJob.findUnique.mockResolvedValue(
+      makeJob({
+        id: "job-cancelled",
+        status: "CANCELLED",
+        completedAt: new Date("2026-03-08T12:05:00.000Z"),
+      })
+    );
+    prisma.autoThumbJob.update.mockResolvedValue(
+      makeJob({
+        id: "job-cancelled",
+        status: "PENDING",
+        completedAt: null,
+      })
+    );
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const out = await autoThumbJobs.enqueueAutoThumbJobForUploadedFinalImage({
+      userId: "user-1",
+      postId: "post-1",
+      sourceAssetId: "asset-1",
+      sourceObjectKey: "users/user-1/posts/post-1/final.fits",
+      sourceChecksum: "abc123",
+      sourceUpdatedAt: new Date("2026-03-08T12:10:00.000Z"),
+    });
+
+    expect(out.created).toBe(false);
+    expect(out.job.status).toBe("PENDING");
+    expect(prisma.autoThumbJob.update).toHaveBeenCalledOnce();
+  });
+
   it("transitions pending -> running and increments attempts", async () => {
     const prisma = makePrismaMock();
     prisma.autoThumbJob.updateMany.mockResolvedValue({ count: 1 });
@@ -205,5 +283,78 @@ describe("auto-thumb-jobs service", () => {
       code: "INVALID_STATE",
       message: "Auto-thumb job cannot transition from status FAILED.",
     });
+  });
+
+  it("requeues running job to pending with error detail", async () => {
+    const prisma = makePrismaMock();
+    prisma.autoThumbJob.updateMany.mockResolvedValue({ count: 1 });
+    prisma.autoThumbJob.findUniqueOrThrow.mockResolvedValue(
+      makeJob({
+        id: "job-1",
+        status: "PENDING",
+        attempts: 2,
+        errorMessage: "temporary processing failure",
+        startedAt: null,
+      })
+    );
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const out = await autoThumbJobs.markAutoThumbJobRetryPending(
+      "job-1",
+      "temporary processing failure"
+    );
+
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.job.status).toBe("PENDING");
+    expect(out.job.errorMessage).toContain("temporary processing failure");
+    expect(prisma.autoThumbJob.updateMany).toHaveBeenCalledWith({
+      where: { id: "job-1", status: "RUNNING" },
+      data: {
+        status: "PENDING",
+        errorMessage: "temporary processing failure",
+        startedAt: null,
+        completedAt: null,
+        outputThumbKey: null,
+      },
+    });
+  });
+
+  it("returns latest job for a post owner", async () => {
+    const prisma = makePrismaMock();
+    prisma.autoThumbJob.findFirst = vi
+      .fn()
+      .mockResolvedValue(makeJob({ id: "job-latest", status: "FAILED" }));
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const job = await autoThumbJobs.getLatestAutoThumbJobForPostOwner(
+      "user-1",
+      "post-1"
+    );
+
+    expect(prisma.autoThumbJob.findFirst).toHaveBeenCalledWith({
+      where: { userId: "user-1", postId: "post-1" },
+      orderBy: [{ createdAt: "desc" }],
+    });
+    expect(job?.id).toBe("job-latest");
+  });
+
+  it("cancels a pending job for the owner", async () => {
+    const prisma = makePrismaMock();
+    prisma.autoThumbJob.updateMany.mockResolvedValue({ count: 1 });
+    prisma.autoThumbJob.findUniqueOrThrow.mockResolvedValue(
+      makeJob({ id: "job-1", status: "CANCELLED" })
+    );
+    vi.mocked(getPrisma).mockResolvedValue(prisma as never);
+
+    const out = await autoThumbJobs.cancelAutoThumbJobForOwner(
+      "user-1",
+      "post-1",
+      "job-1"
+    );
+
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    expect(out.job.status).toBe("CANCELLED");
   });
 });

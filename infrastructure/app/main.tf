@@ -57,6 +57,8 @@ locals {
   create_download_zip_lambda        = var.download_zip_lambda_arn == null
   managed_download_zip_lambda_name  = "${var.project_name}-download-zip-${var.env}"
   effective_download_zip_lambda_arn = local.create_download_zip_lambda ? aws_lambda_function.download_zip[0].arn : var.download_zip_lambda_arn
+
+  managed_auto_thumb_lambda_name = "${var.project_name}-auto-thumb-${var.env}"
 }
 
 resource "aws_s3_bucket" "artifacts" {
@@ -206,19 +208,112 @@ resource "aws_lambda_function" "download_zip" {
 
   environment {
     variables = {
-      DOWNLOAD_CALLBACK_SECRET        = var.download_callback_secret
+      INTERNAL_CALLBACK_SECRET        = var.internal_callback_secret
       VERCEL_AUTOMATION_BYPASS_SECRET = var.vercel_automation_bypass_secret
     }
   }
 
   lifecycle {
     precondition {
-      condition     = length(var.download_callback_secret) > 0
-      error_message = "download_callback_secret must be set when provisioning the managed download ZIP Lambda."
+      condition     = length(var.internal_callback_secret) > 0
+      error_message = "internal_callback_secret must be set when provisioning the managed download ZIP Lambda."
     }
     precondition {
       condition     = length(trim(var.download_zip_lambda_package_path, " ")) > 0 && fileexists(var.download_zip_lambda_package_path)
       error_message = "download_zip_lambda_package_path must point to an existing ZIP built by CI."
+    }
+  }
+
+  tags = {
+    Project = var.project_name
+    Env     = var.env
+  }
+}
+
+data "aws_iam_policy_document" "auto_thumb_lambda_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "auto_thumb_lambda" {
+  name               = "${var.project_name}-auto-thumb-${var.env}"
+  assume_role_policy = data.aws_iam_policy_document.auto_thumb_lambda_assume_role.json
+}
+
+data "aws_iam_policy_document" "auto_thumb_lambda" {
+  statement {
+    sid = "CloudWatchLogs"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["arn:aws:logs:${var.aws_region}:${local.account_id}:*"]
+  }
+
+  statement {
+    sid = "ReadFinalImageObjects"
+    actions = [
+      "s3:GetObject"
+    ]
+    resources = [
+      "${aws_s3_bucket.artifacts.arn}/users/*/posts/*/final/*"
+    ]
+  }
+
+  statement {
+    sid = "WriteFinalThumbObjects"
+    actions = [
+      "s3:PutObject"
+    ]
+    resources = [
+      "${aws_s3_bucket.artifacts.arn}/users/*/posts/*/final/thumbs/*"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "auto_thumb_lambda" {
+  name   = "${var.project_name}-auto-thumb-${var.env}"
+  role   = aws_iam_role.auto_thumb_lambda.id
+  policy = data.aws_iam_policy_document.auto_thumb_lambda.json
+}
+
+resource "aws_lambda_function" "auto_thumb" {
+  function_name = local.managed_auto_thumb_lambda_name
+  role          = aws_iam_role.auto_thumb_lambda.arn
+  filename      = var.auto_thumb_lambda_package_path
+  handler       = "main.handler"
+  runtime       = "python3.12"
+  timeout       = var.auto_thumb_lambda_timeout_seconds
+  memory_size   = var.auto_thumb_lambda_memory_mb
+
+  reserved_concurrent_executions = var.auto_thumb_lambda_reserved_concurrency
+  source_code_hash               = filebase64sha256(var.auto_thumb_lambda_package_path)
+
+  environment {
+    variables = {
+      INTERNAL_CALLBACK_SECRET        = var.internal_callback_secret
+      AUTO_THUMB_MAX_WIDTH            = tostring(var.auto_thumb_max_width)
+      AUTO_THUMB_MAX_HEIGHT           = tostring(var.auto_thumb_max_height)
+      AUTO_THUMB_WEBP_QUALITY         = tostring(var.auto_thumb_webp_quality)
+      VERCEL_AUTOMATION_BYPASS_SECRET = var.vercel_automation_bypass_secret
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(var.internal_callback_secret) > 0
+      error_message = "internal_callback_secret must be set when provisioning the managed auto-thumb Lambda."
+    }
+    precondition {
+      condition     = length(trim(var.auto_thumb_lambda_package_path, " ")) > 0 && fileexists(var.auto_thumb_lambda_package_path)
+      error_message = "auto_thumb_lambda_package_path must point to an existing ZIP built by CI."
     }
   }
 
@@ -392,7 +487,8 @@ data "aws_iam_policy_document" "vercel_s3_artifacts" {
   statement {
     actions = ["lambda:InvokeFunction"]
     resources = [
-      local.effective_download_zip_lambda_arn
+      local.effective_download_zip_lambda_arn,
+      aws_lambda_function.auto_thumb.arn
     ]
   }
 }

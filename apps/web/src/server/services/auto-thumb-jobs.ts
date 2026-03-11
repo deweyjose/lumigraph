@@ -5,7 +5,12 @@ const MAX_ERROR_MESSAGE_LENGTH = 1000;
 const DEFAULT_PENDING_JOB_LIMIT = 50;
 const DEFAULT_MAX_ATTEMPTS = 5;
 
-type AutoThumbJobStatus = "PENDING" | "RUNNING" | "READY" | "FAILED";
+type AutoThumbJobStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "READY"
+  | "FAILED"
+  | "CANCELLED";
 
 type AutoThumbJobRecord = {
   id: string;
@@ -53,6 +58,29 @@ export type EnqueueAutoThumbJobInput = {
 type AutoThumbTransitionResult =
   | { ok: true; job: AutoThumbJobView }
   | { ok: false; code: "NOT_FOUND" | "INVALID_STATE"; message: string };
+
+export type AutoThumbJobRuntimeRecord = {
+  id: string;
+  userId: string;
+  postId: string;
+  status: AutoThumbJobStatus;
+  attempts: number;
+  sourceObjectKey: string;
+};
+
+function normalizeMaxAttempts(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_MAX_ATTEMPTS;
+  }
+  return Math.max(1, Math.floor(value));
+}
+
+export function getAutoThumbMaxAttempts(): number {
+  const raw = process.env.AUTO_THUMB_MAX_ATTEMPTS;
+  if (!raw) return DEFAULT_MAX_ATTEMPTS;
+  const parsed = Number.parseInt(raw, 10);
+  return normalizeMaxAttempts(parsed);
+}
 
 export function normalizeAutoThumbChecksum(
   checksum: string | null | undefined
@@ -126,7 +154,7 @@ async function getTransitionFailure(
 
 export async function enqueueAutoThumbJobForUploadedFinalImage(
   input: EnqueueAutoThumbJobInput,
-  options?: { prisma?: PrismaClientLike }
+  options?: { prisma?: PrismaClientLike; requeueCompleted?: boolean }
 ): Promise<{ created: boolean; job: AutoThumbJobView }> {
   const prisma = options?.prisma ?? (await getPrisma());
   const sourceChecksum = normalizeAutoThumbChecksum(input.sourceChecksum);
@@ -144,7 +172,11 @@ export async function enqueueAutoThumbJobForUploadedFinalImage(
     where: { idempotencyKey },
   });
   if (existing) {
-    if (existing.status !== "FAILED") {
+    const shouldRequeue =
+      existing.status === "FAILED" ||
+      existing.status === "CANCELLED" ||
+      (options?.requeueCompleted === true && existing.status === "READY");
+    if (!shouldRequeue) {
       return { created: false, job: toAutoThumbJobView(existing) };
     }
     const requeued = await prisma.autoThumbJob.update({
@@ -194,6 +226,35 @@ export async function enqueueAutoThumbJobForUploadedFinalImage(
   }
 }
 
+export async function getLatestAutoThumbJobForPostOwner(
+  userId: string,
+  postId: string
+): Promise<AutoThumbJobView | null> {
+  const prisma = await getPrisma();
+  const job = await prisma.autoThumbJob.findFirst({
+    where: { userId, postId },
+    orderBy: [{ createdAt: "desc" }],
+  });
+  return job ? toAutoThumbJobView(job) : null;
+}
+
+export async function getAutoThumbJobRuntimeRecord(
+  jobId: string
+): Promise<AutoThumbJobRuntimeRecord | null> {
+  const prisma = await getPrisma();
+  return prisma.autoThumbJob.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      userId: true,
+      postId: true,
+      status: true,
+      attempts: true,
+      sourceObjectKey: true,
+    },
+  });
+}
+
 export async function listPendingAutoThumbJobs(options?: {
   limit?: number;
   maxAttempts?: number;
@@ -202,10 +263,11 @@ export async function listPendingAutoThumbJobs(options?: {
     typeof options?.limit === "number" && options.limit > 0
       ? Math.min(options.limit, 200)
       : DEFAULT_PENDING_JOB_LIMIT;
-  const maxAttempts =
-    typeof options?.maxAttempts === "number" && options.maxAttempts > 0
+  const maxAttempts = normalizeMaxAttempts(
+    typeof options?.maxAttempts === "number"
       ? options.maxAttempts
-      : DEFAULT_MAX_ATTEMPTS;
+      : getAutoThumbMaxAttempts()
+  );
 
   const prisma = await getPrisma();
   const jobs = await prisma.autoThumbJob.findMany({
@@ -280,6 +342,79 @@ export async function markAutoThumbJobFailed(
       status: "FAILED",
       errorMessage: message,
       completedAt: new Date(),
+    },
+  });
+  if (updated.count === 1) {
+    const job = await prisma.autoThumbJob.findUniqueOrThrow({
+      where: { id: jobId },
+    });
+    return { ok: true, job: toAutoThumbJobView(job) };
+  }
+  return getTransitionFailure(prisma, jobId);
+}
+
+export async function cancelAutoThumbJobForOwner(
+  userId: string,
+  postId: string,
+  jobId: string
+): Promise<AutoThumbTransitionResult> {
+  const prisma = await getPrisma();
+  const updated = await prisma.autoThumbJob.updateMany({
+    where: {
+      id: jobId,
+      userId,
+      postId,
+      status: { in: ["PENDING", "RUNNING"] },
+    },
+    data: {
+      status: "CANCELLED",
+      completedAt: new Date(),
+      errorMessage: null,
+    },
+  });
+  if (updated.count === 1) {
+    const job = await prisma.autoThumbJob.findUniqueOrThrow({
+      where: { id: jobId },
+    });
+    return { ok: true, job: toAutoThumbJobView(job) };
+  }
+
+  const job = await prisma.autoThumbJob.findUnique({
+    where: { id: jobId },
+  });
+  if (!job || job.userId !== userId || job.postId !== postId) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "Auto-thumb job not found",
+    };
+  }
+  if (job.status === "CANCELLED") {
+    return { ok: true, job: toAutoThumbJobView(job) };
+  }
+  return {
+    ok: false,
+    code: "INVALID_STATE",
+    message: `Auto-thumb job cannot be cancelled from status ${job.status}.`,
+  };
+}
+
+export async function markAutoThumbJobRetryPending(
+  jobId: string,
+  errorMessage?: string
+): Promise<AutoThumbTransitionResult> {
+  const prisma = await getPrisma();
+  const message = (errorMessage ?? "Auto-thumb generation failed")
+    .trim()
+    .slice(0, MAX_ERROR_MESSAGE_LENGTH);
+  const updated = await prisma.autoThumbJob.updateMany({
+    where: { id: jobId, status: "RUNNING" },
+    data: {
+      status: "PENDING",
+      errorMessage: message,
+      startedAt: null,
+      completedAt: null,
+      outputThumbKey: null,
     },
   });
   if (updated.count === 1) {

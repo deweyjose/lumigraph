@@ -24,13 +24,18 @@ services:
       AWS_DEFAULT_REGION: us-east-1
       LOCALSTACK_S3_BUCKET: lumigraph-dev-local
       LOCALSTACK_DOWNLOAD_ZIP_LAMBDA_NAME: lumigraph-download-zip-local
-      LOCALSTACK_DOWNLOAD_CALLBACK_SECRET: lumigraph-local-callback-secret
+      LOCALSTACK_INTERNAL_CALLBACK_SECRET: lumigraph-local-callback-secret
+      LOCALSTACK_AUTO_THUMB_LAMBDA_NAME: lumigraph-auto-thumb-local
+      LOCALSTACK_AUTO_THUMB_MAX_WIDTH: "1024"
+      LOCALSTACK_AUTO_THUMB_MAX_HEIGHT: "1024"
+      LOCALSTACK_AUTO_THUMB_WEBP_QUALITY: "82"
     ports:
       - "4566:4566"
     volumes:
       - localstack_data:/var/lib/localstack
       - ./scripts/localstack/init:/etc/localstack/init/ready.d
       - ./infrastructure/app/lambda/download_zip:/opt/lumigraph/lambda/download_zip:ro
+      - ./infrastructure/app/lambda/auto_thumb:/opt/lumigraph/lambda/auto_thumb:ro
       - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
@@ -46,10 +51,13 @@ services:
     environment:
       DATABASE_URL: postgresql://lumigraph:lumigraph@postgres:5432/lumigraph_db
       AWS_S3_ENDPOINT: http://localstack:4566
+      AWS_LAMBDA_ENDPOINT: http://localstack:4566
       AWS_S3_BUCKET: test-bucket
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+      AUTO_THUMB_LAMBDA_NAME: lumigraph-auto-thumb-local
+      INTERNAL_CALLBACK_SECRET: lumigraph-local-callback-secret
       # LocalStack does not support SDK default request checksums
       AWS_REQUEST_CHECKSUM_CALCULATION: "WHEN_REQUIRED"
     volumes:

@@ -70,6 +70,7 @@
   - `POST /api/uploads/complete-batch`
 - Internal callbacks:
   - `POST /api/internal/export-jobs/:jobId/callback`
+  - `POST /api/internal/auto-thumb-jobs/:jobId/callback`
 - Workflow sessions:
   - `GET /api/workflow-sessions`
   - `GET /api/workflow-sessions/:id`
@@ -162,7 +163,7 @@
 
 - Integration-set visibility is currently private-only.
 - Export jobs are async and progress through worker callbacks before a download URL is exposed.
-- Final image uploads enqueue auto-thumb jobs with `PENDING -> RUNNING -> READY|FAILED` lifecycle and idempotency keyed by post plus source checksum/version.
+- Final image uploads enqueue auto-thumb jobs and asynchronously invoke an AWS Lambda worker, with signed callback updates driving `PENDING -> RUNNING -> READY|FAILED` transitions and idempotency keyed by post plus source checksum/version.
 - Workflow execution persistence now stores private user-owned sessions, runs, tool-call audit rows, artifact references, and private inspection/restart APIs.
 - Workflow capture now persists private workflow definitions and ordered step templates, exposes private CRUD and launch APIs for owned workflows, and includes a first list/editor UX for creating, updating, and launching those definitions into sessions and runs.
 

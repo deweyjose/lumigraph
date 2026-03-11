@@ -5,5 +5,6 @@ export * from "./uploads";
 export * from "./s3";
 export * from "./download-jobs";
 export * from "./auto-thumb-jobs";
+export * from "./auto-thumb-runtime";
 export * from "./workflow-definitions";
 export * from "./workflow-runs";

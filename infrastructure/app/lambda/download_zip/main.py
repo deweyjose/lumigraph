@@ -47,9 +47,9 @@ EXPORT_OBJECT_TAGGING = "lumigraph-kind=export"
 
 
 def _callback_secret() -> str:
-    secret = os.environ.get("DOWNLOAD_CALLBACK_SECRET", "").strip()
+    secret = os.environ.get("INTERNAL_CALLBACK_SECRET", "").strip()
     if not secret:
-        raise RuntimeError("DOWNLOAD_CALLBACK_SECRET is not configured")
+        raise RuntimeError("INTERNAL_CALLBACK_SECRET is not configured")
     return secret
 
 

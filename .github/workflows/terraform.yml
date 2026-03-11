@@ -29,7 +29,7 @@ jobs:
       TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
       TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
       TF_VAR_runner_security_group_id: ${{ secrets.TF_VAR_runner_security_group_id }}
-      TF_VAR_download_callback_secret: ${{ secrets.TF_VAR_download_callback_secret }}
+      TF_VAR_internal_callback_secret: ${{ secrets.TF_VAR_internal_callback_secret }}
       TF_VAR_vercel_automation_bypass_secret: ${{ secrets.TF_VERCEL_AUTOMATION_BYPASS_SECRET }}
 
     steps:
@@ -46,6 +46,23 @@ jobs:
             zip -q -j "${PACKAGE_PATH}" main.py
           )
           echo "TF_VAR_download_zip_lambda_package_path=${PACKAGE_PATH}" >> "${GITHUB_ENV}"
+
+      - name: Build auto-thumb Lambda package (app only)
+        if: env.TF_TARGET == 'app'
+        run: |
+          PACKAGE_PATH="${RUNNER_TEMP}/auto-thumb-lambda.zip"
+          BUILD_PATH="${RUNNER_TEMP}/auto-thumb-lambda-build"
+          rm -f "${PACKAGE_PATH}"
+          rm -rf "${BUILD_PATH}"
+          mkdir -p "${BUILD_PATH}"
+          python3 -m pip install --quiet --upgrade pip
+          python3 -m pip install --quiet --target "${BUILD_PATH}" "pillow==11.3.0"
+          cp infrastructure/app/lambda/auto_thumb/main.py "${BUILD_PATH}/main.py"
+          (
+            cd "${BUILD_PATH}"
+            zip -q -r "${PACKAGE_PATH}" .
+          )
+          echo "TF_VAR_auto_thumb_lambda_package_path=${PACKAGE_PATH}" >> "${GITHUB_ENV}"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

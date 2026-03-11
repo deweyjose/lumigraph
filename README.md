@@ -66,8 +66,9 @@ AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 DOWNLOAD_ZIP_LAMBDA_NAME=lumigraph-download-zip-local
-DOWNLOAD_CALLBACK_SECRET=lumigraph-local-callback-secret
-DOWNLOAD_CALLBACK_BASE_URL=http://host.docker.internal:3000
+AUTO_THUMB_LAMBDA_NAME=lumigraph-auto-thumb-local
+INTERNAL_CALLBACK_SECRET=lumigraph-local-callback-secret
+LOCAL_DEV_CALLBACK_URL_OVERRIDE=http://host.docker.internal:3000
 ```
 
 ## Quality gates

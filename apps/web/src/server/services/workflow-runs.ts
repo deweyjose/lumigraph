@@ -45,7 +45,13 @@ export type WorkflowSessionView = {
 export type WorkflowRunView = {
   id: string;
   sessionId: string;
-  status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+  status:
+    | "PENDING"
+    | "RUNNING"
+    | "WAITING_FOR_INPUT"
+    | "SUCCEEDED"
+    | "FAILED"
+    | "CANCELLED";
   trigger: "MANUAL" | "RESUME" | "RETRY" | "SYSTEM";
   agentKind: string;
   model: string | null;
@@ -145,7 +151,13 @@ function toWorkflowSessionView(session: {
 function toWorkflowRunView(run: {
   id: string;
   sessionId: string;
-  status: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+  status:
+    | "PENDING"
+    | "RUNNING"
+    | "WAITING_FOR_INPUT"
+    | "SUCCEEDED"
+    | "FAILED"
+    | "CANCELLED";
   trigger: "MANUAL" | "RESUME" | "RETRY" | "SYSTEM";
   agentKind: string;
   model: string | null;

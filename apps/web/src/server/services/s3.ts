@@ -172,6 +172,18 @@ export function imageFinalKey(
 }
 
 /**
+ * Key for generated auto-thumbnails for a post final image job.
+ * e.g. users/{userId}/posts/{postId}/final/thumbs/{jobId}.webp
+ */
+export function imageAutoThumbKey(
+  userId: string,
+  postId: string,
+  jobId: string
+): string {
+  return `users/${userId}/posts/${postId}/final/thumbs/${jobId}.webp`;
+}
+
+/**
  * Key for an integration set file.
  * e.g. users/{userId}/integration-sets/{integrationSetId}/{relativePath}
  */

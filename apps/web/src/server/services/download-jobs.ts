@@ -6,6 +6,7 @@ import {
   LambdaClient,
   type LambdaClientConfig,
 } from "@aws-sdk/client-lambda";
+import { resolveCallbackBaseUrl } from "./local-dev-callback-origin";
 import { createPresignedDownloadUrl, deleteS3Object, getS3Bucket } from "./s3";
 
 const DEFAULT_DOWNLOAD_MAX_FILES = 1000;
@@ -296,12 +297,6 @@ async function invokeZipLambda(payload: object): Promise<void> {
   await client.send(new InvokeCommand(input));
 }
 
-function getCallbackBaseUrl(origin: string): string {
-  const explicit = process.env.DOWNLOAD_CALLBACK_BASE_URL;
-  if (explicit && explicit.length > 0) return explicit.replace(/\/$/, "");
-  return origin.replace(/\/$/, "");
-}
-
 export async function createDownloadExportJob(
   input: CreateDownloadJobInput
 ): Promise<
@@ -317,11 +312,11 @@ export async function createDownloadExportJob(
     input.integrationSetId,
     input.userId
   );
-  if (!process.env.DOWNLOAD_CALLBACK_SECRET) {
+  if (!process.env.INTERNAL_CALLBACK_SECRET) {
     return {
       ok: false,
       message:
-        "DOWNLOAD_CALLBACK_SECRET is not configured for lambda export jobs.",
+        "INTERNAL_CALLBACK_SECRET is not configured for lambda export jobs.",
     };
   }
   if (!process.env.DOWNLOAD_ZIP_LAMBDA_NAME) {
@@ -378,7 +373,15 @@ export async function createDownloadExportJob(
     data: { outputS3Key },
   });
 
-  const callbackBaseUrl = getCallbackBaseUrl(input.requestOrigin);
+  const callbackBaseUrl = resolveCallbackBaseUrl(input.requestOrigin, {
+    localDevOverride: process.env.LOCAL_DEV_CALLBACK_URL_OVERRIDE,
+  });
+  if (!callbackBaseUrl) {
+    return {
+      ok: false,
+      message: "Request origin is required for export jobs.",
+    };
+  }
   const callbackUrl = `${callbackBaseUrl}/api/internal/export-jobs/${created.id}/callback`;
   void invokeZipLambda({
     jobId: created.id,
