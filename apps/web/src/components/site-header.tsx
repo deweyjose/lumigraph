@@ -7,7 +7,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 w-full border-b border-white/6 bg-black/20 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-8">
-          <BrandMark />
+          <BrandMark compact subtitle="Mission control" />
 
           <nav className="hidden items-center gap-5 text-sm md:flex">
             <Link
