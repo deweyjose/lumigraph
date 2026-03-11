@@ -170,14 +170,14 @@ export function WorkspaceShell({
     <div
       className={cn(
         "min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.12),transparent_26%),radial-gradient(circle_at_top_right,rgba(34,197,94,0.08),transparent_22%),linear-gradient(180deg,rgba(6,12,25,1),rgba(9,14,23,1))]",
-        isPublic && "lg:h-screen lg:overflow-hidden"
+        "lg:h-screen lg:overflow-hidden"
       )}
     >
       <div className="flex min-h-screen">
         <aside
           className={cn(
             "hidden w-72 shrink-0 border-r border-white/6 bg-black/20 lg:flex lg:flex-col",
-            isPublic && "lg:h-screen"
+            "lg:h-screen"
           )}
         >
           <div className="flex h-20 items-center border-b border-white/6 px-6">
@@ -262,7 +262,7 @@ export function WorkspaceShell({
         <div
           className={cn(
             "flex min-w-0 flex-1 flex-col",
-            isPublic && "lg:h-screen lg:overflow-hidden"
+            "lg:h-screen lg:overflow-hidden"
           )}
         >
           <div className="border-b border-white/8 bg-black/20 lg:hidden">
@@ -305,7 +305,8 @@ export function WorkspaceShell({
             ref={mainRef}
             className={cn(
               "min-w-0 flex-1 p-3 sm:p-4 lg:p-5",
-              isPublic && "scroll-smooth lg:overflow-y-auto"
+              "lg:overflow-y-auto",
+              isPublic && "scroll-smooth"
             )}
           >
             <div className="min-h-full overflow-hidden rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,23,42,0.9),rgba(8,15,28,0.88))] shadow-[0_18px_70px_rgba(2,8,23,0.45)]">
