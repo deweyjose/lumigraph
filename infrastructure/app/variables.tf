@@ -185,12 +185,6 @@ variable "download_zip_lambda_reserved_concurrency" {
   default     = null
 }
 
-variable "auto_thumb_lambda_arn" {
-  description = "Optional external Lambda ARN used for async auto-thumbnail jobs. If null, this stack provisions one."
-  type        = string
-  default     = null
-}
-
 variable "auto_thumb_lambda_package_path" {
   description = "Path to the ZIP package for the managed auto-thumb Lambda. Built in CI and passed via TF_VAR_auto_thumb_lambda_package_path."
   type        = string
