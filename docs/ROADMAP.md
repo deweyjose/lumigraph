@@ -14,6 +14,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Shared app-shell polish across Astro Hub, Posts, Drafts, and Integration Sets
 - Public post/detail polish and download ergonomics
 - Collaborative post critique with region-based image annotation threads
+- Integration set detail IA refresh for metadata visibility and dense file workflows
 - AI drafting improvements for posts
 
 ## Later
@@ -33,6 +34,8 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #140 - final Astro Hub polish pass
 - Follow with broader page polish once the shell and live Astro Hub modules settle:
   - #60 - site-wide polish and consistency
+  - #156 - restructure integration set detail into accessible, collapsible workspace sections
+  - #157 - improve integration explorer density and keyboard accessibility for large file sets
   - #151 - post annotation thread data model and API contract
   - #152 - interactive region-based comment threads on post images
   - #153 - annotation discussion polish, moderation, and trust cues
@@ -43,7 +46,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 ## Parallel lanes
 
 - Lane A: shared app shell and IA
-  - #149, #60
+  - #149, #60, #156
 - Lane B: Astro Hub live modules
   - #137, #138, #139, #140
 - Lane C: drafting/product intelligence
@@ -52,6 +55,8 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #151, #152, #153
 - Lane E: agent critique and coaching
   - #154, #155
+- Lane F: integration-set workflow ergonomics
+  - #156, #157
 
 ## Worktree guidance
 
@@ -115,6 +120,8 @@ Add links as items are created.
 - #139 - Build an Astro Hub astronomy calendar and event detail experience
 - #140 - Polish Astro Hub performance, accessibility, and mobile tuning after live data integration
 - #60 - Site-wide layout and page polish
+- #156 - Restructure integration set detail into accessible, collapsible workspace sections
+- #157 - Improve integration explorer density and keyboard accessibility for large file sets
 - #151 - Add post annotation thread data model and API contract
 - #152 - Build interactive region-based comment threads on post images
 - #153 - Polish annotation discussion with moderation, lifecycle, and trust cues
