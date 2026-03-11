@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { auth } from "auth";
 import { Providers } from "@/components/providers";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -17,7 +17,13 @@ export const metadata: Metadata = {
     "Astrophotography journal and integration data platform. Publish images, manage integration sets, and explore Astro Hub.",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const session = await auth();
+
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body
@@ -25,9 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         suppressHydrationWarning
       >
         <Providers>
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
+          <WorkspaceShell mode={session?.user ? "authenticated" : "public"}>
+            {children}
+          </WorkspaceShell>
         </Providers>
       </body>
     </html>

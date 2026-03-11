@@ -245,25 +245,26 @@ export function FinalImageUpload({
   return (
     <section
       aria-labelledby="final-image-heading"
-      className={cn("rounded-lg border bg-muted/20 p-4", className)}
+      className={cn(
+        "rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-4 shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm",
+        className
+      )}
     >
       <h2 id="final-image-heading" className="text-lg font-semibold">
         Final image
       </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1 text-sm text-slate-300">
         Upload a main image and optional thumbnail.
       </p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border bg-background p-4">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Main image
-          </h3>
+        <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
+          <h3 className="text-sm font-medium text-slate-300">Main image</h3>
           {currentImageAssetId && (
             <img
               src={`/api/assets/${currentImageAssetId}/view`}
               alt=""
-              className="mt-2 h-24 w-full rounded border object-cover"
+              className="mt-2 h-24 w-full rounded-xl border border-white/10 object-cover"
             />
           )}
           <input
@@ -310,15 +311,13 @@ export function FinalImageUpload({
           )}
         </div>
 
-        <div className="rounded-lg border bg-background p-4">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Thumbnail
-          </h3>
+        <div className="rounded-[1.25rem] border border-white/10 bg-white/[0.04] p-4">
+          <h3 className="text-sm font-medium text-slate-300">Thumbnail</h3>
           {currentThumbAssetId && (
             <img
               src={`/api/assets/${currentThumbAssetId}/view`}
               alt=""
-              className="mt-2 h-24 w-full rounded border object-cover"
+              className="mt-2 h-24 w-full rounded-xl border border-white/10 object-cover"
             />
           )}
           <input
@@ -391,7 +390,7 @@ export function FinalImageUpload({
             </Button>
           )}
           {!currentImageAssetId ? (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-slate-400">
               Upload a main image before generating a thumbnail.
             </p>
           ) : showAutoThumbStatus ? (
@@ -401,10 +400,10 @@ export function FinalImageUpload({
                 autoThumbJob.status === "FAILED"
                   ? "text-destructive"
                   : autoThumbJob.status === "CANCELLED"
-                    ? "text-muted-foreground"
+                    ? "text-slate-400"
                     : autoThumbJob.status === "READY"
                       ? "text-green-700"
-                      : "text-muted-foreground"
+                      : "text-slate-400"
               )}
             >
               {autoThumbJob.status === "FAILED" ? (

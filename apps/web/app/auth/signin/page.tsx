@@ -140,7 +140,7 @@ function SignInContent() {
     >
       {registered && (
         <div
-          className="mb-6 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground"
+          className="mb-6 rounded-2xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-3 text-sm text-slate-100"
           role="status"
         >
           Account created. Sign in below.
@@ -148,7 +148,7 @@ function SignInContent() {
       )}
       {reset && (
         <div
-          className="mb-6 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground"
+          className="mb-6 rounded-2xl border border-cyan-200/15 bg-cyan-400/10 px-4 py-3 text-sm text-slate-100"
           role="status"
         >
           Password reset. Sign in with your new password.
@@ -156,7 +156,7 @@ function SignInContent() {
       )}
       {errorMessage && (
         <div
-          className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="mb-6 rounded-2xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200"
           role="alert"
         >
           {errorMessage}
@@ -216,7 +216,7 @@ function SignInContent() {
                 <div className="flex justify-end">
                   <Link
                     href="/auth/forgot-password"
-                    className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground"
+                    className="text-sm text-slate-400 underline-offset-4 hover:text-white"
                   >
                     Forgot password?
                   </Link>
@@ -225,7 +225,7 @@ function SignInContent() {
               <Button
                 type="submit"
                 size="lg"
-                className="h-12"
+                className="h-12 rounded-2xl border border-cyan-200/20 bg-cyan-400/12 text-cyan-50 hover:bg-cyan-400/20"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Signing in…" : "Sign in"}
@@ -260,17 +260,17 @@ function SignInContent() {
                 <AuthDivider />
                 {emailSent ? (
                   <div
-                    className="rounded-lg border border-primary/30 bg-primary/10 p-5 text-center"
+                    className="rounded-2xl border border-cyan-200/15 bg-cyan-400/10 p-5 text-center"
                     role="status"
                   >
                     <Mail
-                      className="mx-auto mb-2 size-6 text-primary"
+                      className="mx-auto mb-2 size-6 text-cyan-100"
                       aria-hidden
                     />
-                    <p className="font-medium">Check your email</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="font-medium text-white">Check your email</p>
+                    <p className="mt-1 text-sm text-slate-400">
                       We sent a sign-in link to{" "}
-                      <strong className="text-foreground">{magicEmail}</strong>
+                      <strong className="text-white">{magicEmail}</strong>
                     </p>
                   </div>
                 ) : (
@@ -292,7 +292,7 @@ function SignInContent() {
                       type="submit"
                       variant="outline"
                       size="lg"
-                      className="h-12 w-full border-border/60 bg-card/80 text-base font-medium shadow-sm transition hover:border-primary/30 hover:bg-card"
+                      className="h-12 w-full rounded-2xl border-white/10 bg-white/[0.03] text-base font-medium text-slate-100 shadow-none transition hover:border-cyan-200/20 hover:bg-white/[0.06]"
                     >
                       <Mail className="mr-3 size-5 shrink-0" aria-hidden />
                       Continue with Email
@@ -303,7 +303,7 @@ function SignInContent() {
             )}
 
             {hasNoOAuthOrEmail && (
-              <p className="text-center text-xs text-muted-foreground">
+              <p className="text-center text-xs text-slate-500">
                 To enable Google or GitHub sign-in, add the relevant env vars
                 and restart the app.
               </p>

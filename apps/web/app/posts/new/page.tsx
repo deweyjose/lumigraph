@@ -14,7 +14,7 @@ export default async function NewPostPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-12">
+    <div className="mx-auto w-full max-w-4xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <NewPostForm />
     </div>
   );

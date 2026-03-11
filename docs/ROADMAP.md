@@ -5,41 +5,53 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 ## Now
 
 - Core product cleanup around Astro Hub, posts, drafts, and integration sets
-- Export management UX hardening
-- Integration set workflow polish
+- Shared app shell restyle with left-side workspace nav and main canvas
 - Docs and context cleanup
 
 ## Next
 
 - Astro Hub revamp: Mission Control-style live astronomy experience
+- Shared app-shell polish across Astro Hub, Posts, Drafts, and Integration Sets
 - Public post/detail polish and download ergonomics
+- Collaborative post critique with region-based image annotation threads
 - AI drafting improvements for posts
 
 ## Later
 
 - Optional private checklists/todos tied to posts or integration sets
+- Agent-assisted post critique and image comment suggestions
 - PixInsight copilot capabilities
 - Cloud execution pipeline
 
 ## Recommended execution order
 
-- Finish the current reliability and UX lane before opening more platform surface:
-  - #90 - export management hardening
-  - #107 through #112 - automatic thumbnail generation slices
-  - #91 - integration set workflow polish
-- Treat Astro Hub as the main parallel frontend/product lane once one owner is available to push the visual system:
-  - #136 - Mission Control redesign with mocked data
+- Treat Astro Hub and the shared workspace shell as the current frontend/product lane:
+  - #149 - shared app shell restyle
   - #137 - daily media contract and module
   - #138 - ISS tracker contract and module
   - #139 - astronomy calendar and event detail
-  - #140 - final polish pass
+  - #140 - final Astro Hub polish pass
+- Follow with broader page polish once the shell and live Astro Hub modules settle:
+  - #60 - site-wide polish and consistency
+  - #151 - post annotation thread data model and API contract
+  - #152 - interactive region-based comment threads on post images
+  - #153 - annotation discussion polish, moderation, and trust cues
+  - #154 - agent-assisted image critique suggestions for post annotation threads
+  - #155 - review and trust UX for agent-authored image critique comments
+  - #93 - AI drafting improvements
 
 ## Parallel lanes
 
-- Lane A: reliability and user-facing polish
-  - #90, #107 through #112, #91
-- Lane B: Astro Hub frontend revamp
-  - #136, #137, #138, #139
+- Lane A: shared app shell and IA
+  - #149, #60
+- Lane B: Astro Hub live modules
+  - #137, #138, #139, #140
+- Lane C: drafting/product intelligence
+  - #93
+- Lane D: post collaboration and critique
+  - #151, #152, #153
+- Lane E: agent critique and coaching
+  - #154, #155
 
 ## Worktree guidance
 
@@ -86,6 +98,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 ## Make frame mapping
 
 - AstroHub dashboard frames primarily inform #135, #136, #137, #138, #139, and #140.
+- The shared workspace shell direction is tracked in #149 and should establish the authenticated app layout for Astro Hub, Posts, Drafts, and Integration Sets.
 - Integration Data screen patterns can inform UX cleanup in #91 without replacing the current storage/auth architecture.
 - Posts list patterns are secondary reference material and should only influence future post-management polish where they improve clarity.
 - The login screen is secondary reference material for shared auth and brand presentation, not a direct Astro Hub implementation target.
@@ -94,19 +107,17 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 
 Add links as items are created.
 
-- #64 - Umbrella: Agentic platform foundation (API cleanup, AI boundary, tool surface)
-- #95 - Normalize API contracts for machine clients
-- #96 - Extract a shared AI integration boundary
-- #97 - Expose typed agent tool surfaces over domain services
-- #90 - Roadmap: Harden export management UX and job lifecycle
-- #107 - Roadmap: Auto-thumb generation pipeline for final post images
-- #108 - Auto-thumb slice: data model and job state
-- #109 - Auto-thumb slice: worker runtime and thumbnail generation
-- #110 - Auto-thumb slice: publish/update integration and observability
-- #91 - Roadmap: Polish integration set workflow UX
 - #135 - Astro Hub revamp: Mission Control-style live astronomy experience
 - #136 - Redesign Astro Hub as a dynamic Mission Control experience with mocked data
+- #149 - Shared app shell restyle with left-side workspace nav and main canvas
 - #137 - Add Astro Hub daily photo/media module with normalized provider contract and fallback gallery
 - #138 - Add a live ISS tracker to Astro Hub with normalized telemetry and refresh strategy
 - #139 - Build an Astro Hub astronomy calendar and event detail experience
 - #140 - Polish Astro Hub performance, accessibility, and mobile tuning after live data integration
+- #60 - Site-wide layout and page polish
+- #151 - Add post annotation thread data model and API contract
+- #152 - Build interactive region-based comment threads on post images
+- #153 - Polish annotation discussion with moderation, lifecycle, and trust cues
+- #154 - Add agent-assisted image critique suggestions for post annotation threads
+- #155 - Build review and trust UX for agent-authored image critique comments
+- #93 - AI drafting improvements for posts

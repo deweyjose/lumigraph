@@ -18,7 +18,7 @@ export function ProviderButton({
       type="button"
       variant="outline"
       size="lg"
-      className="h-12 w-full border-border/60 bg-card/80 text-base font-medium shadow-sm transition hover:border-primary/30 hover:bg-card"
+      className="h-12 w-full rounded-2xl border-white/10 bg-white/[0.03] text-base font-medium text-slate-100 shadow-none transition hover:border-cyan-200/20 hover:bg-white/[0.06] dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
       onClick={onClick}
       disabled={disabled}
     >
