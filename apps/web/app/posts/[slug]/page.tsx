@@ -12,6 +12,10 @@ import { getLatestAutoThumbJobForPostOwner } from "@/server/services/auto-thumb-
 import { getPostBySlugForView } from "@/server/services/posts";
 
 type Props = { params: Promise<{ slug: string }> };
+type IntegrationSet = NonNullable<
+  Awaited<ReturnType<typeof getPostBySlugForView>>
+>["integrationSets"][number];
+type IntegrationAsset = IntegrationSet["assets"][number];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -111,7 +115,7 @@ export default async function PostDetailPage({ params }: Props) {
         <section className="mt-8">
           <h2 className="text-lg font-semibold">Integration Sets</h2>
           <div className="mt-3 space-y-4">
-            {post.integrationSets.map((set) => (
+            {post.integrationSets.map((set: IntegrationSet) => (
               <div
                 key={set.id}
                 className="rounded-[1.4rem] border border-white/10 bg-white/[0.035] p-4 shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm"
@@ -126,7 +130,7 @@ export default async function PostDetailPage({ params }: Props) {
                 </div>
                 {set.assets.length > 0 && (
                   <ul className="mt-3 space-y-2">
-                    {set.assets.map((asset) => (
+                    {set.assets.map((asset: IntegrationAsset) => (
                       <li
                         key={asset.id}
                         className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2"

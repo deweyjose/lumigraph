@@ -60,7 +60,9 @@ export async function resetPasswordWithToken(
   const all = await prisma.verificationToken.findMany({
     where: { token, expires: { gt: now } },
   });
-  const vt = all.find((v) => v.identifier.startsWith(PASSWORD_RESET_PREFIX));
+  const vt = all.find((v: (typeof all)[number]) =>
+    v.identifier.startsWith(PASSWORD_RESET_PREFIX)
+  );
   if (!vt) return "invalid_token";
 
   const userId = vt.identifier.slice(PASSWORD_RESET_PREFIX.length);

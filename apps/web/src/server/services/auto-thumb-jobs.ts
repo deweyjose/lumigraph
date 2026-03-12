@@ -278,7 +278,7 @@ export async function listPendingAutoThumbJobs(options?: {
     orderBy: [{ attempts: "asc" }, { updatedAt: "asc" }],
     take: limit,
   });
-  return jobs.map((job) => toAutoThumbJobView(job));
+  return jobs.map((job: AutoThumbJobRecord) => toAutoThumbJobView(job));
 }
 
 export async function markAutoThumbJobRunning(
