@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/auth/form-field";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { getPostSaveNavigation } from "./post-save-navigation";
 
 type Props = {
   postId: string;
@@ -46,7 +47,15 @@ export function PostEditorForm({
         setError(data.message ?? "Failed to save draft");
         return;
       }
-      router.refresh();
+      const savedSlug = typeof data.slug === "string" ? data.slug : slug.trim();
+      const navigation = getPostSaveNavigation(initialSlug, savedSlug);
+
+      if (navigation === "refresh") {
+        router.refresh();
+        return;
+      }
+
+      router.replace(navigation.replace);
     } catch {
       setError("Something went wrong");
     } finally {
