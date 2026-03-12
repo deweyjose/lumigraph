@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "auth";
 import { listAssetsByIntegrationSetForOwner } from "@/server/services/assets";
 
+type IntegrationAsset = NonNullable<
+  Awaited<ReturnType<typeof listAssetsByIntegrationSetForOwner>>
+>[number];
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -22,7 +26,7 @@ export async function GET(
     );
   }
   return NextResponse.json(
-    assets.map((asset) => ({
+    assets.map((asset: IntegrationAsset) => ({
       id: asset.id,
       kind: asset.kind,
       relativePath: asset.relativePath,

@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   title: "New Integration Set",
 };
 
+type PostOption = Awaited<ReturnType<typeof listMyPosts>>[number];
+
 export default async function NewIntegrationSetPage() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -18,7 +20,7 @@ export default async function NewIntegrationSetPage() {
     <div className="mx-auto w-full max-w-4xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <IntegrationSetForm
         mode="create"
-        postOptions={posts.map((post) => ({
+        postOptions={posts.map((post: PostOption) => ({
           id: post.id,
           title: post.title,
           slug: post.slug,

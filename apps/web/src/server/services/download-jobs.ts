@@ -240,7 +240,9 @@ export async function listDownloadJobsForIntegrationSetForOwner(
     orderBy: [{ createdAt: "desc" }],
     take: 50,
   });
-  return jobs.map((job) => toDownloadJobView(job));
+  return jobs.map((job: Parameters<typeof toDownloadJobView>[0]) =>
+    toDownloadJobView(job)
+  );
 }
 
 async function getLambdaClient(): Promise<LambdaClient> {

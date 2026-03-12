@@ -12,6 +12,10 @@ import { IntegrationSetForm } from "@/components/integration-sets/integration-se
 import { IntegrationAssetUpload } from "@/components/integration-sets/integration-asset-upload";
 
 type Props = { params: Promise<{ id: string }> };
+type IntegrationAsset = NonNullable<
+  Awaited<ReturnType<typeof listAssetsByIntegrationSetForOwner>>
+>[number];
+type PostOption = Awaited<ReturnType<typeof listMyPosts>>[number];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
@@ -53,7 +57,7 @@ export default async function IntegrationSetDetailPage({ params }: Props) {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr,1fr]">
         <IntegrationAssetUpload
           integrationSetId={set.id}
-          assets={assets.map((asset) => ({
+          assets={assets.map((asset: IntegrationAsset) => ({
             id: asset.id,
             relativePath: asset.relativePath,
             filename: asset.filename,
@@ -71,7 +75,7 @@ export default async function IntegrationSetDetailPage({ params }: Props) {
           initialTitle={set.title}
           initialNotes={set.notes}
           initialPostId={set.postId}
-          postOptions={posts.map((post) => ({
+          postOptions={posts.map((post: PostOption) => ({
             id: post.id,
             title: post.title,
             slug: post.slug,

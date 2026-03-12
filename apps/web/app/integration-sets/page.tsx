@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   description: "Your astrophotography integration data in S3.",
 };
 
+type IntegrationSetListItem = Awaited<
+  ReturnType<typeof listMyIntegrationSets>
+>[number];
+
 export default async function IntegrationSetsPage() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -48,7 +52,7 @@ export default async function IntegrationSetsPage() {
         </div>
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">
-          {sets.map((set) => (
+          {sets.map((set: IntegrationSetListItem) => (
             <li key={set.id} className="rounded-lg border p-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-semibold">{set.title}</h2>
