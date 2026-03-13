@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { auth } from "auth";
 import { Download, ImageIcon } from "lucide-react";
 import { FinalImageUpload } from "@/components/posts/final-image-upload";
+import { PostImageInspector } from "@/components/posts/post-image-inspector";
 import { PublishButton } from "@/components/posts/publish-button";
 import { PostEditorForm } from "@/components/posts/post-editor-form";
 import { Button } from "@/components/ui/button";
@@ -61,13 +62,11 @@ export default async function PostDetailPage({ params }: Props) {
       )}
 
       {imageAssetId || thumbAssetId ? (
-        <figure className="mt-6 overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.04] shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
-          <img
-            src={`/api/assets/${imageAssetId ?? thumbAssetId}/view`}
-            alt={post.title}
-            className="max-h-[70vh] w-full object-contain"
-          />
-        </figure>
+        <PostImageInspector
+          alt={post.title}
+          className="mt-6"
+          src={`/api/assets/${imageAssetId ?? thumbAssetId}/view`}
+        />
       ) : (
         <div className="mt-6 flex min-h-[220px] items-center justify-center rounded-[1.6rem] border border-dashed border-white/12 bg-white/[0.03] shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
           <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
