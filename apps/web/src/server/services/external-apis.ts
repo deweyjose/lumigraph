@@ -8,6 +8,18 @@ const NASA_BASE = "https://api.nasa.gov";
 const OPEN_NOTIFY_ISS = "http://api.open-notify.org/iss-now.json";
 const SPACEX_LATEST = "https://api.spacexdata.com/v4/launches/latest";
 
+function sanitizeUrlForLog(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.searchParams.has("api_key")) {
+      url.searchParams.set("api_key", "[redacted]");
+    }
+    return url.toString();
+  } catch {
+    return value.replace(/api_key=([^&]+)/i, "api_key=[redacted]");
+  }
+}
+
 export type ApodData = {
   date: string;
   title: string;
@@ -47,6 +59,9 @@ export async function fetchApod(date: Date): Promise<ApodData | null> {
   const dateStr = date.toISOString().slice(0, 10);
   const url = `${NASA_BASE}/planetary/apod?api_key=${getNasaApiKey()}&date=${dateStr}`;
   try {
+    console.info("[external-api:fetch:apod]", sanitizeUrlForLog(url), {
+      revalidateSeconds: 3600,
+    });
     const res = await fetch(url, { next: { revalidate: 3600 } });
     if (!res.ok) return null;
     return (await res.json()) as ApodData;
@@ -57,6 +72,9 @@ export async function fetchApod(date: Date): Promise<ApodData | null> {
 
 export async function fetchIssNow(): Promise<IssData | null> {
   try {
+    console.info("[external-api:fetch:iss]", OPEN_NOTIFY_ISS, {
+      revalidateSeconds: 60,
+    });
     const res = await fetch(OPEN_NOTIFY_ISS, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     return (await res.json()) as IssData;
@@ -67,6 +85,9 @@ export async function fetchIssNow(): Promise<IssData | null> {
 
 export async function fetchSpaceXLatest(): Promise<SpaceXLaunch | null> {
   try {
+    console.info("[external-api:fetch:spacex]", SPACEX_LATEST, {
+      revalidateSeconds: 3600,
+    });
     const res = await fetch(SPACEX_LATEST, { next: { revalidate: 3600 } });
     if (!res.ok) return null;
     return (await res.json()) as SpaceXLaunch;

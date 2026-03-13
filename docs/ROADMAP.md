@@ -11,6 +11,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 ## Next
 
 - Astro Hub revamp: Mission Control-style live astronomy experience
+- Astro Hub chatbot tool use, grounding, and web search
 - Shared app-shell polish across Astro Hub, Posts, Drafts, and Integration Sets
 - Public post/detail polish and download ergonomics
 - Post image inspection with zoom and magnifier controls
@@ -36,6 +37,10 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #140 - final Astro Hub polish pass
 - Follow with broader page polish once the shell and live Astro Hub modules settle:
   - #60 - site-wide polish and consistency
+  - #164 - migrate Astro Hub chat to a tool-capable Responses API architecture
+  - #165 - add Astro Hub source tools to ground chatbot answers in live module data
+  - #166 - enable web search for Astro Hub chat and render visible citations in the widget
+  - #167 - add guardrails, observability, and docs for tool-augmented Astro Hub chat
   - #160 - document auth model, dormant email paths, and standards-aligned auth direction
   - #161 - activate transactional email for password reset and email-link auth
   - #162 - harden password reset and auth flows to OWASP-aligned practices
@@ -65,6 +70,8 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #156, #157
 - Lane G: auth and account lifecycle
   - #160, #161, #162
+- Lane H: Astro Hub chat tools and grounding
+  - #164, #165, #166, #167
 
 ## Worktree guidance
 
@@ -149,3 +156,7 @@ Add links as items are created.
 - #154 - Add agent-assisted image critique suggestions for post annotation threads
 - #155 - Build review and trust UX for agent-authored image critique comments
 - #93 - AI drafting improvements for posts
+- #164 - Migrate Astro Hub chat to a tool-capable Responses API architecture
+- #165 - Add Astro Hub source tools to ground chatbot answers in live module data
+- #166 - Enable web search for Astro Hub chat and render visible citations in the widget
+- #167 - Add guardrails, observability, and docs for tool-augmented Astro Hub chat
