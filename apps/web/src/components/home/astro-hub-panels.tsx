@@ -392,11 +392,15 @@ export function ExploreLayer({
     <ul className="grid gap-4 md:grid-cols-3">
       {modules.map((module, index) => (
         <li
-          key={
-            module.url ??
-            module.actions?.[0]?.href ??
-            `${module.title}-${module.sourceLabel ?? "module"}-${index}`
-          }
+          key={[
+            module.url,
+            module.actions?.[0]?.href,
+            module.title,
+            module.sourceLabel,
+            index,
+          ]
+            .filter(Boolean)
+            .join("::")}
           className="group rounded-2xl border border-slate-200/15 bg-slate-950/55 p-4 transition-transform duration-300 hover:-translate-y-1 hover:border-cyan-200/30"
         >
           <h3 className="text-sm font-semibold text-slate-100">

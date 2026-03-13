@@ -35,6 +35,9 @@ const astroSourceOutputRoot = path.resolve(
   process.cwd(),
   "src/server/services/astro-sources/data"
 );
+const astroSourceOutputEnabled =
+  process.env.ASTRO_SOURCE_WRITE_OUT === "1" ||
+  process.env.ASTRO_SOURCE_WRITE_OUT === "true";
 
 function sanitizeUrlForLog(value: string) {
   try {
@@ -206,7 +209,7 @@ export async function writeAstroSourceOutput(
   serviceName: string,
   payload: string | Record<string, unknown> | unknown[]
 ) {
-  if (process.env.NODE_ENV === "test") {
+  if (process.env.NODE_ENV === "test" || !astroSourceOutputEnabled) {
     return;
   }
 
