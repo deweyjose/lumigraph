@@ -25,6 +25,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
 - Optional private checklists/todos tied to posts or integration sets
 - Agent-assisted post critique and image comment suggestions
 - PixInsight copilot capabilities
+- AWS-hosted API service extraction and migration planning
 - Cloud execution pipeline
 
 ## Recommended execution order
@@ -44,6 +45,7 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #160 - document auth model, dormant email paths, and standards-aligned auth direction
   - #161 - activate transactional email for password reset and email-link auth
   - #162 - harden password reset and auth flows to OWASP-aligned practices
+  - #174 - define the API extraction contract and migration boundary for an AWS-hosted service
   - #158 - add image inspection zoom and magnifier controls on post detail
   - #156 - restructure integration set detail into accessible, collapsible workspace sections
   - #157 - improve integration explorer density and keyboard accessibility for large file sets
@@ -72,6 +74,8 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #160, #161, #162
 - Lane H: Astro Hub chat tools and grounding
   - #164, #165, #166, #167
+- Lane I: backend platform and API extraction
+  - #174
 
 ## Worktree guidance
 
@@ -160,3 +164,4 @@ Add links as items are created.
 - #165 - Add Astro Hub source tools to ground chatbot answers in live module data
 - #166 - Enable web search for Astro Hub chat and render visible citations in the widget
 - #167 - Add guardrails, observability, and docs for tool-augmented Astro Hub chat
+- #174 - Define the API extraction contract and migration boundary for an AWS-hosted service
