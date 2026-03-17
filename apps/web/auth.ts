@@ -2,9 +2,9 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
-import Nodemailer from "next-auth/providers/nodemailer";
 import authConfig from "./auth.config";
 import { createLazyPrismaAdapter } from "./src/server/lazy-prisma-adapter";
+import { consumeMagicLinkToken } from "./src/server/magic-link";
 import { verifyPassword } from "./src/server/password";
 
 const providers = [
@@ -14,14 +14,18 @@ const providers = [
   ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
     ? [Google]
     : []),
-  ...(process.env.EMAIL_SERVER && process.env.EMAIL_FROM
-    ? [
-        Nodemailer({
-          server: process.env.EMAIL_SERVER,
-          from: process.env.EMAIL_FROM,
-        }),
-      ]
-    : []),
+  Credentials({
+    id: "magic-link",
+    name: "Magic link",
+    credentials: {
+      token: { label: "Token", type: "text" },
+    },
+    async authorize(credentials) {
+      const token = credentials?.token;
+      if (!token || typeof token !== "string") return null;
+      return consumeMagicLinkToken(token);
+    },
+  }),
   Credentials({
     id: "credentials",
     name: "Email and password",
@@ -53,14 +57,14 @@ const providers = [
   }),
 ];
 
-const hasOAuthOrEmail =
+const hasOAuth =
   (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) ||
-  (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) ||
-  (process.env.EMAIL_SERVER && process.env.EMAIL_FROM);
+  (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
+const hasMagicLink = process.env.EMAIL_SERVER && process.env.EMAIL_FROM;
 
-if (!hasOAuthOrEmail) {
+if (!hasOAuth && !hasMagicLink) {
   console.warn(
-    "No OAuth/email providers configured — set AUTH_GITHUB_ID/SECRET, AUTH_GOOGLE_ID/SECRET, or EMAIL_SERVER/FROM"
+    "No auth providers configured — set AUTH_GITHUB_ID/SECRET, AUTH_GOOGLE_ID/SECRET, or EMAIL_SERVER/FROM"
   );
 }
 

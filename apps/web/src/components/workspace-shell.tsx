@@ -94,6 +94,8 @@ export function WorkspaceShell({
   const navItems =
     mode === "authenticated" ? authenticatedNavItems : publicNavItems;
   const isPublic = mode === "public";
+  const isAuthRoute = pathname.startsWith("/auth");
+  const useShellFrame = !isAuthRoute || mode === "authenticated";
   const [activePublicSection, setActivePublicSection] = useState("astro-hub");
 
   useEffect(() => {
@@ -304,14 +306,19 @@ export function WorkspaceShell({
           <main
             ref={mainRef}
             className={cn(
-              "min-w-0 flex-1 p-3 sm:p-4 lg:p-5",
+              "min-w-0 flex-1",
+              useShellFrame ? "p-3 sm:p-4 lg:p-5" : "p-0",
               "lg:overflow-y-auto",
               isPublic && "scroll-smooth"
             )}
           >
-            <div className="min-h-full overflow-hidden rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,23,42,0.9),rgba(8,15,28,0.88))] shadow-[0_18px_70px_rgba(2,8,23,0.45)]">
-              {children}
-            </div>
+            {useShellFrame ? (
+              <div className="min-h-full overflow-hidden rounded-[28px] border border-white/8 bg-[linear-gradient(180deg,rgba(15,23,42,0.9),rgba(8,15,28,0.88))] shadow-[0_18px_70px_rgba(2,8,23,0.45)]">
+                {children}
+              </div>
+            ) : (
+              children
+            )}
           </main>
         </div>
       </div>

@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requestPasswordReset } from "../../../../src/server/password-reset";
 import {
   getEmailAuthUnavailableMessage,
   isEmailAuthConfigured,
 } from "../../../../src/server/auth-email";
+import { sendMagicLink } from "../../../../src/server/magic-link";
 
-const ForgotPasswordBodySchema = z.object({
+const SendMagicLinkBodySchema = z.object({
   email: z.string().email(),
+  callbackUrl: z.string().min(1).optional(),
 });
 
 /**
- * Forgot-password: send a time-limited reset link to the user's email.
- * Uses VerificationToken with identifier "password-reset:${userId}".
- * Always returns 200 to avoid leaking whether the email exists.
+ * Send a magic-link sign-in email. Creates a VerificationToken and emails the link.
+ * Always returns 200 with the same message to avoid user enumeration.
  */
 export async function POST(request: NextRequest) {
-  let body: z.infer<typeof ForgotPasswordBodySchema>;
+  let body: z.infer<typeof SendMagicLinkBodySchema>;
   try {
     const raw = await request.json();
-    body = ForgotPasswordBodySchema.parse(raw);
+    body = SendMagicLinkBodySchema.parse(raw);
   } catch (err) {
     if (err instanceof z.ZodError) {
       const message = err.issues.map((e: z.ZodIssue) => e.message).join("; ");
@@ -44,10 +44,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  await requestPasswordReset(body.email);
+  await sendMagicLink(body.email, body.callbackUrl);
 
   return NextResponse.json({
     message:
-      "If an account exists for that email, we sent a link to reset your password.",
+      "If an account exists for that email, we sent a sign-in link. Check your inbox.",
   });
 }
