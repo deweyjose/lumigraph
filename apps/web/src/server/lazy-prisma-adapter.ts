@@ -12,17 +12,32 @@ type ConcreteAdapter = {
   createUser: (user: AdapterUser) => Promise<AdapterUser>;
   getUser: (id: string) => Promise<AdapterUser | null>;
   getUserByEmail: (email: string) => Promise<AdapterUser | null>;
-  getUserByAccount: (account: Pick<AdapterAccount, "provider" | "providerAccountId">) => Promise<AdapterUser | null>;
-  updateUser: (user: Partial<AdapterUser> & Pick<AdapterUser, "id">) => Promise<AdapterUser>;
+  getUserByAccount: (
+    account: Pick<AdapterAccount, "provider" | "providerAccountId">
+  ) => Promise<AdapterUser | null>;
+  updateUser: (
+    user: Partial<AdapterUser> & Pick<AdapterUser, "id">
+  ) => Promise<AdapterUser>;
   deleteUser?: (userId: string) => Promise<void>;
   linkAccount: (account: AdapterAccount) => Promise<void>;
-  unlinkAccount?: (providerAccountId: Pick<AdapterAccount, "provider" | "providerAccountId">) => Promise<void>;
+  unlinkAccount?: (
+    providerAccountId: Pick<AdapterAccount, "provider" | "providerAccountId">
+  ) => Promise<void>;
   createSession: (session: AdapterSession) => Promise<AdapterSession>;
-  getSessionAndUser: (sessionToken: string) => Promise<{ session: AdapterSession; user: AdapterUser } | null>;
-  updateSession?: (session: Partial<AdapterSession> & Pick<AdapterSession, "sessionToken">) => Promise<AdapterSession | null | undefined>;
+  getSessionAndUser: (
+    sessionToken: string
+  ) => Promise<{ session: AdapterSession; user: AdapterUser } | null>;
+  updateSession?: (
+    session: Partial<AdapterSession> & Pick<AdapterSession, "sessionToken">
+  ) => Promise<AdapterSession | null | undefined>;
   deleteSession?: (sessionToken: string) => Promise<void>;
-  createVerificationToken: (token: VerificationToken) => Promise<VerificationToken>;
-  useVerificationToken: (params: { identifier: string; token: string }) => Promise<VerificationToken | null>;
+  createVerificationToken: (
+    token: VerificationToken
+  ) => Promise<VerificationToken>;
+  useVerificationToken: (params: {
+    identifier: string;
+    token: string;
+  }) => Promise<VerificationToken | null>;
 };
 
 async function getAdapter(): Promise<ConcreteAdapter> {
