@@ -22,7 +22,7 @@ export type SendMailOptions = {
   html?: string;
 };
 
-function resolveRecipient(to: string): string {
+export function resolveRecipient(to: string): string {
   const override = process.env.EMAIL_TO_OVERRIDE?.trim();
   if (!override) return to;
   if (override !== to) {
