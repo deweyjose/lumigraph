@@ -94,6 +94,7 @@ export function WorkspaceShell({
   const navItems =
     mode === "authenticated" ? authenticatedNavItems : publicNavItems;
   const isPublic = mode === "public";
+  const isAuthRoute = pathname.startsWith("/auth");
   const [activePublicSection, setActivePublicSection] = useState("astro-hub");
 
   useEffect(() => {
@@ -165,6 +166,10 @@ export function WorkspaceShell({
       observer.disconnect();
     };
   }, [isPublic]);
+
+  if (isAuthRoute) {
+    return <>{children}</>;
+  }
 
   return (
     <div
