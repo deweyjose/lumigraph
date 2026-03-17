@@ -3,9 +3,8 @@ import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import Nodemailer from "next-auth/providers/nodemailer";
-import nodemailer from "nodemailer";
 import authConfig from "./auth.config";
-import { resolveRecipient } from "./src/server/email";
+import { sendMail } from "./src/server/email";
 import { createLazyPrismaAdapter } from "./src/server/lazy-prisma-adapter";
 import { verifyPassword } from "./src/server/password";
 
@@ -21,12 +20,10 @@ const providers = [
         Nodemailer({
           server: process.env.EMAIL_SERVER,
           from: process.env.EMAIL_FROM,
-          async sendVerificationRequest({ identifier, provider, url }) {
-            const transport = nodemailer.createTransport(provider.server);
-            const to = resolveRecipient(identifier);
+          async sendVerificationRequest({ identifier, url }) {
             const host = new URL(url).host;
             const escapedHost = host.replace(/\./g, "&#8203;.");
-            const escapedEmail = to.replace(/\./g, "&#8203;.");
+            const escapedEmail = identifier.replace(/\./g, "&#8203;.");
             const subject = `Sign in to ${host}`;
             const text = `Sign in to ${host}\n${url}\n\n`;
             const html = `
@@ -58,9 +55,8 @@ const providers = [
                 </table>
               </body>
             `;
-            await transport.sendMail({
-              to,
-              from: provider.from,
+            await sendMail({
+              to: identifier,
               subject,
               text,
               html,
