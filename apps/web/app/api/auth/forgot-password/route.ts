@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requestPasswordReset } from "../../../../src/server/password-reset";
+import {
+  getEmailAuthUnavailableMessage,
+  isEmailAuthConfigured,
+} from "../../../../src/server/auth-email";
 
 const ForgotPasswordBodySchema = z.object({
   email: z.string().email(),
@@ -27,6 +31,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { code: "BAD_REQUEST", message: "Invalid JSON" },
       { status: 400 }
+    );
+  }
+
+  if (!isEmailAuthConfigured()) {
+    return NextResponse.json(
+      {
+        code: "NOT_IMPLEMENTED",
+        message: getEmailAuthUnavailableMessage(),
+      },
+      { status: 501 }
     );
   }
 

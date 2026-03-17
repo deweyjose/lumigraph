@@ -28,7 +28,12 @@ export type SendMailOptions = {
 export async function sendMail(options: SendMailOptions): Promise<boolean> {
   const transport = getTransport();
   const from = process.env.EMAIL_FROM;
-  if (!transport || !from) return false;
+  if (!transport || !from) {
+    console.warn(
+      "[auth-email] Email delivery skipped because EMAIL_SERVER and/or EMAIL_FROM is not configured."
+    );
+    return false;
+  }
   try {
     await transport.sendMail({
       from,
@@ -38,7 +43,8 @@ export async function sendMail(options: SendMailOptions): Promise<boolean> {
       html: options.html ?? options.text,
     });
     return true;
-  } catch {
+  } catch (error) {
+    console.error("[auth-email] Failed to send email", error);
     return false;
   }
 }
