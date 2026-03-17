@@ -22,6 +22,17 @@ export type SendMailOptions = {
   html?: string;
 };
 
+function resolveRecipient(to: string): string {
+  const override = process.env.EMAIL_TO_OVERRIDE?.trim();
+  if (!override) return to;
+  if (override !== to) {
+    console.warn(
+      `[auth-email] Overriding outbound recipient ${to} -> ${override} for testing.`
+    );
+  }
+  return override;
+}
+
 /**
  * Send an email. Uses EMAIL_SERVER and EMAIL_FROM. Returns true if sent, false if not configured or send failed.
  */
@@ -37,7 +48,7 @@ export async function sendMail(options: SendMailOptions): Promise<boolean> {
   try {
     await transport.sendMail({
       from,
-      to: options.to,
+      to: resolveRecipient(options.to),
       subject: options.subject,
       text: options.text,
       html: options.html ?? options.text,
