@@ -61,6 +61,7 @@ function SignInContent() {
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
+    magicEmail?: string;
   }>({});
 
   useEffect(() => {
@@ -125,15 +126,42 @@ function SignInContent() {
 
   async function handleEmailSignIn(e: React.FormEvent) {
     e.preventDefault();
-    if (!magicEmail.trim()) return;
+    const normalizedMagicEmail = magicEmail.trim();
+    if (!normalizedMagicEmail) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        magicEmail: "Email is required.",
+      }));
+      return;
+    }
+    if (!EMAIL_REGEX.test(normalizedMagicEmail)) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        magicEmail: "Please enter a valid email address.",
+      }));
+      return;
+    }
+    if (!emailProvider) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        magicEmail: "Email sign-in is currently unavailable.",
+      }));
+      return;
+    }
     setIsSubmitting(true);
+    setFieldErrors((prev) => ({ ...prev, magicEmail: undefined }));
     try {
-      const result = await signIn("email", {
-        email: magicEmail.trim(),
+      const result = await signIn(emailProvider.id, {
+        email: normalizedMagicEmail,
         callbackUrl,
         redirect: false,
       });
-      if (!result?.error) {
+      if (result?.error) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          magicEmail: "We couldn't send your sign-in link. Please try again.",
+        }));
+      } else {
         setEmailSent(true);
       }
     } finally {
@@ -298,10 +326,19 @@ function SignInContent() {
                       label="Or continue with email link"
                       type="email"
                       value={magicEmail}
-                      onChange={(e) => setMagicEmail(e.target.value)}
+                      onChange={(e) => {
+                        setMagicEmail(e.target.value);
+                        if (fieldErrors.magicEmail) {
+                          setFieldErrors((prev) => ({
+                            ...prev,
+                            magicEmail: undefined,
+                          }));
+                        }
+                      }}
                       placeholder="you@example.com"
                       autoComplete="email"
                       required
+                      error={fieldErrors.magicEmail}
                     />
                     <Button
                       type="submit"

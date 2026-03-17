@@ -55,12 +55,15 @@ const providers = [
                 </table>
               </body>
             `;
-            await sendMail({
+            const sent = await sendMail({
               to: identifier,
               subject,
               text,
               html,
             });
+            if (!sent) {
+              throw new Error("Failed to send sign-in email.");
+            }
           },
         }),
       ]
