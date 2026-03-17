@@ -46,40 +46,9 @@ export async function sendMagicLink(
   }
   const url = `${baseUrl()}/auth/verify-magic?${params.toString()}`;
 
-  const host = baseUrl().replace(/^https?:\/\//, "");
-  const escapedHost = host.replace(/\./g, "&#8203;.");
-  const escapedEmail = normalized.replace(/\./g, "&#8203;.");
-  const subject = `Sign in to ${host}`;
-  const text = `Sign in to ${host}\n${url}\n\n`;
-  const html = `
-    <body style="background: #0f172a; margin: 0; padding: 24px;">
-      <table width="100%" border="0" cellspacing="0" cellpadding="0"
-        style="max-width: 600px; margin: auto; border-radius: 16px; background: #111827; color: #e5e7eb; font-family: Helvetica, Arial, sans-serif;">
-        <tr>
-          <td align="center" style="padding: 32px 24px 12px; font-size: 24px; font-weight: 600;">
-            Sign in to ${escapedHost}
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 12px 24px 24px;">
-            <a href="${url}" style="font-size: 16px; color: #0f172a; text-decoration: none; border-radius: 10px; padding: 12px 20px; background: #67e8f9; display: inline-block; font-weight: 700;">
-              Sign in
-            </a>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 0 24px 12px; font-size: 14px; line-height: 1.6; color: #94a3b8;">
-            If you did not request this email, you can safely ignore it.
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 0 24px 32px; font-size: 12px; color: #64748b;">
-            ${escapedEmail}
-          </td>
-        </tr>
-      </table>
-    </body>
-  `;
+  const subject = "Sign in to Lumigraph";
+  const text = `Sign in to Lumigraph. Open this link to sign in (valid for 24 hours):\n\n${url}\n\nIf you didn't request this, you can ignore this email.`;
+  const html = `<p>Sign in to Lumigraph. <a href="${url}">Click here to sign in</a> (valid for 24 hours).</p><p>If you didn't request this, you can ignore this email.</p>`;
 
   return sendMail({
     to: normalized,
