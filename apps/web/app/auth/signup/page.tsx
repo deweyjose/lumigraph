@@ -11,6 +11,7 @@ import {
   ProviderButton,
 } from "@/components/auth";
 import { Button } from "@/components/ui/button";
+import { normalizeCallbackUrl } from "@/server/auth-callback";
 import { Github } from "lucide-react";
 
 type Providers = Awaited<ReturnType<typeof getProviders>>;
@@ -44,7 +45,10 @@ const MIN_PASSWORD_LENGTH = 8;
 function SignUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl = normalizeCallbackUrl(
+    searchParams.get("callbackUrl"),
+    typeof window === "undefined" ? undefined : window.location.origin
+  );
   const [providers, setProviders] = useState<Providers>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

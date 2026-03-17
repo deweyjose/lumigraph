@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
+import { normalizeCallbackUrl } from "./src/server/auth-callback";
 
 /**
  * Edge-safe auth config (no adapter, no Credentials). Used by proxy.ts.
@@ -30,6 +31,10 @@ export default {
         session.user.id = (token.id ?? token.sub) as string;
       }
       return session;
+    },
+    redirect({ url, baseUrl }) {
+      const normalized = normalizeCallbackUrl(url, baseUrl);
+      return new URL(normalized, baseUrl).toString();
     },
   },
 } satisfies NextAuthConfig;

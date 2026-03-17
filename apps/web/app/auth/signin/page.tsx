@@ -12,6 +12,7 @@ import {
   FormField,
   ProviderButton,
 } from "@/components/auth";
+import { normalizeCallbackUrl } from "@/server/auth-callback";
 import { Github, Mail } from "lucide-react";
 
 type Providers = Awaited<ReturnType<typeof getProviders>>;
@@ -44,7 +45,10 @@ const MIN_PASSWORD_LENGTH = 8;
 
 function SignInContent() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const callbackUrl = normalizeCallbackUrl(
+    searchParams.get("callbackUrl"),
+    typeof window === "undefined" ? undefined : window.location.origin
+  );
   const error = searchParams.get("error");
   const registered = searchParams.get("registered") === "1";
   const reset = searchParams.get("reset") === "1";
@@ -119,11 +123,22 @@ function SignInContent() {
     }
   }
 
-  function handleEmailSignIn(e: React.FormEvent) {
+  async function handleEmailSignIn(e: React.FormEvent) {
     e.preventDefault();
     if (!magicEmail.trim()) return;
-    signIn("email", { email: magicEmail.trim(), callbackUrl });
-    setEmailSent(true);
+    setIsSubmitting(true);
+    try {
+      const result = await signIn("email", {
+        email: magicEmail.trim(),
+        callbackUrl,
+        redirect: false,
+      });
+      if (!result?.error) {
+        setEmailSent(true);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const errorMessage =
@@ -292,10 +307,11 @@ function SignInContent() {
                       type="submit"
                       variant="outline"
                       size="lg"
+                      disabled={isSubmitting}
                       className="h-12 w-full rounded-2xl border-white/10 bg-white/[0.03] text-base font-medium text-slate-100 shadow-none transition hover:border-cyan-200/20 hover:bg-white/[0.06]"
                     >
                       <Mail className="mr-3 size-5 shrink-0" aria-hidden />
-                      Continue with Email
+                      {isSubmitting ? "Sending link…" : "Continue with Email"}
                     </Button>
                   </form>
                 )}
