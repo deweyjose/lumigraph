@@ -41,6 +41,13 @@ Record architecture and workflow decisions that affect future implementation.
 - Alternatives considered: Keep the workflow code and stop expanding it; replace the runtime with LangGraph or another framework while preserving the product surface; re-skin workflows as checklists without removing the underlying model.
 - Consequences: Workflow pages, APIs, services, schema, and roadmap lanes are removed. Future checklist/task support, if added, should attach directly to posts or integration sets rather than introducing a generic workflow engine.
 
+### 2026-03-17 - Keep Auth.js as the session/OAuth base and narrow custom auth work to email/password hardening
+
+- Decision: Keep Auth.js / NextAuth as the current auth foundation, preserve support for credentials, OAuth, and optional email-link flows, and focus near-term work on making the current surface explicit, activating transactional email, and hardening reset/account lifecycle behavior rather than replacing the stack.
+- Context: The repo already has a functional Prisma-backed Auth.js integration, custom credentials registration, Argon2 password hashing, and password-reset token handling. The biggest current risk is ambiguity: some auth paths are available only when env is configured, and the implementation blends standard Auth.js behavior with a small amount of custom password logic.
+- Alternatives considered: Replace the stack immediately with another auth product; remove password auth and keep OAuth-only; expand bespoke auth code before documenting the current boundary.
+- Consequences: Near-term auth work should stay incremental and standards-aligned. Issue #160 documents the current model, #161 activates transactional email for currently dormant email paths, and #162 hardens reset/account lifecycle behavior against OWASP guidance. Larger auth-stack replacement work should not start until this narrower path proves insufficient.
+
 ### 2026-03-07 - Async ZIP export jobs
 
 - Decision: Use async worker callbacks for integration-set ZIP export progress and completion.

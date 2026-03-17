@@ -72,6 +72,11 @@ This roadmap is planning context only. Execution state lives in GitHub Issues.
   - #156, #157
 - Lane G: auth and account lifecycle
   - #160, #161, #162
+  - Direction: keep Auth.js + Prisma as the base, make the current auth surface explicit, then activate dormant email-dependent paths before tightening OWASP-sensitive reset and account-lifecycle behavior.
+  - Slice order:
+    1. #160 - document the current auth model, dormant email paths, and intended direction
+    2. #161 - activate transactional email for password reset and email-link auth
+    3. #162 - harden password reset and related auth flows
 - Lane H: Astro Hub chat tools and grounding
   - #164, #165, #166, #167
 - Lane I: backend platform and API extraction
