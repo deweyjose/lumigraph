@@ -1,6 +1,11 @@
 import nodemailer from "nodemailer";
 
 /**
+ * Single place this app sends mail. All outbound email (magic link, password reset, etc.)
+ * must go through sendMail() in this file — do not send mail from anywhere else.
+ */
+
+/**
  * Get a nodemailer transport using EMAIL_SERVER (e.g. smtp://user:pass@host:587)
  * and EMAIL_FROM. Returns null if not configured.
  */

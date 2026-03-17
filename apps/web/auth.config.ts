@@ -5,7 +5,7 @@ import { normalizeCallbackUrl } from "./src/server/auth-callback";
 
 /**
  * Edge-safe auth config (no adapter, no Credentials). Used by proxy.ts.
- * Full config with adapter + Credentials + Nodemailer lives in auth.ts.
+ * Full config with adapter + Credentials + magic-link lives in auth.ts.
  */
 export default {
   providers: [

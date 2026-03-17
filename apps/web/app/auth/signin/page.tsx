@@ -71,9 +71,6 @@ function SignInContent() {
   const oauthProviders = providers
     ? Object.values(providers).filter((p) => p.type === "oauth")
     : [];
-  const emailProvider = providers
-    ? Object.values(providers).find((p) => p.type === "email")
-    : null;
   const hasCredentialsProvider = providers
     ? Object.values(providers).some((p) => p.type === "credentials")
     : false;
@@ -141,29 +138,35 @@ function SignInContent() {
       }));
       return;
     }
-    if (!emailProvider) {
-      setFieldErrors((prev) => ({
-        ...prev,
-        magicEmail: "Email sign-in is currently unavailable.",
-      }));
-      return;
-    }
     setIsSubmitting(true);
     setFieldErrors((prev) => ({ ...prev, magicEmail: undefined }));
     try {
-      const result = await signIn(emailProvider.id, {
-        email: normalizedMagicEmail,
-        callbackUrl,
-        redirect: false,
+      const res = await fetch("/api/auth/send-magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: normalizedMagicEmail,
+          callbackUrl: callbackUrl || undefined,
+        }),
       });
-      if (result?.error) {
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEmailSent(true);
+        return;
+      }
+      if (res.status === 501 && data.code === "NOT_IMPLEMENTED") {
         setFieldErrors((prev) => ({
           ...prev,
-          magicEmail: "We couldn't send your sign-in link. Please try again.",
+          magicEmail: "Magic link is not configured. Use password or OAuth.",
         }));
-      } else {
-        setEmailSent(true);
+        return;
       }
+      setFieldErrors((prev) => ({
+        ...prev,
+        magicEmail:
+          data.message ??
+          "We couldn't send your sign-in link. Please try again.",
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -275,7 +278,63 @@ function SignInContent() {
               </Button>
             </form>
 
-            {(oauthProviders.length > 0 || emailProvider) && (
+            {/* Magic link: email + send link button */}
+            <div className="mt-4 space-y-3">
+              <AuthDivider label="or" />
+              {emailSent ? (
+                <div
+                  className="rounded-2xl border border-cyan-200/15 bg-cyan-400/10 p-5 text-center"
+                  role="status"
+                >
+                  <Mail
+                    className="mx-auto mb-2 size-6 text-cyan-100"
+                    aria-hidden
+                  />
+                  <p className="font-medium text-white">Check your email</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    We sent a sign-in link to{" "}
+                    <strong className="text-white">{magicEmail}</strong>
+                  </p>
+                </div>
+              ) : (
+                <form
+                  onSubmit={handleEmailSignIn}
+                  className="flex flex-col gap-3"
+                >
+                  <FormField
+                    id="magic-email"
+                    label="Send me a sign-in link"
+                    type="email"
+                    value={magicEmail}
+                    onChange={(e) => {
+                      setMagicEmail(e.target.value);
+                      if (fieldErrors.magicEmail) {
+                        setFieldErrors((prev) => ({
+                          ...prev,
+                          magicEmail: undefined,
+                        }));
+                      }
+                    }}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    required
+                    error={fieldErrors.magicEmail}
+                  />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    size="lg"
+                    disabled={isSubmitting}
+                    className="h-12 w-full rounded-2xl border-white/10 bg-white/[0.03] text-base font-medium text-slate-100 shadow-none transition hover:border-cyan-200/20 hover:bg-white/[0.06]"
+                  >
+                    <Mail className="mr-3 size-5 shrink-0" aria-hidden />
+                    {isSubmitting ? "Sending link…" : "Send magic link"}
+                  </Button>
+                </form>
+              )}
+            </div>
+
+            {(oauthProviders.length > 0 || hasCredentialsProvider) && (
               <AuthDivider label="or continue with" />
             )}
 
@@ -296,63 +355,6 @@ function SignInContent() {
                   />
                 ))}
               </div>
-            )}
-
-            {emailProvider && (
-              <>
-                <AuthDivider />
-                {emailSent ? (
-                  <div
-                    className="rounded-2xl border border-cyan-200/15 bg-cyan-400/10 p-5 text-center"
-                    role="status"
-                  >
-                    <Mail
-                      className="mx-auto mb-2 size-6 text-cyan-100"
-                      aria-hidden
-                    />
-                    <p className="font-medium text-white">Check your email</p>
-                    <p className="mt-1 text-sm text-slate-400">
-                      We sent a sign-in link to{" "}
-                      <strong className="text-white">{magicEmail}</strong>
-                    </p>
-                  </div>
-                ) : (
-                  <form
-                    onSubmit={handleEmailSignIn}
-                    className="flex flex-col gap-3"
-                  >
-                    <FormField
-                      id="magic-email"
-                      label="Or continue with email link"
-                      type="email"
-                      value={magicEmail}
-                      onChange={(e) => {
-                        setMagicEmail(e.target.value);
-                        if (fieldErrors.magicEmail) {
-                          setFieldErrors((prev) => ({
-                            ...prev,
-                            magicEmail: undefined,
-                          }));
-                        }
-                      }}
-                      placeholder="you@example.com"
-                      autoComplete="email"
-                      required
-                      error={fieldErrors.magicEmail}
-                    />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="lg"
-                      disabled={isSubmitting}
-                      className="h-12 w-full rounded-2xl border-white/10 bg-white/[0.03] text-base font-medium text-slate-100 shadow-none transition hover:border-cyan-200/20 hover:bg-white/[0.06]"
-                    >
-                      <Mail className="mr-3 size-5 shrink-0" aria-hidden />
-                      {isSubmitting ? "Sending link…" : "Continue with Email"}
-                    </Button>
-                  </form>
-                )}
-              </>
             )}
 
             {hasNoOAuthOrEmail && (
