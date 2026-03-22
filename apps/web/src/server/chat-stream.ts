@@ -1,20 +1,27 @@
 /**
  * Wire contract for Astro Hub chat: NDJSON lines over HTTP (see POST /api/chat).
- * Extend with tool/citation events in follow-on issues without changing transport.
  */
 export type AiChatMessage = {
   role: "user" | "assistant" | "system";
   content: string;
 };
 
+export type ChatCitation = { url: string; title?: string };
+
 export type ChatStreamTextDelta = { type: "text_delta"; text: string };
 
 export type ChatStreamError = { type: "error"; message: string };
+
+export type ChatStreamCitations = {
+  type: "citations";
+  citations: ChatCitation[];
+};
 
 export type ChatStreamDone = { type: "done" };
 
 export type ChatStreamEvent =
   | ChatStreamTextDelta
+  | ChatStreamCitations
   | ChatStreamError
   | ChatStreamDone;
 
