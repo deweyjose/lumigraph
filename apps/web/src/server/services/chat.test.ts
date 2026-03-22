@@ -39,7 +39,9 @@ describe("streamAstroHubChat", () => {
       content: `message-${index}`,
     }));
 
-    const chunks = await collectStream(streamAstroHubChat(messages));
+    const chunks = await collectStream(
+      streamAstroHubChat(messages, { userId: "owner-1" })
+    );
 
     expect(chunks).toEqual([
       { type: "text_delta", text: "ok" },
@@ -48,6 +50,7 @@ describe("streamAstroHubChat", () => {
     expect(streamOpenAIResponsesChatMock).toHaveBeenCalledWith({
       instructions: ASTRO_CHAT_SYSTEM_PROMPT,
       messages: messages.slice(-20),
+      toolContext: { userId: "owner-1" },
     });
   });
 });

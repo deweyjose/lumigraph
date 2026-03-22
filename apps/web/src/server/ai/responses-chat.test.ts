@@ -1,3 +1,4 @@
+import type OpenAI from "openai";
 import { describe, expect, it, vi } from "vitest";
 import { streamOpenAIResponsesChat } from "./responses-chat";
 
@@ -10,6 +11,8 @@ async function collectEvents(
   }
   return out;
 }
+
+const toolContext = { userId: "test-user" };
 
 describe("streamOpenAIResponsesChat", () => {
   it("maps messages to Responses input and streams text deltas", async () => {
@@ -56,7 +59,7 @@ describe("streamOpenAIResponsesChat", () => {
       })()
     );
 
-    const client = { responses: { create } };
+    const client = { responses: { create } } as unknown as OpenAI;
 
     const events = await collectEvents(
       streamOpenAIResponsesChat({
@@ -65,20 +68,31 @@ describe("streamOpenAIResponsesChat", () => {
           { role: "user", content: "Hello" },
           { role: "assistant", content: "Hey" },
         ],
+        toolContext,
         client,
       })
     );
 
-    expect(create).toHaveBeenCalledWith({
-      model: "gpt-4o-mini",
-      instructions: "You are helpful.",
-      input: [
-        { type: "message", role: "user", content: "Hello" },
-        { type: "message", role: "assistant", content: "Hey" },
-      ],
-      stream: true,
-      tools: [],
-    });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gpt-4o-mini",
+        instructions: "You are helpful.",
+        input: [
+          { type: "message", role: "user", content: "Hello" },
+          { type: "message", role: "assistant", content: "Hey" },
+        ],
+        stream: true,
+        tool_choice: "auto",
+        parallel_tool_calls: true,
+        tools: expect.arrayContaining([
+          expect.objectContaining({
+            type: "function",
+            name: "astro_hub_hero",
+          }),
+        ]),
+      })
+    );
+    expect(create.mock.calls[0][0].tools).toHaveLength(6);
 
     expect(events).toEqual([
       { type: "text_delta", text: "Hi" },
@@ -104,7 +118,8 @@ describe("streamOpenAIResponsesChat", () => {
       streamOpenAIResponsesChat({
         instructions: "Sys",
         messages: [{ role: "user", content: "u" }],
-        client: { responses: { create } },
+        toolContext,
+        client: { responses: { create } } as unknown as OpenAI,
       })
     );
 

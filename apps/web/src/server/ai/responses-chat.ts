@@ -1,15 +1,16 @@
 /**
- * Astro Hub chat uses the OpenAI Responses API (streaming) instead of Chat Completions
- * so we can attach tools (Astro Hub sources, web search) and structured metadata later.
+ * Astro Hub chat uses the OpenAI Responses API (streaming) with optional function
+ * tools so the assistant can read the same live hub sources as the UI (#165).
+ * Web search and other tools can extend the same pattern later (#166).
  *
  * @see https://platform.openai.com/docs/api-reference/responses/create
  */
+import OpenAI from "openai";
 import type {
-  EasyInputMessage,
-  ResponseCompletedEvent,
-  ResponseErrorEvent,
-  ResponseFailedEvent,
-  ResponseInput,
+  Response,
+  ResponseFunctionToolCallItem,
+  ResponseInputItem,
+  ResponseOutputItem,
   ResponseStreamEvent,
 } from "openai/resources/responses/responses";
 import { createOpenAIClient } from "./client";
@@ -19,107 +20,221 @@ import type {
   ChatStreamError,
   ChatStreamEvent,
 } from "../chat-stream";
+import type { ToolContext } from "../tools/core";
+import {
+  executeAstroHubChatToolByName,
+  openAIAstroHubChatTools,
+} from "../tools/astro-hub-chat";
 
-type OpenAIResponsesClient = {
-  responses: {
-    create: (params: {
-      model: string;
-      instructions: string;
-      input: ResponseInput;
-      stream: true;
-      tools: [];
-    }) => Promise<AsyncIterable<ResponseStreamEvent>>;
-  };
-};
+const MAX_TOOL_ROUNDS = 5;
 
-function mapMessagesToInput(messages: AiChatMessage[]): ResponseInput {
-  return messages.map(
-    (m): EasyInputMessage => ({
-      type: "message",
-      role: m.role,
-      content: m.content,
-    })
-  );
+function mapMessagesToInput(
+  messages: AiChatMessage[]
+): OpenAI.Responses.ResponseCreateParams["input"] {
+  return messages.map((m) => ({
+    type: "message" as const,
+    role: m.role,
+    content: m.content,
+  }));
 }
 
-function errorMessageFromCompleted(
-  event: ResponseCompletedEvent
-): string | null {
-  const err = event.response.error;
+function errorMessageFromCompletedResponse(response: Response): string | null {
+  const err = response.error;
   if (!err) return null;
   return typeof err.message === "string"
     ? err.message
     : "Response completed with error";
 }
 
-function errorMessageFromFailed(event: ResponseFailedEvent): string {
-  const err = event.response.error;
+function errorMessageFromFailedResponse(response: Response): string {
+  const err = response.error;
   if (err && typeof err.message === "string") return err.message;
   return "The model response failed";
 }
 
+function isFunctionCallItem(
+  item: ResponseOutputItem
+): item is ResponseFunctionToolCallItem {
+  return item.type === "function_call";
+}
+
+function extractFunctionCalls(
+  response: Response
+): ResponseFunctionToolCallItem[] {
+  return response.output.filter(isFunctionCallItem);
+}
+
+async function buildFunctionCallOutputItems(
+  calls: ResponseFunctionToolCallItem[],
+  toolContext: ToolContext
+): Promise<ResponseInputItem[]> {
+  return Promise.all(
+    calls.map(async (call) => {
+      const result = await executeAstroHubChatToolByName(
+        call.name,
+        toolContext,
+        call.arguments
+      );
+      const output = result.ok
+        ? JSON.stringify(result.data)
+        : JSON.stringify({
+            ok: false,
+            code: result.code,
+            message: result.message,
+          });
+      return {
+        type: "function_call_output" as const,
+        call_id: call.call_id,
+        output,
+      };
+    })
+  );
+}
+
+async function* drainStreamEvents(
+  stream: AsyncIterable<ResponseStreamEvent>
+): AsyncGenerator<
+  | { kind: "client_event"; event: ChatStreamEvent }
+  | { kind: "completed"; response: Response },
+  void,
+  unknown
+> {
+  let completed: Response | null = null;
+
+  for await (const event of stream) {
+    if (event.type === "response.output_text.delta" && event.delta) {
+      yield {
+        kind: "client_event",
+        event: { type: "text_delta", text: event.delta },
+      };
+      continue;
+    }
+
+    if (event.type === "error") {
+      yield {
+        kind: "client_event",
+        event: streamErrorFromApiEvent(event),
+      };
+      return;
+    }
+
+    if (event.type === "response.failed") {
+      yield {
+        kind: "client_event",
+        event: {
+          type: "error",
+          message: errorMessageFromFailedResponse(event.response),
+        },
+      };
+      return;
+    }
+
+    if (event.type === "response.completed") {
+      const msg = errorMessageFromCompletedResponse(event.response);
+      if (msg) {
+        yield { kind: "client_event", event: { type: "error", message: msg } };
+        return;
+      }
+      completed = event.response;
+    }
+  }
+
+  if (completed) {
+    yield { kind: "completed", response: completed };
+  }
+}
+
+function streamErrorFromApiEvent(event: { message: string }): ChatStreamError {
+  return {
+    type: "error",
+    message: event.message || "Unknown error from model stream",
+  };
+}
+
 /**
- * Stream assistant text as structured events from OpenAI Responses (streaming).
+ * Stream assistant text as structured events from OpenAI Responses (streaming),
+ * running Astro Hub source tools across multiple rounds when the model requests them.
  */
 export async function* streamOpenAIResponsesChat({
   instructions,
   messages,
+  toolContext,
   model = DEFAULT_OPENAI_MODEL,
-  client = createOpenAIClient() as unknown as OpenAIResponsesClient,
+  client = createOpenAIClient(),
 }: {
   instructions: string;
   messages: AiChatMessage[];
+  toolContext: ToolContext;
   model?: string;
-  client?: OpenAIResponsesClient;
+  client?: OpenAI;
 }): AsyncGenerator<ChatStreamEvent, void, unknown> {
-  const stream = await client.responses.create({
-    model,
-    instructions,
-    input: mapMessagesToInput(messages),
-    stream: true,
-    tools: [],
-  });
+  const tools = openAIAstroHubChatTools();
+  let nextInput: OpenAI.Responses.ResponseCreateParams["input"] =
+    mapMessagesToInput(messages);
+  let previousResponseId: string | undefined;
 
   try {
-    for await (const event of stream) {
-      if (event.type === "response.output_text.delta" && event.delta) {
-        yield { type: "text_delta", text: event.delta };
-        continue;
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const params: OpenAI.Responses.ResponseCreateParamsStreaming = {
+        model,
+        stream: true,
+        tools,
+        tool_choice: "auto",
+        parallel_tool_calls: true,
+      };
+
+      if (round === 0) {
+        params.instructions = instructions;
+        params.input = nextInput;
+      } else {
+        params.previous_response_id = previousResponseId;
+        params.input = nextInput;
       }
 
-      if (event.type === "error") {
-        yield streamErrorFromApiEvent(event);
-        return;
-      }
+      const stream = await client.responses.create(params);
 
-      if (event.type === "response.failed") {
-        yield { type: "error", message: errorMessageFromFailed(event) };
-        return;
-      }
+      let completedResponse: Response | null = null;
 
-      if (event.type === "response.completed") {
-        const msg = errorMessageFromCompleted(event);
-        if (msg) {
-          yield { type: "error", message: msg };
-          return;
+      for await (const chunk of drainStreamEvents(stream)) {
+        if (chunk.kind === "client_event") {
+          yield chunk.event;
+          if (chunk.event.type === "error") {
+            return;
+          }
+        } else {
+          completedResponse = chunk.response;
         }
       }
+
+      if (!completedResponse) {
+        yield {
+          type: "error",
+          message: "Chat response ended without completion. Please try again.",
+        };
+        return;
+      }
+
+      previousResponseId = completedResponse.id;
+      const calls = extractFunctionCalls(completedResponse);
+
+      if (calls.length === 0) {
+        yield { type: "done" };
+        return;
+      }
+
+      nextInput = await buildFunctionCallOutputItems(calls, toolContext);
     }
+
+    yield {
+      type: "error",
+      message:
+        "Too many tool rounds. Please simplify your question and try again.",
+    };
   } catch (err) {
     const message =
       err instanceof Error
         ? err.message
         : "Chat temporarily unavailable. Please try again.";
     yield { type: "error", message };
-    return;
   }
-
-  yield { type: "done" };
-}
-
-function streamErrorFromApiEvent(event: ResponseErrorEvent): ChatStreamError {
-  return {
-    type: "error",
-    message: event.message || "Unknown error from model stream",
-  };
 }
