@@ -1,33 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ASTRO_CHAT_SYSTEM_PROMPT } from "../ai/prompts";
 
-const { streamOpenAITextMock } = vi.hoisted(() => ({
-  streamOpenAITextMock: vi.fn(),
+const { streamOpenAIResponsesChatMock } = vi.hoisted(() => ({
+  streamOpenAIResponsesChatMock: vi.fn(),
 }));
 
-vi.mock("../ai/chat", () => ({
-  streamOpenAIText: streamOpenAITextMock,
+vi.mock("../ai/responses-chat", () => ({
+  streamOpenAIResponsesChat: streamOpenAIResponsesChatMock,
 }));
 
-import { streamChatCompletion } from "./chat";
+import { streamAstroHubChat } from "./chat";
 
-async function collectStream(stream: AsyncGenerator<string>) {
-  const chunks: string[] = [];
+async function collectStream(
+  stream: AsyncGenerator<import("../chat-stream").ChatStreamEvent>
+) {
+  const chunks: import("../chat-stream").ChatStreamEvent[] = [];
   for await (const chunk of stream) {
     chunks.push(chunk);
   }
   return chunks;
 }
 
-describe("streamChatCompletion", () => {
+describe("streamAstroHubChat", () => {
   beforeEach(() => {
-    streamOpenAITextMock.mockReset();
+    streamOpenAIResponsesChatMock.mockReset();
   });
 
   it("trims chat history to the last 20 messages before delegating", async () => {
-    streamOpenAITextMock.mockReturnValue(
+    streamOpenAIResponsesChatMock.mockReturnValue(
       (async function* () {
-        yield "ok";
+        yield { type: "text_delta", text: "ok" };
+        yield { type: "done" };
       })()
     );
 
@@ -36,11 +39,14 @@ describe("streamChatCompletion", () => {
       content: `message-${index}`,
     }));
 
-    const chunks = await collectStream(streamChatCompletion(messages));
+    const chunks = await collectStream(streamAstroHubChat(messages));
 
-    expect(chunks).toEqual(["ok"]);
-    expect(streamOpenAITextMock).toHaveBeenCalledWith({
-      systemPrompt: ASTRO_CHAT_SYSTEM_PROMPT,
+    expect(chunks).toEqual([
+      { type: "text_delta", text: "ok" },
+      { type: "done" },
+    ]);
+    expect(streamOpenAIResponsesChatMock).toHaveBeenCalledWith({
+      instructions: ASTRO_CHAT_SYSTEM_PROMPT,
       messages: messages.slice(-20),
     });
   });

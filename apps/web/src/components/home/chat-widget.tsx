@@ -7,6 +7,41 @@ import { MessageCircle, X, Minimize2 } from "lucide-react";
 
 type Message = { role: "user" | "assistant"; content: string };
 
+type NdjsonEvent =
+  | { type: "text_delta"; text: string }
+  | { type: "error"; message: string }
+  | { type: "done" };
+
+function parseChatStreamLine(line: string): NdjsonEvent | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (!parsed || typeof parsed !== "object" || !("type" in parsed)) {
+      return null;
+    }
+    const t = (parsed as { type: string }).type;
+    if (t === "text_delta" && "text" in parsed) {
+      const text = (parsed as { text: unknown }).text;
+      if (typeof text === "string") {
+        return { type: "text_delta", text };
+      }
+    }
+    if (t === "error" && "message" in parsed) {
+      const message = (parsed as { message: unknown }).message;
+      if (typeof message === "string") {
+        return { type: "error", message };
+      }
+    }
+    if (t === "done") {
+      return { type: "done" };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -47,17 +82,60 @@ export function ChatWidget() {
         throw new Error(data.message ?? `Request failed (${res.status})`);
       }
 
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let assistantContent = "";
-
-      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      let lineBuffer = "";
 
       if (reader) {
-        while (true) {
+        outer: while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          assistantContent += decoder.decode(value, { stream: true });
+          lineBuffer += decoder.decode(value, { stream: true });
+
+          let newlineIndex: number;
+          while ((newlineIndex = lineBuffer.indexOf("\n")) >= 0) {
+            const line = lineBuffer.slice(0, newlineIndex);
+            lineBuffer = lineBuffer.slice(newlineIndex + 1);
+            const ev = parseChatStreamLine(line);
+            if (!ev) continue;
+            if (ev.type === "text_delta") {
+              assistantContent += ev.text;
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  next[next.length - 1] = {
+                    ...last,
+                    content: assistantContent,
+                  };
+                }
+                return next;
+              });
+              scrollToBottom();
+            } else if (ev.type === "error") {
+              setError(ev.message);
+              const fallback = assistantContent.trim()
+                ? assistantContent
+                : `[Error: ${ev.message}. Please try again.]`;
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  next[next.length - 1] = { ...last, content: fallback };
+                }
+                return next;
+              });
+              break outer;
+            }
+          }
+        }
+
+        const tail = parseChatStreamLine(lineBuffer);
+        if (tail?.type === "text_delta") {
+          assistantContent += tail.text;
           setMessages((prev) => {
             const next = [...prev];
             const last = next[next.length - 1];
@@ -66,7 +144,19 @@ export function ChatWidget() {
             }
             return next;
           });
-          scrollToBottom();
+        } else if (tail?.type === "error") {
+          setError(tail.message);
+          const fallback = assistantContent.trim()
+            ? assistantContent
+            : `[Error: ${tail.message}. Please try again.]`;
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last?.role === "assistant") {
+              next[next.length - 1] = { ...last, content: fallback };
+            }
+            return next;
+          });
         }
       }
     } catch (e) {

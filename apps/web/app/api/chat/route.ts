@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
-import { streamChatCompletion } from "@/server/services/chat";
+import { encodeChatStreamLine } from "@/server/chat-stream";
+import { streamAstroHubChat } from "@/server/services/chat";
 
 const MessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
@@ -40,22 +41,29 @@ export async function POST(request: Request) {
   }
 
   try {
-    const stream = streamChatCompletion(body.messages);
+    const stream = streamAstroHubChat(body.messages);
 
     return new Response(
       new ReadableStream({
         async start(controller) {
           const encoder = new TextEncoder();
           try {
-            for await (const chunk of stream) {
-              controller.enqueue(encoder.encode(chunk));
+            for await (const event of stream) {
+              controller.enqueue(encoder.encode(encodeChatStreamLine(event)));
+              if (event.type === "error") {
+                break;
+              }
             }
           } catch (err) {
             const msg =
               err instanceof Error
                 ? err.message
                 : "Chat temporarily unavailable. Please try again.";
-            controller.enqueue(encoder.encode(`\n\n[Error: ${msg}]`));
+            controller.enqueue(
+              encoder.encode(
+                encodeChatStreamLine({ type: "error", message: msg })
+              )
+            );
           } finally {
             controller.close();
           }
@@ -63,8 +71,9 @@ export async function POST(request: Request) {
       }),
       {
         headers: {
-          "Content-Type": "text/plain; charset=utf-8",
+          "Content-Type": "application/x-ndjson; charset=utf-8",
           "Transfer-Encoding": "chunked",
+          "Cache-Control": "no-store",
         },
       }
     );

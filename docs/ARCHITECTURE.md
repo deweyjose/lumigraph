@@ -13,6 +13,7 @@
 - Services: business logic, ownership/visibility rules
 - Repositories/DB access: Prisma operations
 - AI boundary: provider integrations and prompt/schema helpers should stay behind server-side adapters under `apps/web/src/server/ai`, not inside route handlers
+- Astro Hub chat (`POST /api/chat`): streams **NDJSON** (`application/x-ndjson`) with typed events (`text_delta`, `error`, `done`) defined in `apps/web/src/server/chat-stream.ts`. The model call uses the OpenAI **Responses** API in `apps/web/src/server/ai/responses-chat.ts` (not Chat Completions) so tools and structured metadata (e.g. citations) can extend the same transport in follow-on work.
 - Tool boundary: typed agent-facing actions should live under `apps/web/src/server/tools` and delegate to services rather than duplicating business rules
 
 ## Core domain entities
@@ -71,6 +72,8 @@
 - Internal callbacks:
   - `POST /api/internal/export-jobs/:jobId/callback`
   - `POST /api/internal/auto-thumb-jobs/:jobId/callback`
+- Chat (authenticated):
+  - `POST /api/chat` — NDJSON stream of assistant events for the Astro Hub widget
 
 ## Path conventions
 
