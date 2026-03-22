@@ -1,7 +1,6 @@
 /**
- * Astro Hub chat uses the OpenAI Responses API (streaming) with optional function
- * tools so the assistant can read the same live hub sources as the UI (#165).
- * Web search and other tools can extend the same pattern later (#166).
+ * Astro Hub chat uses the OpenAI Responses API (streaming) with Astro Hub function
+ * tools (#165) and native web search (#166) with citation metadata on completion.
  *
  * @see https://platform.openai.com/docs/api-reference/responses/create
  */
@@ -17,6 +16,7 @@ import { createOpenAIClient } from "./client";
 import { DEFAULT_OPENAI_MODEL } from "./config";
 import type {
   AiChatMessage,
+  ChatCitation,
   ChatStreamError,
   ChatStreamEvent,
 } from "../chat-stream";
@@ -62,6 +62,52 @@ function extractFunctionCalls(
   response: Response
 ): ResponseFunctionToolCallItem[] {
   return response.output.filter(isFunctionCallItem);
+}
+
+function mergeCitationUrl(
+  acc: Map<string, ChatCitation>,
+  url: string,
+  title?: string
+): void {
+  const existing = acc.get(url);
+  if (!existing) {
+    acc.set(url, title ? { url, title } : { url });
+    return;
+  }
+  if (title && !existing.title) {
+    existing.title = title;
+  }
+}
+
+/** URLs from web search tool items and inline url_citation annotations on assistant text. */
+export function extractCitationsFromResponse(
+  response: Response
+): ChatCitation[] {
+  const acc = new Map<string, ChatCitation>();
+  for (const item of response.output) {
+    if (item.type === "web_search_call") {
+      const action = item.action;
+      if (action.type === "search" && action.sources) {
+        for (const src of action.sources) {
+          if (src.type === "url" && typeof src.url === "string") {
+            mergeCitationUrl(acc, src.url);
+          }
+        }
+      }
+    }
+    if (item.type === "message" && item.role === "assistant") {
+      for (const part of item.content) {
+        if (part.type !== "output_text") continue;
+        for (const ann of part.annotations ?? []) {
+          if (ann.type === "url_citation" && typeof ann.url === "string") {
+            const title = typeof ann.title === "string" ? ann.title : undefined;
+            mergeCitationUrl(acc, ann.url, title);
+          }
+        }
+      }
+    }
+  }
+  return [...acc.values()];
 }
 
 async function buildFunctionCallOutputItems(
@@ -168,10 +214,14 @@ export async function* streamOpenAIResponsesChat({
   model?: string;
   client?: OpenAI;
 }): AsyncGenerator<ChatStreamEvent, void, unknown> {
-  const tools = openAIAstroHubChatTools();
+  const tools: OpenAI.Responses.ResponseCreateParamsStreaming["tools"] = [
+    ...openAIAstroHubChatTools(),
+    { type: "web_search" },
+  ];
   let nextInput: OpenAI.Responses.ResponseCreateParams["input"] =
     mapMessagesToInput(messages);
   let previousResponseId: string | undefined;
+  const citationAcc = new Map<string, ChatCitation>();
 
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -181,6 +231,7 @@ export async function* streamOpenAIResponsesChat({
         tools,
         tool_choice: "auto",
         parallel_tool_calls: true,
+        include: ["web_search_call.action.sources"],
       };
 
       if (round === 0) {
@@ -215,9 +266,18 @@ export async function* streamOpenAIResponsesChat({
       }
 
       previousResponseId = completedResponse.id;
+      for (const c of extractCitationsFromResponse(completedResponse)) {
+        mergeCitationUrl(citationAcc, c.url, c.title);
+      }
       const calls = extractFunctionCalls(completedResponse);
 
       if (calls.length === 0) {
+        if (citationAcc.size > 0) {
+          yield {
+            type: "citations",
+            citations: [...citationAcc.values()],
+          };
+        }
         yield { type: "done" };
         return;
       }

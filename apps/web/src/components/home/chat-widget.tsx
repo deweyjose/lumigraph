@@ -1,59 +1,117 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, X, Minimize2 } from "lucide-react";
+import {
+  Bot,
+  Grip,
+  MessageCircle,
+  Minimize2,
+  UserRound,
+  X,
+} from "lucide-react";
+import type { ChatCitation } from "@/server/chat-stream";
+import { parseNdjsonChatLine } from "@/lib/astro-chat-stream";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  citations?: ChatCitation[];
+};
 
-type NdjsonEvent =
-  | { type: "text_delta"; text: string }
-  | { type: "error"; message: string }
-  | { type: "done" };
-
-function parseChatStreamLine(line: string): NdjsonEvent | null {
-  const trimmed = line.trim();
-  if (!trimmed) return null;
+function citationLabel(c: ChatCitation): string {
+  const t = c.title?.trim();
+  if (t) return t;
   try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (!parsed || typeof parsed !== "object" || !("type" in parsed)) {
-      return null;
-    }
-    const t = (parsed as { type: string }).type;
-    if (t === "text_delta" && "text" in parsed) {
-      const text = (parsed as { text: unknown }).text;
-      if (typeof text === "string") {
-        return { type: "text_delta", text };
-      }
-    }
-    if (t === "error" && "message" in parsed) {
-      const message = (parsed as { message: unknown }).message;
-      if (typeof message === "string") {
-        return { type: "error", message };
-      }
-    }
-    if (t === "done") {
-      return { type: "done" };
-    }
-    return null;
+    return new URL(c.url).hostname;
   } catch {
-    return null;
+    return c.url;
   }
+}
+
+type PanelSize = { w: number; h: number };
+
+const PANEL_SIZE_DEFAULT: PanelSize = { w: 360, h: 420 };
+const PANEL_SIZE_MIN: PanelSize = { w: 280, h: 280 };
+
+function clampPanelSize(w: number, h: number) {
+  const maxW = Math.min(560, Math.floor(window.innerWidth * 0.9));
+  const maxH = Math.min(720, Math.floor(window.innerHeight * 0.8));
+  return {
+    w: Math.round(Math.min(maxW, Math.max(PANEL_SIZE_MIN.w, w))),
+    h: Math.round(Math.min(maxH, Math.max(PANEL_SIZE_MIN.h, h))),
+  };
 }
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [panelSize, setPanelSize] = useState(PANEL_SIZE_DEFAULT);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const resizeDragRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    startW: number;
+    startH: number;
+  } | null>(null);
 
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
+
+  const onResizePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      if (isMinimized) return;
+      e.preventDefault();
+      e.stopPropagation();
+      resizeDragRef.current = {
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startW: panelSize.w,
+        startH: panelSize.h,
+      };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [isMinimized, panelSize.h, panelSize.w]
+  );
+
+  const onResizePointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      const drag = resizeDragRef.current;
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      e.preventDefault();
+      const dx = e.clientX - drag.startClientX;
+      const dy = e.clientY - drag.startClientY;
+      setPanelSize(clampPanelSize(drag.startW - dx, drag.startH - dy));
+    },
+    []
+  );
+
+  const onResizePointerEnd = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      const drag = resizeDragRef.current;
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      resizeDragRef.current = null;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        /* already released */
+      }
+    },
+    []
+  );
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
@@ -99,7 +157,7 @@ export function ChatWidget() {
           while ((newlineIndex = lineBuffer.indexOf("\n")) >= 0) {
             const line = lineBuffer.slice(0, newlineIndex);
             lineBuffer = lineBuffer.slice(newlineIndex + 1);
-            const ev = parseChatStreamLine(line);
+            const ev = parseNdjsonChatLine(line);
             if (!ev) continue;
             if (ev.type === "text_delta") {
               assistantContent += ev.text;
@@ -115,6 +173,18 @@ export function ChatWidget() {
                 return next;
               });
               scrollToBottom();
+            } else if (ev.type === "citations") {
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.role === "assistant") {
+                  next[next.length - 1] = {
+                    ...last,
+                    citations: ev.citations,
+                  };
+                }
+                return next;
+              });
             } else if (ev.type === "error") {
               setError(ev.message);
               const fallback = assistantContent.trim()
@@ -133,7 +203,7 @@ export function ChatWidget() {
           }
         }
 
-        const tail = parseChatStreamLine(lineBuffer);
+        const tail = parseNdjsonChatLine(lineBuffer);
         if (tail?.type === "text_delta") {
           assistantContent += tail.text;
           setMessages((prev) => {
@@ -141,6 +211,18 @@ export function ChatWidget() {
             const last = next[next.length - 1];
             if (last?.role === "assistant") {
               next[next.length - 1] = { ...last, content: assistantContent };
+            }
+            return next;
+          });
+        } else if (tail?.type === "citations") {
+          setMessages((prev) => {
+            const next = [...prev];
+            const last = next[next.length - 1];
+            if (last?.role === "assistant") {
+              next[next.length - 1] = {
+                ...last,
+                citations: tail.citations,
+              };
             }
             return next;
           });
@@ -191,14 +273,32 @@ export function ChatWidget() {
         ) : (
           <div
             className={`flex flex-col overflow-hidden rounded-lg border border-border bg-background shadow-xl ${
-              isMinimized ? "h-14 w-14" : "h-[420px] w-[360px]"
+              isMinimized ? "h-14 w-14" : ""
             }`}
+            style={
+              !isMinimized
+                ? { width: panelSize.w, height: panelSize.h }
+                : undefined
+            }
           >
-            <div className="flex items-center justify-between border-b border-border px-3 py-2">
-              <span className="text-sm font-medium">
+            <div className="flex items-center gap-1 border-b border-border px-2 py-2">
+              {!isMinimized && (
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 shrink-0 cursor-nwse-resize touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  aria-label="Resize chat panel"
+                  onPointerDown={onResizePointerDown}
+                  onPointerMove={onResizePointerMove}
+                  onPointerUp={onResizePointerEnd}
+                  onPointerCancel={onResizePointerEnd}
+                >
+                  <Grip className="h-4 w-4 rotate-45 opacity-70" />
+                </button>
+              )}
+              <span className="min-w-0 flex-1 truncate pl-0.5 text-sm font-medium">
                 Astrophotography Assistant
               </span>
-              <div className="flex gap-1">
+              <div className="flex shrink-0 gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -222,7 +322,7 @@ export function ChatWidget() {
 
             {!isMinimized && (
               <>
-                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
                   {messages.length === 0 && (
                     <p className="text-sm text-muted-foreground">
                       Ask about astrophotography, targets, or astronomy!
@@ -231,17 +331,54 @@ export function ChatWidget() {
                   {messages.map((m, i) => (
                     <div
                       key={i}
-                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                      className={`flex gap-2 ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
                     >
                       <div
-                        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                          m.role === "user"
+                            ? "bg-primary/15 text-primary"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                        aria-hidden
+                      >
+                        {m.role === "user" ? (
+                          <UserRound className="h-4 w-4" />
+                        ) : (
+                          <Bot className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div
+                        className={`min-w-0 max-w-[min(100%,28rem)] rounded-lg px-3 py-2 text-sm leading-relaxed ${
                           m.role === "user"
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted"
                         }`}
                       >
-                        {m.content ||
-                          (isLoading && i === messages.length - 1 ? "…" : "")}
+                        <div className="whitespace-pre-wrap break-words">
+                          {m.content ||
+                            (isLoading && i === messages.length - 1 ? "…" : "")}
+                        </div>
+                        {m.role === "assistant" &&
+                          m.citations &&
+                          m.citations.length > 0 && (
+                            <ul className="mt-2 space-y-1 border-t border-border/60 pt-2 text-xs">
+                              <li className="font-medium text-muted-foreground">
+                                Sources
+                              </li>
+                              {m.citations.map((c, j) => (
+                                <li key={`${c.url}-${j}`}>
+                                  <a
+                                    href={c.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary underline-offset-2 hover:underline"
+                                  >
+                                    {citationLabel(c)}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                       </div>
                     </div>
                   ))}
