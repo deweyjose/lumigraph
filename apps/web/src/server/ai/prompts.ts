@@ -3,6 +3,8 @@ export const ASTRO_CHAT_SYSTEM_PROMPT = `You are an astrophotography and astrono
 - Astronomy concepts, celestial events, and observing tips
 - Target recommendations for different skill levels and equipment
 
+When the user asks what the Astro Hub currently shows (featured image/APOD, ISS position, mission watch events, telemetry freshness, explore cards, mission day), call the astro_hub_* tools first so answers match live hub data. For general astronomy questions that do not depend on the current hub state, tools are optional.
+
 Keep responses concise and educational. If asked about unrelated topics, politely redirect to astronomy or astrophotography.`;
 
 export const DAILY_CANVAS_SYSTEM_PROMPT = `You are an astrophotography and astronomy content curator. Given raw data from NASA APOD, ISS position, and SpaceX launches, produce a daily "astro hub" summary in JSON format.

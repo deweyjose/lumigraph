@@ -41,7 +41,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const stream = streamAstroHubChat(body.messages);
+    const stream = streamAstroHubChat(body.messages, {
+      userId: session.user.id,
+    });
 
     return new Response(
       new ReadableStream({

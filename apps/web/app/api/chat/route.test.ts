@@ -83,8 +83,9 @@ describe("POST /api/chat", () => {
     });
     expect(JSON.parse(lines[1]!)).toEqual({ type: "done" });
 
-    expect(streamAstroHubChatMock).toHaveBeenCalledWith([
-      { role: "user", content: "Say hi" },
-    ]);
+    expect(streamAstroHubChatMock).toHaveBeenCalledWith(
+      [{ role: "user", content: "Say hi" }],
+      { userId: "u1" }
+    );
   });
 });
