@@ -1,9 +1,21 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, MessageCircle, Minimize2, UserRound, X } from "lucide-react";
+import {
+  Bot,
+  Grip,
+  MessageCircle,
+  Minimize2,
+  UserRound,
+  X,
+} from "lucide-react";
 import type { ChatCitation } from "@/server/chat-stream";
 import { parseNdjsonChatLine } from "@/lib/astro-chat-stream";
 
@@ -23,18 +35,83 @@ function citationLabel(c: ChatCitation): string {
   }
 }
 
+type PanelSize = { w: number; h: number };
+
+const PANEL_SIZE_DEFAULT: PanelSize = { w: 360, h: 420 };
+const PANEL_SIZE_MIN: PanelSize = { w: 280, h: 280 };
+
+function clampPanelSize(w: number, h: number) {
+  const maxW = Math.min(560, Math.floor(window.innerWidth * 0.9));
+  const maxH = Math.min(720, Math.floor(window.innerHeight * 0.8));
+  return {
+    w: Math.round(Math.min(maxW, Math.max(PANEL_SIZE_MIN.w, w))),
+    h: Math.round(Math.min(maxH, Math.max(PANEL_SIZE_MIN.h, h))),
+  };
+}
+
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [panelSize, setPanelSize] = useState(PANEL_SIZE_DEFAULT);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const resizeDragRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    startW: number;
+    startH: number;
+  } | null>(null);
 
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
+
+  const onResizePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      if (isMinimized) return;
+      e.preventDefault();
+      e.stopPropagation();
+      resizeDragRef.current = {
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startW: panelSize.w,
+        startH: panelSize.h,
+      };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [isMinimized, panelSize.h, panelSize.w]
+  );
+
+  const onResizePointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      const drag = resizeDragRef.current;
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      e.preventDefault();
+      const dx = e.clientX - drag.startClientX;
+      const dy = e.clientY - drag.startClientY;
+      setPanelSize(clampPanelSize(drag.startW - dx, drag.startH - dy));
+    },
+    []
+  );
+
+  const onResizePointerEnd = useCallback(
+    (e: ReactPointerEvent<HTMLButtonElement>) => {
+      const drag = resizeDragRef.current;
+      if (!drag || e.pointerId !== drag.pointerId) return;
+      resizeDragRef.current = null;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        /* already released */
+      }
+    },
+    []
+  );
 
   const sendMessage = useCallback(async () => {
     const text = input.trim();
@@ -195,17 +272,33 @@ export function ChatWidget() {
           </Button>
         ) : (
           <div
-            className={`flex flex-col rounded-lg border border-border bg-background shadow-xl ${
-              isMinimized
-                ? "h-14 w-14 overflow-hidden"
-                : "h-[min(420px,80vh)] w-[min(360px,90vw)] min-h-[280px] min-w-[280px] max-h-[80vh] max-w-[90vw] resize overflow-hidden"
+            className={`flex flex-col overflow-hidden rounded-lg border border-border bg-background shadow-xl ${
+              isMinimized ? "h-14 w-14" : ""
             }`}
+            style={
+              !isMinimized
+                ? { width: panelSize.w, height: panelSize.h }
+                : undefined
+            }
           >
-            <div className="flex items-center justify-between border-b border-border px-3 py-2">
-              <span className="text-sm font-medium">
+            <div className="flex items-center gap-1 border-b border-border px-2 py-2">
+              {!isMinimized && (
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 shrink-0 cursor-nwse-resize touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  aria-label="Resize chat panel"
+                  onPointerDown={onResizePointerDown}
+                  onPointerMove={onResizePointerMove}
+                  onPointerUp={onResizePointerEnd}
+                  onPointerCancel={onResizePointerEnd}
+                >
+                  <Grip className="h-4 w-4 rotate-45 opacity-70" />
+                </button>
+              )}
+              <span className="min-w-0 flex-1 truncate pl-0.5 text-sm font-medium">
                 Astrophotography Assistant
               </span>
-              <div className="flex gap-1">
+              <div className="flex shrink-0 gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
