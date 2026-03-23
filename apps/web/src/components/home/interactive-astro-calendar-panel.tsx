@@ -16,6 +16,7 @@ import type {
   AstroHubCalendarStream,
   MissionState,
 } from "@/lib/astro-hub";
+import { cn } from "@/lib/utils";
 
 const STREAM_LABEL: Record<AstroHubCalendarStream, string> = {
   artemis: "Artemis",
@@ -44,13 +45,48 @@ function actionIcon(kind: AstroHubActionLink["kind"]) {
   return <ArrowUpRight className="h-3 w-3" />;
 }
 
-function ActionLinks({ actions }: { actions?: AstroHubActionLink[] }) {
+/** Split RSS/plain body text into paragraphs for readable modal copy. */
+function bodyToParagraphs(text: string): string[] {
+  const normalized = text.replace(/\r\n/g, "\n").trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const squeeze = (chunk: string) =>
+    chunk.replace(/\n+/g, " ").replace(/\s+/g, " ").trim();
+
+  if (normalized.includes("\n\n")) {
+    return normalized
+      .split(/\n\s*\n/)
+      .map(squeeze)
+      .filter(Boolean);
+  }
+
+  const lines = normalized
+    .split("\n")
+    .map((line) => squeeze(line))
+    .filter(Boolean);
+
+  if (lines.length > 1) {
+    return lines;
+  }
+
+  return [squeeze(normalized)];
+}
+
+function ActionLinks({
+  actions,
+  className,
+}: {
+  actions?: AstroHubActionLink[];
+  className?: string;
+}) {
   if (!actions?.length) {
     return null;
   }
 
   return (
-    <div className="mt-4 flex flex-wrap gap-2">
+    <div className={cn("flex flex-wrap gap-2", className)}>
       {actions.map((action) => (
         <a
           key={`${action.href}-${action.label}`}
@@ -152,8 +188,12 @@ export function InteractiveAstroCalendarPanel({
     setActive(null);
   }
 
-  const detailBody =
-    active?.body ?? active?.summary ?? active?.visibility ?? "";
+  const proseSource = active?.body ?? active?.summary ?? "";
+
+  const detailParagraphs = useMemo(
+    () => bodyToParagraphs(proseSource),
+    [proseSource]
+  );
 
   return (
     <article className="rounded-2xl border border-slate-200/15 bg-slate-950/65 p-5 backdrop-blur">
@@ -293,61 +333,100 @@ export function InteractiveAstroCalendarPanel({
             closeDetail();
           }
         }}
-        className="w-[min(100%-2rem,28rem)] max-h-[min(90vh,36rem)] overflow-y-auto rounded-2xl border border-slate-200/20 bg-slate-950 p-5 text-slate-50 shadow-2xl [&::backdrop]:bg-black/70"
+        className="flex max-h-[min(88vh,34rem)] w-[min(100%-2rem,28rem)] flex-col overflow-hidden rounded-2xl border border-slate-200/20 bg-slate-950 p-0 text-slate-50 shadow-2xl [&::backdrop]:bg-black/70"
       >
         {active ? (
-          <div>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold tracking-wide text-violet-300 uppercase">
-                  Event detail
-                </p>
-                <h3
-                  id="astro-cal-detail-title"
-                  className="mt-1 text-base font-semibold text-white"
-                >
-                  {active.title}
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="rounded-full border border-cyan-200/20 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-100">
-                    {STREAM_LABEL[active.stream]}
-                  </span>
-                  {active.sourceLabel ? (
-                    <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-slate-300">
-                      {active.sourceLabel}
+          <>
+            <div className="shrink-0 space-y-4 border-b border-white/10 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 pr-2">
+                  <p className="text-[10px] font-semibold tracking-wide text-violet-300 uppercase">
+                    Event detail
+                  </p>
+                  <h3
+                    id="astro-cal-detail-title"
+                    className="mt-1 text-base font-semibold leading-snug text-white"
+                  >
+                    {active.title}
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-cyan-200/20 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-100">
+                      {STREAM_LABEL[active.stream]}
                     </span>
-                  ) : null}
+                    {active.sourceLabel ? (
+                      <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-slate-300">
+                        {active.sourceLabel}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={closeDetail}
+                  className="shrink-0 rounded-full border border-white/10 p-1.5 text-slate-300 hover:bg-white/5"
+                  aria-label="Close event detail"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={closeDetail}
-                className="rounded-full border border-white/10 p-1.5 text-slate-300 hover:bg-white/5"
-                aria-label="Close event detail"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="space-y-1">
+                <p className="text-sm font-medium tracking-tight text-violet-200/95">
+                  {active.window}
+                </p>
+                <p className="text-xs leading-relaxed text-slate-500">
+                  {active.visibility}
+                </p>
+              </div>
+              <div>
+                <p className="mb-2 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
+                  Links
+                </p>
+                <ActionLinks actions={active.actions} />
+              </div>
+              {active.relatedHint ? (
+                <p className="rounded-xl border border-emerald-200/15 bg-emerald-500/5 px-3 py-2.5 text-xs leading-relaxed text-emerald-100">
+                  {active.relatedHint}
+                </p>
+              ) : null}
             </div>
-            <p className="mt-3 text-sm text-violet-200">{active.window}</p>
-            {detailBody ? (
-              <p className="mt-3 text-sm leading-relaxed text-slate-300">
-                {detailBody}
-              </p>
-            ) : null}
-            {active.relatedHint ? (
-              <p className="mt-4 rounded-xl border border-emerald-200/15 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-100">
-                {active.relatedHint}
-              </p>
-            ) : null}
+
             {active.imageUrl ? (
-              <img
-                src={active.imageUrl}
-                alt=""
-                className="mt-4 max-h-48 w-full rounded-xl object-cover"
-              />
+              <div className="shrink-0 border-b border-white/10 bg-slate-950 px-5 py-3">
+                <img
+                  src={active.imageUrl}
+                  alt=""
+                  className="mx-auto aspect-[2/1] max-h-[7.5rem] w-full max-w-lg rounded-lg object-cover object-center ring-1 ring-white/10"
+                />
+              </div>
             ) : null}
-            <ActionLinks actions={active.actions} />
-          </div>
+
+            <div
+              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              role="region"
+              aria-label="Article summary"
+            >
+              {detailParagraphs.length > 0 ? (
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+                  <div className="max-w-prose space-y-3.5">
+                    {detailParagraphs.map((para, index) => (
+                      <p
+                        key={index}
+                        className="text-[13px] leading-[1.65] text-slate-300 [&:first-of-type]:text-slate-200"
+                      >
+                        {para}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="px-5 py-4 text-sm leading-relaxed text-slate-500">
+                  {active.actions?.length
+                    ? "No on-page summary for this item — use the links above for the full story."
+                    : "No description for this item."}
+                </p>
+              )}
+            </div>
+          </>
         ) : null}
       </dialog>
     </article>
