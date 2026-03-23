@@ -79,10 +79,14 @@ describe("getAstroHubCalendarSource", () => {
     expect(source.status).toBe("live");
     expect(source.data.items).toHaveLength(3);
     expect(source.data.items[0]).toMatchObject({
+      id: expect.stringMatching(/^artemis:/),
+      stream: "artemis",
+      publishedAt: "2026-03-11T20:36:11.000Z",
       title: "Artemis prep",
       visibility: "Artemis mission update",
       sourceLabel: "Artemis 2",
       url: "https://www.nasa.gov/artemis-prep",
+      body: "Artemis mission planning.",
     });
     expect(source.data.items[0]?.actions).toEqual(
       expect.arrayContaining([
@@ -96,5 +100,132 @@ describe("getAstroHubCalendarSource", () => {
         }),
       ])
     );
+  });
+
+  it("sorts merged feeds by publishedAt descending", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>Older artemis</title>
+                <link>https://www.nasa.gov/artemis-old</link>
+                <pubDate>Wed, 11 Mar 2026 10:00:00 +0000</pubDate>
+                <description><![CDATA[<p>Old.</p>]]></description>
+              </item>
+              <item>
+                <title>Newer artemis</title>
+                <link>https://www.nasa.gov/artemis-new</link>
+                <pubDate>Wed, 11 Mar 2026 22:00:00 +0000</pubDate>
+                <description><![CDATA[<p>New.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>Station update</title>
+                <pubDate>Wed, 11 Mar 2026 18:00:00 +0000</pubDate>
+                <description><![CDATA[<p>Station operations.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>NASA headline</title>
+                <pubDate>Wed, 11 Mar 2026 17:00:00 +0000</pubDate>
+                <description><![CDATA[<p>General newsroom update.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const source = await getAstroHubCalendarSource();
+
+    expect(source.data.items).toHaveLength(4);
+    expect(source.data.items.map((row) => row.title)).toEqual([
+      "Newer artemis",
+      "Station update",
+      "NASA headline",
+      "Older artemis",
+    ]);
+  });
+
+  it("dedupes merged feeds by canonical URL", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>X-59 second flight</title>
+                <link>https://www.nasa.gov/missions/quesst/nasas-x-59-second-flight/</link>
+                <pubDate>Wed, 11 Mar 2026 22:00:00 +0000</pubDate>
+                <description><![CDATA[<p>Main article from Artemis stream.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>X-59 second flight duplicate</title>
+                <link>https://www.nasa.gov/missions/quesst/nasas-x-59-second-flight/</link>
+                <pubDate>Wed, 11 Mar 2026 21:30:00 +0000</pubDate>
+                <description><![CDATA[<p>Same URL in station stream.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>Another headline</title>
+                <link>https://www.nasa.gov/another-headline</link>
+                <pubDate>Wed, 11 Mar 2026 20:00:00 +0000</pubDate>
+                <description><![CDATA[<p>Distinct item.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const source = await getAstroHubCalendarSource();
+    expect(
+      source.data.items.filter(
+        (row) =>
+          row.url ===
+          "https://www.nasa.gov/missions/quesst/nasas-x-59-second-flight/"
+      )
+    ).toHaveLength(1);
   });
 });

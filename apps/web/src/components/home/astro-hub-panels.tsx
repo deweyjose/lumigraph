@@ -10,12 +10,12 @@ import {
 import type {
   AstroHubActionLink,
   AstroHubCalendarEvent,
-  AstroHubExploreModule,
   AstroHubHeroData,
   AstroHubIssData,
   MissionState,
   MissionTelemetrySource,
 } from "@/lib/astro-hub";
+import { InteractiveAstroCalendarPanel } from "./interactive-astro-calendar-panel";
 
 function statusStyles(status: MissionState) {
   return {
@@ -33,6 +33,33 @@ function formatLatitude(value: number) {
 function formatLongitude(value: number) {
   const suffix = value >= 0 ? "E" : "W";
   return `${Math.abs(value).toFixed(2)}${suffix}`;
+}
+
+function toYouTubeEmbedUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (host.includes("youtube.com")) {
+      const id = url.searchParams.get("v");
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host.includes("youtu.be")) {
+      const id = url.pathname.replace(/^\/+/, "");
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isDirectVideoUrl(value: string) {
+  try {
+    const pathname = new URL(value).pathname.toLowerCase();
+    return /\.(mp4|webm|ogg|mov|m4v)$/.test(pathname);
+  } catch {
+    return false;
+  }
 }
 
 function actionIcon(kind: AstroHubActionLink["kind"]) {
@@ -162,6 +189,14 @@ export function HeroSurfaceCard({
   sourceLabel: string;
   sourceStatus?: MissionState;
 }) {
+  const mediaUrl = hero.sourceUrl ?? hero.imageUrl;
+  const youtubeEmbedUrl =
+    hero.mediaType === "video" && mediaUrl ? toYouTubeEmbedUrl(mediaUrl) : null;
+  const renderVideo =
+    hero.mediaType === "video" &&
+    mediaUrl &&
+    (Boolean(youtubeEmbedUrl) || isDirectVideoUrl(mediaUrl));
+
   return (
     <article className="rounded-3xl border border-cyan-200/20 bg-slate-950/60 p-5 shadow-[0_24px_80px_rgba(8,145,178,0.12)] backdrop-blur sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -196,7 +231,27 @@ export function HeroSurfaceCard({
         <div className="pointer-events-none absolute -right-20 top-1/2 h-60 w-60 -translate-y-1/2 rounded-full border border-cyan-100/20 motion-safe:animate-[spin_28s_linear_infinite]" />
         <div className="pointer-events-none absolute -right-8 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full border border-cyan-200/25" />
         <div className="relative grid gap-5 p-5 sm:p-7 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
-          {hero.imageUrl ? (
+          {renderVideo ? (
+            <div className="overflow-hidden rounded-2xl border border-cyan-200/15 bg-slate-950/60">
+              {youtubeEmbedUrl ? (
+                <iframe
+                  src={youtubeEmbedUrl}
+                  title={hero.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="aspect-[4/3] h-full w-full"
+                />
+              ) : (
+                <video
+                  src={mediaUrl}
+                  controls
+                  preload="metadata"
+                  playsInline
+                  className="aspect-[4/3] h-full w-full bg-black object-contain"
+                />
+              )}
+            </div>
+          ) : hero.imageUrl ? (
             <a
               href={hero.sourceUrl ?? hero.imageUrl}
               target="_blank"
@@ -211,7 +266,7 @@ export function HeroSurfaceCard({
             </a>
           ) : null}
 
-          <div className={hero.imageUrl ? "" : "lg:col-span-2"}>
+          <div className={renderVideo || hero.imageUrl ? "" : "lg:col-span-2"}>
             <p className="text-xs tracking-[0.18em] text-slate-300 uppercase">
               {sourceLabel}
             </p>
@@ -308,7 +363,7 @@ export function IssTrackerPanel({ iss }: { iss: AstroHubIssData }) {
 
 export function CalendarPanelSkeleton() {
   return (
-    <div className="h-72 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45" />
+    <div className="h-96 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45" />
   );
 }
 
@@ -326,94 +381,10 @@ export function CalendarPanelCard({
   sourceStatus?: MissionState;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200/15 bg-slate-950/65 p-5 backdrop-blur">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Mission Watch</h2>
-          <p className="mt-1 text-xs tracking-[0.18em] text-slate-400 uppercase">
-            {sourceLabel}
-          </p>
-        </div>
-        {sourceStatus ? (
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize ${statusStyles(sourceStatus)}`}
-          >
-            <Circle className="h-2 w-2 fill-current" />
-            {sourceStatus}
-          </span>
-        ) : null}
-      </div>
-      <ul className="mt-4 space-y-3">
-        {events.map((event) => (
-          <li
-            key={event.title}
-            className="rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3"
-          >
-            <h3 className="text-sm font-medium text-slate-100">
-              {event.title}
-            </h3>
-            <p className="mt-1 text-xs text-violet-200">{event.window}</p>
-            {event.sourceLabel ? (
-              <p className="mt-1 text-xs text-cyan-200">{event.sourceLabel}</p>
-            ) : null}
-            {event.summary ? (
-              <p className="mt-2 text-xs leading-relaxed text-slate-300">
-                {event.summary}
-              </p>
-            ) : null}
-            <p className="mt-1 text-xs text-slate-400">{event.visibility}</p>
-            <ActionLinks actions={event.actions} />
-          </li>
-        ))}
-      </ul>
-    </article>
-  );
-}
-
-export function ExploreLayerSkeleton() {
-  return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div
-          key={index}
-          className="h-44 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45"
-        />
-      ))}
-    </div>
-  );
-}
-
-export function ExploreLayer({
-  modules,
-}: {
-  modules: AstroHubExploreModule[];
-}) {
-  return (
-    <ul className="grid gap-4 md:grid-cols-3">
-      {modules.map((module, index) => (
-        <li
-          key={[
-            module.url,
-            module.actions?.[0]?.href,
-            module.title,
-            module.sourceLabel,
-            index,
-          ]
-            .filter(Boolean)
-            .join("::")}
-          className="group rounded-2xl border border-slate-200/15 bg-slate-950/55 p-4 transition-transform duration-300 hover:-translate-y-1 hover:border-cyan-200/30"
-        >
-          <h3 className="text-sm font-semibold text-slate-100">
-            {module.title}
-          </h3>
-          {module.sourceLabel ? (
-            <p className="mt-1 text-xs text-cyan-200">{module.sourceLabel}</p>
-          ) : null}
-          <p className="mt-2 text-sm text-slate-300">{module.summary}</p>
-          <p className="mt-3 text-xs text-emerald-200">{module.status}</p>
-          <ActionLinks actions={module.actions} />
-        </li>
-      ))}
-    </ul>
+    <InteractiveAstroCalendarPanel
+      events={events}
+      sourceLabel={sourceLabel}
+      sourceStatus={sourceStatus}
+    />
   );
 }

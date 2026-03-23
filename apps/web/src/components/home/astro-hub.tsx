@@ -1,7 +1,6 @@
 import { Suspense } from "react";
-import { Clock3, Radio, ShieldCheck, Telescope } from "lucide-react";
+import { Clock3, Radio, ShieldCheck } from "lucide-react";
 import { getAstroHubCalendarSource } from "@/server/services/astro-sources/calendar";
-import { getAstroHubExploreSource } from "@/server/services/astro-sources/explore";
 import { getAstroHubHeroSource } from "@/server/services/astro-sources/hero";
 import { getAstroHubIssSource } from "@/server/services/astro-sources/iss";
 import { getAstroHubMetaSource } from "@/server/services/astro-sources/meta";
@@ -9,8 +8,6 @@ import { getAstroHubTelemetrySource } from "@/server/services/astro-sources/tele
 import {
   CalendarPanelCard,
   CalendarPanelSkeleton,
-  ExploreLayer,
-  ExploreLayerSkeleton,
   HeroSurfaceCard,
   HeroSurfaceSkeleton,
   IssTrackerPanel,
@@ -95,18 +92,7 @@ async function CalendarSection() {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Calendar source unavailable";
-    return <ModuleError title="Calendar unavailable" message={message} />;
-  }
-}
-
-async function ExploreLayerSection() {
-  try {
-    const explore = await getAstroHubExploreSource();
-    return <ExploreLayer modules={explore.data.items} />;
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Explore source unavailable";
-    return <ModuleError title="Explore layer unavailable" message={message} />;
+    return <ModuleError title="Mission Watch unavailable" message={message} />;
   }
 }
 
@@ -148,10 +134,6 @@ export function AstroHub() {
                 <Clock3 className="h-3.5 w-3.5" />
                 Time Layer
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
-                <Telescope className="h-3.5 w-3.5" />
-                Explore Layer
-              </div>
               <Suspense fallback={<MissionDayBadgeSkeleton />}>
                 <MissionDayBadge />
               </Suspense>
@@ -178,15 +160,6 @@ export function AstroHub() {
                 <CalendarSection />
               </Suspense>
             </div>
-          </section>
-
-          <section aria-label="Explore layer">
-            <h2 className="mb-4 text-lg font-semibold text-white">
-              Explore Layer
-            </h2>
-            <Suspense fallback={<ExploreLayerSkeleton />}>
-              <ExploreLayerSection />
-            </Suspense>
           </section>
         </div>
       </div>

@@ -37,14 +37,6 @@ vi.mock("./calendar", () => ({
   }),
 }));
 
-vi.mock("./explore", () => ({
-  getAstroHubExploreSource: vi.fn().mockResolvedValue({
-    source: "NASA main + station RSS",
-    status: "live",
-    generatedAt: new Date().toISOString(),
-  }),
-}));
-
 import { getAstroHubTelemetrySource } from "./telemetry";
 
 describe("getAstroHubTelemetrySource", () => {
@@ -54,7 +46,7 @@ describe("getAstroHubTelemetrySource", () => {
     expect(source.sourceKey).toBe("telemetry");
     expect(source.source).toBe("Astro Hub source health");
     expect(source.status).toBe("live");
-    expect(source.data.items).toHaveLength(4);
+    expect(source.data.items).toHaveLength(3);
     expect(source.data.items[0]).toMatchObject({
       source: "NASA APOD",
       status: "live",
