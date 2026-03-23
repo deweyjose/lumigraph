@@ -57,7 +57,7 @@ export const astroHubChatTools = [
   defineTool({
     name: "astro_hub_calendar",
     description:
-      "Fetch upcoming mission/calendar-style events from NASA feeds as shown in Mission Watch on the hub.",
+      "Fetch the Mission Watch time-layer calendar (merged NASA RSS streams) as on Astro Hub: dated rows, streams, summaries, and action links. See docs/astro-hub-calendar-contract.md.",
     inputSchema: emptyInput,
     async execute() {
       const data = await getAstroHubCalendarSource();

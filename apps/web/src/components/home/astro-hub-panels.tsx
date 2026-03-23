@@ -16,6 +16,7 @@ import type {
   MissionState,
   MissionTelemetrySource,
 } from "@/lib/astro-hub";
+import { InteractiveAstroCalendarPanel } from "./interactive-astro-calendar-panel";
 
 function statusStyles(status: MissionState) {
   return {
@@ -308,7 +309,7 @@ export function IssTrackerPanel({ iss }: { iss: AstroHubIssData }) {
 
 export function CalendarPanelSkeleton() {
   return (
-    <div className="h-72 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45" />
+    <div className="h-96 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45" />
   );
 }
 
@@ -326,47 +327,11 @@ export function CalendarPanelCard({
   sourceStatus?: MissionState;
 }) {
   return (
-    <article className="rounded-2xl border border-slate-200/15 bg-slate-950/65 p-5 backdrop-blur">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Mission Watch</h2>
-          <p className="mt-1 text-xs tracking-[0.18em] text-slate-400 uppercase">
-            {sourceLabel}
-          </p>
-        </div>
-        {sourceStatus ? (
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize ${statusStyles(sourceStatus)}`}
-          >
-            <Circle className="h-2 w-2 fill-current" />
-            {sourceStatus}
-          </span>
-        ) : null}
-      </div>
-      <ul className="mt-4 space-y-3">
-        {events.map((event) => (
-          <li
-            key={event.title}
-            className="rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3"
-          >
-            <h3 className="text-sm font-medium text-slate-100">
-              {event.title}
-            </h3>
-            <p className="mt-1 text-xs text-violet-200">{event.window}</p>
-            {event.sourceLabel ? (
-              <p className="mt-1 text-xs text-cyan-200">{event.sourceLabel}</p>
-            ) : null}
-            {event.summary ? (
-              <p className="mt-2 text-xs leading-relaxed text-slate-300">
-                {event.summary}
-              </p>
-            ) : null}
-            <p className="mt-1 text-xs text-slate-400">{event.visibility}</p>
-            <ActionLinks actions={event.actions} />
-          </li>
-        ))}
-      </ul>
-    </article>
+    <InteractiveAstroCalendarPanel
+      events={events}
+      sourceLabel={sourceLabel}
+      sourceStatus={sourceStatus}
+    />
   );
 }
 
