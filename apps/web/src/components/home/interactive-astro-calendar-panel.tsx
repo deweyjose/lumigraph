@@ -4,9 +4,9 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   CalendarDays,
-  ChevronRight,
   Circle,
   Download,
+  Maximize2,
   Play,
   X,
 } from "lucide-react";
@@ -309,7 +309,7 @@ export function InteractiveAstroCalendarPanel({
   }, [dayFilter, events]);
 
   return (
-    <article className="rounded-2xl border border-slate-200/15 bg-slate-950/65 p-5 backdrop-blur">
+    <article className="flex h-[40rem] flex-col rounded-2xl border border-slate-200/15 bg-slate-950/65 p-5 backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -390,7 +390,7 @@ export function InteractiveAstroCalendarPanel({
         </div>
       ) : null}
 
-      <ul className="mt-4 max-h-[min(28rem,55vh)] space-y-2 overflow-y-auto pr-1">
+      <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {filtered.length === 0 ? (
           <li className="rounded-xl border border-white/10 bg-slate-900/40 px-3 py-6 text-center text-sm text-slate-400">
             No events for this day.
@@ -427,7 +427,7 @@ export function InteractiveAstroCalendarPanel({
                     {event.visibility}
                   </p>
                 </div>
-                <ChevronRight
+                <Maximize2
                   className="mt-1 h-4 w-4 shrink-0 text-slate-500"
                   aria-hidden
                 />
