@@ -36,6 +36,33 @@ function formatLongitude(value: number) {
   return `${Math.abs(value).toFixed(2)}${suffix}`;
 }
 
+function toYouTubeEmbedUrl(value: string) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    if (host.includes("youtube.com")) {
+      const id = url.searchParams.get("v");
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host.includes("youtu.be")) {
+      const id = url.pathname.replace(/^\/+/, "");
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isDirectVideoUrl(value: string) {
+  try {
+    const pathname = new URL(value).pathname.toLowerCase();
+    return /\.(mp4|webm|ogg|mov|m4v)$/.test(pathname);
+  } catch {
+    return false;
+  }
+}
+
 function actionIcon(kind: AstroHubActionLink["kind"]) {
   if (kind === "video") {
     return <Play className="h-3 w-3" />;
@@ -163,6 +190,14 @@ export function HeroSurfaceCard({
   sourceLabel: string;
   sourceStatus?: MissionState;
 }) {
+  const mediaUrl = hero.sourceUrl ?? hero.imageUrl;
+  const youtubeEmbedUrl =
+    hero.mediaType === "video" && mediaUrl ? toYouTubeEmbedUrl(mediaUrl) : null;
+  const renderVideo =
+    hero.mediaType === "video" &&
+    mediaUrl &&
+    (Boolean(youtubeEmbedUrl) || isDirectVideoUrl(mediaUrl));
+
   return (
     <article className="rounded-3xl border border-cyan-200/20 bg-slate-950/60 p-5 shadow-[0_24px_80px_rgba(8,145,178,0.12)] backdrop-blur sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -197,7 +232,27 @@ export function HeroSurfaceCard({
         <div className="pointer-events-none absolute -right-20 top-1/2 h-60 w-60 -translate-y-1/2 rounded-full border border-cyan-100/20 motion-safe:animate-[spin_28s_linear_infinite]" />
         <div className="pointer-events-none absolute -right-8 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full border border-cyan-200/25" />
         <div className="relative grid gap-5 p-5 sm:p-7 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
-          {hero.imageUrl ? (
+          {renderVideo ? (
+            <div className="overflow-hidden rounded-2xl border border-cyan-200/15 bg-slate-950/60">
+              {youtubeEmbedUrl ? (
+                <iframe
+                  src={youtubeEmbedUrl}
+                  title={hero.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="aspect-[4/3] h-full w-full"
+                />
+              ) : (
+                <video
+                  src={mediaUrl}
+                  controls
+                  preload="metadata"
+                  playsInline
+                  className="aspect-[4/3] h-full w-full bg-black object-contain"
+                />
+              )}
+            </div>
+          ) : hero.imageUrl ? (
             <a
               href={hero.sourceUrl ?? hero.imageUrl}
               target="_blank"
@@ -212,7 +267,7 @@ export function HeroSurfaceCard({
             </a>
           ) : null}
 
-          <div className={hero.imageUrl ? "" : "lg:col-span-2"}>
+          <div className={renderVideo || hero.imageUrl ? "" : "lg:col-span-2"}>
             <p className="text-xs tracking-[0.18em] text-slate-300 uppercase">
               {sourceLabel}
             </p>

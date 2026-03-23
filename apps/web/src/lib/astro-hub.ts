@@ -30,6 +30,7 @@ export type AstroHubHeroData = {
   title: string;
   summary: string;
   mediaLabel: string;
+  mediaType?: "image" | "video";
   metrics: Array<{ label: string; value: string }>;
   trustSignal: string;
   copyright?: string;

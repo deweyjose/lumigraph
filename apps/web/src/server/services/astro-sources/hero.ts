@@ -24,6 +24,10 @@ type NasaApodResponse = {
   copyright?: string;
 };
 
+function normalizeApodMediaType(value: string): "image" | "video" {
+  return value === "video" ? "video" : "image";
+}
+
 function getNasaApiKey() {
   return process.env.NASA_API_KEY ?? "DEMO_KEY";
 }
@@ -47,6 +51,7 @@ export async function getAstroHubHeroSource() {
       }
     );
     await writeAstroSourceOutput("hero", apod);
+    const mediaType = normalizeApodMediaType(apod.media_type);
 
     return buildAstroHubSourceEnvelope(
       "hero",
@@ -54,13 +59,12 @@ export async function getAstroHubHeroSource() {
         title: apod.title,
         summary: truncate(apod.explanation, 260),
         mediaLabel:
-          apod.media_type === "image"
-            ? "NASA APOD / Image"
-            : "NASA APOD / Media",
+          mediaType === "image" ? "NASA APOD / Image" : "NASA APOD / Video",
+        mediaType,
         metrics: [
           { label: "Source", value: "NASA APOD" },
           { label: "Published", value: apod.date },
-          { label: "Media Type", value: apod.media_type },
+          { label: "Media Type", value: mediaType },
           {
             label: "Asset URL",
             value: apod.hdurl ? "HD available" : "Standard",
@@ -68,7 +72,7 @@ export async function getAstroHubHeroSource() {
         ],
         trustSignal: "Official NASA APOD feed",
         copyright: apod.copyright,
-        imageUrl: apod.media_type === "image" ? apod.url : undefined,
+        imageUrl: mediaType === "image" ? apod.url : undefined,
         sourceUrl: apod.url,
         actions: [
           { label: "Open media", href: apod.url, kind: "media" },
@@ -117,6 +121,7 @@ export async function getAstroHubHeroSource() {
             ],
             trustSignal: "Official NASA RSS fallback",
             imageUrl: fallbackItem.imageUrl ?? undefined,
+            mediaType: "image",
             sourceUrl: fallbackItem.url,
             actions: selectActionLinks(fallbackItem.url, fallbackItem.links),
           },

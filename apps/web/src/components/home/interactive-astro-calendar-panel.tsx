@@ -129,6 +129,15 @@ function formatDayChip(dayKey: string) {
   }).format(dt);
 }
 
+function isDirectVideoUrl(value: string) {
+  try {
+    const pathname = new URL(value).pathname.toLowerCase();
+    return /\.(mp4|webm|ogg|mov|m4v)$/.test(pathname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Mounted only while `event` is non-null so a closed `<dialog>` is never left
  * in the tree. (Utility classes like `flex` override the UA `display:none` on
@@ -144,6 +153,9 @@ function MissionWatchEventDetailDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const proseSource = event.body ?? event.summary ?? "";
+  const mediaIsVideo = Boolean(
+    event.imageUrl && isDirectVideoUrl(event.imageUrl)
+  );
   const detailParagraphs = useMemo(
     () => bodyToParagraphs(proseSource),
     [proseSource]
@@ -231,11 +243,21 @@ function MissionWatchEventDetailDialog({
 
       {event.imageUrl ? (
         <div className="shrink-0 border-b border-white/10 bg-slate-950 px-6 py-4">
-          <img
-            src={event.imageUrl}
-            alt=""
-            className="mx-auto aspect-[2/1] max-h-[10rem] w-full max-w-2xl rounded-lg object-cover object-center ring-1 ring-white/10 sm:max-h-[11rem]"
-          />
+          {mediaIsVideo ? (
+            <video
+              src={event.imageUrl}
+              controls
+              preload="metadata"
+              playsInline
+              className="mx-auto aspect-[2/1] max-h-[10rem] w-full max-w-2xl rounded-lg bg-black object-contain ring-1 ring-white/10 sm:max-h-[11rem]"
+            />
+          ) : (
+            <img
+              src={event.imageUrl}
+              alt=""
+              className="mx-auto aspect-[2/1] max-h-[10rem] w-full max-w-2xl rounded-lg object-cover object-center ring-1 ring-white/10 sm:max-h-[11rem]"
+            />
+          )}
         </div>
       ) : null}
 

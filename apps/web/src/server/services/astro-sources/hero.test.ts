@@ -47,6 +47,7 @@ describe("getAstroHubHeroSource", () => {
     expect(source.data).toMatchObject({
       title: "Pillars of Creation",
       mediaLabel: "NASA APOD / Image",
+      mediaType: "image",
       trustSignal: "Official NASA APOD feed",
       copyright: "NASA / ESA",
       sourceUrl: "https://apod.nasa.gov/apod/image/example.jpg",
@@ -68,5 +69,34 @@ describe("getAstroHubHeroSource", () => {
         }),
       ])
     );
+  });
+
+  it("maps APOD video entries so the client can embed playback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            title: "Departing Earth",
+            explanation: "Mercury flyby sequence from Messenger.",
+            media_type: "video",
+            url: "https://apod.nasa.gov/apod/image/2603/DepartingEarth_Messenger.mp4",
+            date: "2026-03-22",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    );
+
+    const source = await getAstroHubHeroSource();
+    expect(source.status).toBe("live");
+    expect(source.data).toMatchObject({
+      title: "Departing Earth",
+      mediaLabel: "NASA APOD / Video",
+      mediaType: "video",
+      sourceUrl:
+        "https://apod.nasa.gov/apod/image/2603/DepartingEarth_Messenger.mp4",
+      imageUrl: undefined,
+    });
   });
 });
