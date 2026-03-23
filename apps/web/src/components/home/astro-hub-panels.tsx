@@ -401,7 +401,7 @@ export function CalendarPanelCard({
 
 export function ExploreLayerSkeleton() {
   return (
-    <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[18rem] gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[18rem] gap-4 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {Array.from({ length: 4 }).map((_, index) => (
         <div
           key={index}
@@ -418,7 +418,7 @@ export function ExploreLayer({
   modules: AstroHubExploreModule[];
 }) {
   return (
-    <ul className="grid snap-x snap-mandatory grid-flow-col auto-cols-[18rem] gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <ul className="grid snap-x snap-mandatory grid-flow-col auto-cols-[18rem] gap-4 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {modules.map((module, index) => {
         const imageUrl = module.imageUrl ?? undefined;
         const visibleActions = module.actions?.slice(0, 2) ?? [];
