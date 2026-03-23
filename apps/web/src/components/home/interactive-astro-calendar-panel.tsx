@@ -333,23 +333,23 @@ export function InteractiveAstroCalendarPanel({
             closeDetail();
           }
         }}
-        className="flex max-h-[min(88vh,34rem)] w-[min(100%-2rem,28rem)] flex-col overflow-hidden rounded-2xl border border-slate-200/20 bg-slate-950 p-0 text-slate-50 shadow-2xl [&::backdrop]:bg-black/70"
+        className="fixed left-1/2 top-1/2 z-50 flex max-h-[min(92vh,46rem)] w-[min(calc(100vw-2rem),40rem)] max-w-[40rem] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-slate-200/20 bg-slate-950 p-0 text-slate-50 shadow-2xl [&::backdrop]:bg-black/70"
       >
         {active ? (
           <>
-            <div className="shrink-0 space-y-4 border-b border-white/10 p-5">
-              <div className="flex items-start justify-between gap-3">
+            <div className="shrink-0 space-y-5 border-b border-white/10 px-6 pb-6 pt-6">
+              <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 pr-2">
                   <p className="text-[10px] font-semibold tracking-wide text-violet-300 uppercase">
                     Event detail
                   </p>
                   <h3
                     id="astro-cal-detail-title"
-                    className="mt-1 text-base font-semibold leading-snug text-white"
+                    className="mt-2 text-lg font-semibold leading-snug text-white sm:text-xl"
                   >
                     {active.title}
                   </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     <span className="rounded-full border border-cyan-200/20 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-100">
                       {STREAM_LABEL[active.stream]}
                     </span>
@@ -369,33 +369,33 @@ export function InteractiveAstroCalendarPanel({
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium tracking-tight text-violet-200/95">
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium tracking-tight text-violet-200/95 sm:text-base">
                   {active.window}
                 </p>
-                <p className="text-xs leading-relaxed text-slate-500">
+                <p className="text-xs leading-relaxed text-slate-500 sm:text-sm">
                   {active.visibility}
                 </p>
               </div>
               <div>
-                <p className="mb-2 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
+                <p className="mb-2.5 text-[10px] font-semibold tracking-wide text-slate-500 uppercase">
                   Links
                 </p>
-                <ActionLinks actions={active.actions} />
+                <ActionLinks actions={active.actions} className="gap-2.5" />
               </div>
               {active.relatedHint ? (
-                <p className="rounded-xl border border-emerald-200/15 bg-emerald-500/5 px-3 py-2.5 text-xs leading-relaxed text-emerald-100">
+                <p className="rounded-xl border border-emerald-200/15 bg-emerald-500/5 px-4 py-3 text-xs leading-relaxed text-emerald-100 sm:text-sm">
                   {active.relatedHint}
                 </p>
               ) : null}
             </div>
 
             {active.imageUrl ? (
-              <div className="shrink-0 border-b border-white/10 bg-slate-950 px-5 py-3">
+              <div className="shrink-0 border-b border-white/10 bg-slate-950 px-6 py-4">
                 <img
                   src={active.imageUrl}
                   alt=""
-                  className="mx-auto aspect-[2/1] max-h-[7.5rem] w-full max-w-lg rounded-lg object-cover object-center ring-1 ring-white/10"
+                  className="mx-auto aspect-[2/1] max-h-[10rem] w-full max-w-2xl rounded-lg object-cover object-center ring-1 ring-white/10 sm:max-h-[11rem]"
                 />
               </div>
             ) : null}
@@ -406,12 +406,12 @@ export function InteractiveAstroCalendarPanel({
               aria-label="Article summary"
             >
               {detailParagraphs.length > 0 ? (
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
-                  <div className="max-w-prose space-y-3.5">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
+                  <div className="mx-auto max-w-2xl space-y-4">
                     {detailParagraphs.map((para, index) => (
                       <p
                         key={index}
-                        className="text-[13px] leading-[1.65] text-slate-300 [&:first-of-type]:text-slate-200"
+                        className="text-sm leading-[1.7] text-slate-300 sm:text-[15px] [&:first-of-type]:text-slate-200"
                       >
                         {para}
                       </p>
@@ -419,7 +419,7 @@ export function InteractiveAstroCalendarPanel({
                   </div>
                 </div>
               ) : (
-                <p className="px-5 py-4 text-sm leading-relaxed text-slate-500">
+                <p className="px-6 py-5 text-sm leading-relaxed text-slate-500 sm:text-base">
                   {active.actions?.length
                     ? "No on-page summary for this item — use the links above for the full story."
                     : "No description for this item."}
