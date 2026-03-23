@@ -1,19 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { ZodError } from "zod";
 import { auth } from "auth";
 import { chatDebug, chatError, chatInfo, chatWarn } from "@/server/chat-log";
 import { encodeChatStreamLine } from "@/server/chat-stream";
-import { streamAstroHubChat } from "@/server/services/chat";
-
-const MessageSchema = z.object({
-  role: z.enum(["user", "assistant", "system"]),
-  content: z.string(),
-});
-
-const BodySchema = z.object({
-  messages: z.array(MessageSchema).min(1).max(50),
-});
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -24,12 +14,12 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: z.infer<typeof BodySchema>;
+  let body;
   try {
     const raw = await request.json();
-    body = BodySchema.parse(raw);
+    body = chatRequestBodySchema.parse(raw);
   } catch (err) {
-    if (err instanceof z.ZodError) {
+    if (err instanceof ZodError) {
       const message = err.issues.map((e) => e.message).join("; ");
       return NextResponse.json(
         { code: "VALIDATION_ERROR", message },

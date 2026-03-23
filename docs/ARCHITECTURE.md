@@ -74,7 +74,7 @@
   - `POST /api/internal/export-jobs/:jobId/callback`
   - `POST /api/internal/auto-thumb-jobs/:jobId/callback`
 - Chat (authenticated):
-  - `POST /api/chat` — NDJSON stream of assistant events for the Astro Hub widget
+  - `POST /api/chat` — NDJSON stream; `surface` selects the chat profile (see layering above)
 
 ## Path conventions
 

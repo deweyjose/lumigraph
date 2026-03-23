@@ -1,17 +1,17 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { authMock, streamAstroHubChatMock } = vi.hoisted(() => ({
+const { authMock, streamChatDispatchMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
-  streamAstroHubChatMock: vi.fn(),
+  streamChatDispatchMock: vi.fn(),
 }));
 
 vi.mock("auth", () => ({
   auth: authMock,
 }));
 
-vi.mock("@/server/services/chat", () => ({
-  streamAstroHubChat: streamAstroHubChatMock,
+vi.mock("@/server/chat/dispatch", () => ({
+  streamChatDispatch: streamChatDispatchMock,
 }));
 
 import { POST } from "./route";
@@ -19,7 +19,7 @@ import { POST } from "./route";
 describe("POST /api/chat", () => {
   beforeEach(() => {
     authMock.mockReset();
-    streamAstroHubChatMock.mockReset();
+    streamChatDispatchMock.mockReset();
   });
 
   it("returns 401 when not signed in", async () => {
@@ -56,7 +56,7 @@ describe("POST /api/chat", () => {
   it("streams NDJSON events for valid requests", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     authMock.mockResolvedValue({ user: { id: "u1" } });
-    streamAstroHubChatMock.mockReturnValue(
+    streamChatDispatchMock.mockReturnValue(
       (async function* () {
         yield { type: "text_delta", text: "Hello" };
         yield { type: "done" };
