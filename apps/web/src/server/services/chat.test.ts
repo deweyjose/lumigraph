@@ -47,10 +47,17 @@ describe("streamAstroHubChat", () => {
       { type: "text_delta", text: "ok" },
       { type: "done" },
     ]);
-    expect(streamOpenAIResponsesChatMock).toHaveBeenCalledWith({
-      instructions: ASTRO_CHAT_SYSTEM_PROMPT,
-      messages: messages.slice(-20),
-      toolContext: { userId: "owner-1" },
-    });
+    expect(streamOpenAIResponsesChatMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructions: ASTRO_CHAT_SYSTEM_PROMPT,
+        messages: messages.slice(-20),
+        toolContext: { userId: "owner-1" },
+        include: ["web_search_call.action.sources"],
+        executeFunctionTool: expect.any(Function),
+      })
+    );
+    expect(streamOpenAIResponsesChatMock.mock.calls[0][0].tools).toHaveLength(
+      7
+    );
   });
 });

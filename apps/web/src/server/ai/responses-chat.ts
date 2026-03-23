@@ -1,6 +1,7 @@
 /**
- * Astro Hub chat uses the OpenAI Responses API (streaming) with Astro Hub function
- * tools (#165) and native web search (#166) with citation metadata on completion.
+ * Generic OpenAI Responses streaming helper: caller supplies instructions, tool list,
+ * optional `include` flags, and a function-tool executor. Used by per-surface chat
+ * profiles (e.g. Astro Hub tools + web search).
  *
  * @see https://platform.openai.com/docs/api-reference/responses/create
  */
@@ -20,11 +21,7 @@ import type {
   ChatStreamError,
   ChatStreamEvent,
 } from "../chat-stream";
-import type { ToolContext } from "../tools/core";
-import {
-  executeAstroHubChatToolByName,
-  openAIAstroHubChatTools,
-} from "../tools/astro-hub-chat";
+import type { ToolContext, ToolResult } from "../tools/core";
 
 const MAX_TOOL_ROUNDS = 5;
 
@@ -112,11 +109,16 @@ export function extractCitationsFromResponse(
 
 async function buildFunctionCallOutputItems(
   calls: ResponseFunctionToolCallItem[],
-  toolContext: ToolContext
+  toolContext: ToolContext,
+  executeFunctionTool: (
+    name: string,
+    context: ToolContext,
+    rawArguments: string
+  ) => Promise<ToolResult<unknown>>
 ): Promise<ResponseInputItem[]> {
   return Promise.all(
     calls.map(async (call) => {
-      const result = await executeAstroHubChatToolByName(
+      const result = await executeFunctionTool(
         call.name,
         toolContext,
         call.arguments
@@ -198,26 +200,31 @@ function streamErrorFromApiEvent(event: { message: string }): ChatStreamError {
 }
 
 /**
- * Stream assistant text as structured events from OpenAI Responses (streaming),
- * running Astro Hub source tools across multiple rounds when the model requests them.
+ * Stream assistant text from OpenAI Responses with the given tools and executor.
  */
 export async function* streamOpenAIResponsesChat({
   instructions,
   messages,
   toolContext,
+  tools,
+  include = [],
+  executeFunctionTool,
   model = DEFAULT_OPENAI_MODEL,
   client = createOpenAIClient(),
 }: {
   instructions: string;
   messages: AiChatMessage[];
   toolContext: ToolContext;
+  tools: OpenAI.Responses.ResponseCreateParamsStreaming["tools"];
+  include?: OpenAI.Responses.ResponseCreateParamsStreaming["include"];
+  executeFunctionTool: (
+    name: string,
+    context: ToolContext,
+    rawArguments: string
+  ) => Promise<ToolResult<unknown>>;
   model?: string;
   client?: OpenAI;
 }): AsyncGenerator<ChatStreamEvent, void, unknown> {
-  const tools: OpenAI.Responses.ResponseCreateParamsStreaming["tools"] = [
-    ...openAIAstroHubChatTools(),
-    { type: "web_search" },
-  ];
   let nextInput: OpenAI.Responses.ResponseCreateParams["input"] =
     mapMessagesToInput(messages);
   let previousResponseId: string | undefined;
@@ -231,7 +238,7 @@ export async function* streamOpenAIResponsesChat({
         tools,
         tool_choice: "auto",
         parallel_tool_calls: true,
-        include: ["web_search_call.action.sources"],
+        ...(include && include.length > 0 ? { include } : {}),
       };
 
       if (round === 0) {
@@ -282,7 +289,11 @@ export async function* streamOpenAIResponsesChat({
         return;
       }
 
-      nextInput = await buildFunctionCallOutputItems(calls, toolContext);
+      nextInput = await buildFunctionCallOutputItems(
+        calls,
+        toolContext,
+        executeFunctionTool
+      );
     }
 
     yield {
