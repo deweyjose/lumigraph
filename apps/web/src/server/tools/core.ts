@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export type ToolContext = {
   userId: string;
+  /** Correlates logs for one POST /api/chat run (#167). Omit outside chat. */
+  chatRunId?: string;
 };
 
 export type ToolErrorCode =
