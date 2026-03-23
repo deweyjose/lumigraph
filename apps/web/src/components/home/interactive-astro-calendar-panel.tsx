@@ -449,6 +449,19 @@ export function InteractiveAstroCalendarPanel({
                     {event.visibility}
                   </p>
                 </div>
+                {event.imageUrl ? (
+                  isDirectVideoUrl(event.imageUrl) ? (
+                    <div className="mt-0.5 flex h-16 w-24 shrink-0 items-center justify-center rounded-md border border-white/10 bg-slate-950/90 text-cyan-200">
+                      <Play className="h-4 w-4" aria-hidden />
+                    </div>
+                  ) : (
+                    <img
+                      src={event.imageUrl}
+                      alt=""
+                      className="mt-0.5 h-16 w-24 shrink-0 rounded-md border border-white/10 object-cover object-center"
+                    />
+                  )
+                ) : null}
                 <Maximize2
                   className="mt-1 h-4 w-4 shrink-0 text-slate-500"
                   aria-hidden

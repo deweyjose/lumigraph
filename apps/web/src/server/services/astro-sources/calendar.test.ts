@@ -167,4 +167,65 @@ describe("getAstroHubCalendarSource", () => {
       "Older artemis",
     ]);
   });
+
+  it("dedupes merged feeds by canonical URL", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>X-59 second flight</title>
+                <link>https://www.nasa.gov/missions/quesst/nasas-x-59-second-flight/</link>
+                <pubDate>Wed, 11 Mar 2026 22:00:00 +0000</pubDate>
+                <description><![CDATA[<p>Main article from Artemis stream.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>X-59 second flight duplicate</title>
+                <link>https://www.nasa.gov/missions/quesst/nasas-x-59-second-flight/</link>
+                <pubDate>Wed, 11 Mar 2026 21:30:00 +0000</pubDate>
+                <description><![CDATA[<p>Same URL in station stream.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          `
+            <rss><channel>
+              <item>
+                <title>Another headline</title>
+                <link>https://www.nasa.gov/another-headline</link>
+                <pubDate>Wed, 11 Mar 2026 20:00:00 +0000</pubDate>
+                <description><![CDATA[<p>Distinct item.</p>]]></description>
+              </item>
+            </channel></rss>
+          `,
+          { status: 200 }
+        )
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const source = await getAstroHubCalendarSource();
+    expect(
+      source.data.items.filter(
+        (row) =>
+          row.url ===
+          "https://www.nasa.gov/missions/quesst/nasas-x-59-second-flight/"
+      )
+    ).toHaveLength(1);
+  });
 });

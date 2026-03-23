@@ -57,6 +57,12 @@ describe("getAstroHubExploreSource", () => {
                 <pubDate>Wed, 11 Mar 2026 17:00:00 +0000</pubDate>
                 <description><![CDATA[<p>Station operations briefing.</p>]]></description>
               </item>
+              <item>
+                <title>NASA headline duplicate</title>
+                <link>https://www.nasa.gov/news</link>
+                <pubDate>Wed, 11 Mar 2026 17:30:00 +0000</pubDate>
+                <description><![CDATA[<p>Same article cross-post.</p>]]></description>
+              </item>
             </channel></rss>
           `,
           { status: 200 }
@@ -91,5 +97,10 @@ describe("getAstroHubExploreSource", () => {
         }),
       ])
     );
+    expect(
+      source.data.items.filter(
+        (item) => item.url === "https://www.nasa.gov/news"
+      )
+    ).toHaveLength(1);
   });
 });

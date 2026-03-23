@@ -23,6 +23,17 @@ const NASA_ARTEMIS_FEED_URL = "https://www.nasa.gov/missions/artemis/feed/";
 const NASA_STATION_FEED_URL = "https://www.nasa.gov/missions/station/feed/";
 const NASA_MAIN_FEED_URL = "https://www.nasa.gov/feed/";
 
+function normalizeUrlForKey(value: string) {
+  try {
+    const url = new URL(value);
+    const host = url.host.toLowerCase();
+    const pathname = url.pathname.replace(/\/+$/, "");
+    return `${host}${pathname}${url.search}`;
+  } catch {
+    return value.trim().toLowerCase();
+  }
+}
+
 function truncate(value: string, maxLength: number) {
   if (value.length <= maxLength) {
     return value;
@@ -87,6 +98,26 @@ function sortCalendarEventsNewestFirst(items: AstroHubCalendarEvent[]) {
   });
 }
 
+function dedupeCalendarEvents(items: AstroHubCalendarEvent[]) {
+  const seen = new Set<string>();
+  const output: AstroHubCalendarEvent[] = [];
+
+  for (const item of items) {
+    const key = item.url
+      ? `url:${normalizeUrlForKey(item.url)}`
+      : `text:${item.title.trim().toLowerCase()}|${item.publishedAt ?? "none"}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    output.push(item);
+  }
+
+  return output;
+}
+
 export async function getAstroHubCalendarSource() {
   await randomizeAstroHubMockDelay();
 
@@ -123,10 +154,9 @@ export async function getAstroHubCalendarSource() {
       ),
     ];
 
-    const items = sortCalendarEventsNewestFirst(merged).slice(
-      0,
-      MAX_CALENDAR_ITEMS
-    );
+    const items = dedupeCalendarEvents(
+      sortCalendarEventsNewestFirst(merged)
+    ).slice(0, MAX_CALENDAR_ITEMS);
 
     if (items.length > 0) {
       return buildAstroHubSourceEnvelope(
