@@ -171,20 +171,21 @@ export function InteractiveAstroCalendarPanel({
 
   useEffect(() => {
     const d = dialogRef.current;
-    if (!d) {
+    if (!d || !active) {
       return;
     }
 
-    if (active) {
-      if (!d.open) {
-        d.showModal();
-      }
-    } else if (d.open) {
-      d.close();
+    if (!d.open) {
+      d.showModal();
     }
   }, [active]);
 
-  function closeDetail() {
+  /** Close the native dialog; clear `active` in `onDialogClose` so content stays mounted until the dialog is gone (avoids an empty open dialog collapsing to a ~2px strip). */
+  function dismissDialog() {
+    dialogRef.current?.close();
+  }
+
+  function onDialogClose() {
     setActive(null);
   }
 
@@ -327,10 +328,10 @@ export function InteractiveAstroCalendarPanel({
       <dialog
         ref={dialogRef}
         aria-labelledby={active ? "astro-cal-detail-title" : undefined}
-        onClose={closeDetail}
+        onClose={onDialogClose}
         onMouseDown={(e) => {
           if (e.target === dialogRef.current) {
-            closeDetail();
+            dismissDialog();
           }
         }}
         className="fixed left-1/2 top-1/2 z-50 flex max-h-[min(92vh,46rem)] w-[min(calc(100vw-2rem),40rem)] max-w-[40rem] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-slate-200/20 bg-slate-950 p-0 text-slate-50 shadow-2xl [&::backdrop]:bg-black/70"
@@ -362,7 +363,7 @@ export function InteractiveAstroCalendarPanel({
                 </div>
                 <button
                   type="button"
-                  onClick={closeDetail}
+                  onClick={dismissDialog}
                   className="shrink-0 rounded-full border border-white/10 p-1.5 text-slate-300 hover:bg-white/5"
                   aria-label="Close event detail"
                 >
