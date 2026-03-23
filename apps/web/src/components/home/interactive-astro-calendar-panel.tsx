@@ -158,10 +158,6 @@ function MissionWatchEventDetailDialog({
     if (!d.open) {
       d.showModal();
     }
-
-    return () => {
-      d.close();
-    };
   }, [event.id]);
 
   function dismissDialog() {
