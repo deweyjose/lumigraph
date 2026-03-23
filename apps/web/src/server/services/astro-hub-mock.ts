@@ -18,7 +18,6 @@ const sourceMetadata: Record<
   hero: { source: "Mock Hero Blend", status: "live" },
   iss: { source: "Mock ISS Telemetry", status: "degraded" },
   calendar: { source: "Mock Celestial Windows", status: "fallback" },
-  explore: { source: "Mock Explore Layer", status: "live" },
 };
 
 export function isAstroHubSourceKey(value: string): value is AstroHubSourceKey {

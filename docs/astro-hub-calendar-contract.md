@@ -39,3 +39,7 @@ This document describes the internal contract for the **Mission Watch / time lay
 ## API route
 
 `GET /api/astro-sources/calendar` returns the same envelope JSON for debugging and integrations.
+
+## Hub layout
+
+Astro Hub previously included a separate horizontal “Explore” strip backed by a subset of NASA RSS. That layer was removed to avoid duplicating **Mission Watch**, which remains the single merged NASA RSS surface on the hub (Artemis + Station + main feed). If volume grows, prefer filtering, sorting, or a dedicated content pipeline rather than reintroducing a parallel UI for the same feeds.

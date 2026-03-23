@@ -161,7 +161,7 @@ describe("streamOpenAIResponsesChat", () => {
         ]),
       })
     );
-    expect(create.mock.calls[0][0].tools).toHaveLength(7);
+    expect(create.mock.calls[0][0].tools).toHaveLength(6);
 
     expect(events).toEqual([
       { type: "text_delta", text: "Hi" },

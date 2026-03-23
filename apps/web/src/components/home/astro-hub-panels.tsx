@@ -10,7 +10,6 @@ import {
 import type {
   AstroHubActionLink,
   AstroHubCalendarEvent,
-  AstroHubExploreModule,
   AstroHubHeroData,
   AstroHubIssData,
   MissionState,
@@ -58,15 +57,6 @@ function isDirectVideoUrl(value: string) {
   try {
     const pathname = new URL(value).pathname.toLowerCase();
     return /\.(mp4|webm|ogg|mov|m4v)$/.test(pathname);
-  } catch {
-    return false;
-  }
-}
-
-function isDirectImageUrl(value: string) {
-  try {
-    const pathname = new URL(value).pathname.toLowerCase();
-    return /\.(jpg|jpeg|png|gif|webp|avif)(?:$|\?)/.test(pathname);
   } catch {
     return false;
   }
@@ -396,104 +386,5 @@ export function CalendarPanelCard({
       sourceLabel={sourceLabel}
       sourceStatus={sourceStatus}
     />
-  );
-}
-
-export function ExploreLayerSkeleton() {
-  return (
-    <div className="grid snap-x snap-mandatory grid-flow-col auto-cols-[18rem] gap-4 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          className="h-44 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45"
-        />
-      ))}
-    </div>
-  );
-}
-
-export function ExploreLayer({
-  modules,
-}: {
-  modules: AstroHubExploreModule[];
-}) {
-  return (
-    <ul className="grid snap-x snap-mandatory grid-flow-col auto-cols-[18rem] gap-4 overflow-x-auto py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {modules.map((module, index) => {
-        const imageUrl = module.imageUrl ?? undefined;
-        const visibleActions = module.actions?.slice(0, 2) ?? [];
-        const thumbnailAction = imageUrl
-          ? visibleActions.find(
-              (action) => action.href === imageUrl || action.kind === "media"
-            )
-          : undefined;
-        const chipActions = visibleActions.filter(
-          (action) => action.href !== thumbnailAction?.href
-        );
-        const thumbnailHref = thumbnailAction?.href ?? module.url ?? imageUrl;
-        const primaryActionHref =
-          chipActions.find((action) => action.kind === "article")?.href ??
-          chipActions[0]?.href ??
-          module.url ??
-          thumbnailHref;
-        const showThumbnail = Boolean(imageUrl && isDirectImageUrl(imageUrl));
-
-        return (
-          <li
-            key={[
-              module.url,
-              module.actions?.[0]?.href,
-              module.title,
-              module.sourceLabel,
-              index,
-            ]
-              .filter(Boolean)
-              .join("::")}
-            className={`group relative flex h-full snap-start flex-col rounded-2xl border border-slate-200/15 bg-slate-950/55 p-4 transition-transform duration-300 hover:-translate-y-1 hover:border-cyan-200/30 ${
-              primaryActionHref ? "cursor-pointer" : ""
-            }`}
-          >
-            {primaryActionHref ? (
-              <a
-                href={primaryActionHref}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="absolute inset-0 z-0 rounded-2xl"
-                aria-label={`Open article: ${module.title}`}
-              />
-            ) : null}
-            <h3 className="relative z-10 text-sm font-semibold text-slate-100">
-              {module.title}
-            </h3>
-            {module.sourceLabel ? (
-              <p className="relative z-10 mt-1 text-xs text-cyan-200">
-                {module.sourceLabel}
-              </p>
-            ) : null}
-            <p className="relative z-10 mt-2 text-sm text-slate-300">
-              {module.summary}
-            </p>
-            <div className="relative z-10 mt-auto">
-              <p className="mt-3 text-xs text-emerald-200">{module.status}</p>
-              {showThumbnail && imageUrl ? (
-                <a
-                  href={thumbnailHref}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="group/thumb mt-4 block overflow-hidden rounded-lg border border-white/10 bg-slate-900/70"
-                >
-                  <img
-                    src={imageUrl}
-                    alt=""
-                    className="aspect-[16/9] w-full object-cover transition-transform duration-300 group-hover/thumb:scale-[1.02]"
-                  />
-                </a>
-              ) : null}
-              <ActionLinks actions={chipActions} />
-            </div>
-          </li>
-        );
-      })}
-    </ul>
   );
 }

@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { toJsonSafe } from "../json";
 import { getAstroHubCalendarSource } from "../services/astro-sources/calendar";
-import { getAstroHubExploreSource } from "../services/astro-sources/explore";
 import { getAstroHubHeroSource } from "../services/astro-sources/hero";
 import { getAstroHubIssSource } from "../services/astro-sources/iss";
 import { getAstroHubMetaSource } from "../services/astro-sources/meta";
@@ -67,20 +66,10 @@ export const astroHubChatTools = [
   defineTool({
     name: "astro_hub_telemetry",
     description:
-      "Fetch the aggregated telemetry strip sources (freshness and trust signals) for hero, ISS, calendar, and explore modules.",
+      "Fetch the aggregated telemetry strip sources (freshness and trust signals) for hero, ISS, and Mission Watch (calendar) modules.",
     inputSchema: emptyInput,
     async execute() {
       const data = await getAstroHubTelemetrySource();
-      return { ok: true as const, data: toJsonSafe(data) };
-    },
-  }),
-  defineTool({
-    name: "astro_hub_explore",
-    description:
-      "Fetch explore-layer cards (RSS-backed highlights) as shown on the Astro Hub.",
-    inputSchema: emptyInput,
-    async execute() {
-      const data = await getAstroHubExploreSource();
       return { ok: true as const, data: toJsonSafe(data) };
     },
   }),

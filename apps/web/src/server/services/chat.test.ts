@@ -57,7 +57,7 @@ describe("streamAstroHubChat", () => {
       })
     );
     expect(streamOpenAIResponsesChatMock.mock.calls[0][0].tools).toHaveLength(
-      7
+      6
     );
   });
 });

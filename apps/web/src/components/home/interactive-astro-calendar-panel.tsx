@@ -412,7 +412,7 @@ export function InteractiveAstroCalendarPanel({
         </div>
       ) : null}
 
-      <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+      <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto py-2 pr-1">
         {filtered.length === 0 ? (
           <li className="rounded-xl border border-white/10 bg-slate-900/40 px-3 py-6 text-center text-sm text-slate-400">
             No events for this day.
@@ -423,7 +423,7 @@ export function InteractiveAstroCalendarPanel({
               <button
                 type="button"
                 onClick={() => setActive(event)}
-                className="flex w-full items-start gap-3 rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 text-left transition-colors hover:border-violet-300/35 hover:bg-slate-900/90"
+                className="flex w-full items-start gap-3 rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-slate-900/90"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">

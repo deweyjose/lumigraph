@@ -3,7 +3,6 @@ import {
   randomizeAstroHubMockDelay,
 } from "../astro-hub-mock";
 import { getAstroHubCalendarSource } from "./calendar";
-import { getAstroHubExploreSource } from "./explore";
 import { getAstroHubHeroSource } from "./hero";
 import { getAstroHubIssSource } from "./iss";
 
@@ -37,11 +36,10 @@ function trustFromStatus(status: "live" | "degraded" | "fallback") {
 export async function getAstroHubTelemetrySource() {
   await randomizeAstroHubMockDelay();
 
-  const [hero, iss, calendar, explore] = await Promise.all([
+  const [hero, iss, calendar] = await Promise.all([
     getAstroHubHeroSource(),
     getAstroHubIssSource(),
     getAstroHubCalendarSource(),
-    getAstroHubExploreSource(),
   ]);
 
   return buildAstroHubSourceEnvelope(
@@ -72,23 +70,14 @@ export async function getAstroHubTelemetrySource() {
           freshness: freshnessFromGeneratedAt(calendar.generatedAt),
           trust: trustFromStatus(calendar.status),
           ...(calendar.status !== "live"
-            ? { fallback: "Calendar is showing cached mock windows" }
+            ? { fallback: "Mission Watch is showing cached mock windows" }
             : {}),
-        },
-        {
-          id: "explore",
-          source: explore.source,
-          status: explore.status,
-          freshness: freshnessFromGeneratedAt(explore.generatedAt),
-          trust: trustFromStatus(explore.status),
         },
       ],
     },
     {
       source: "Astro Hub source health",
-      status: [hero, iss, calendar, explore].some(
-        (source) => source.status !== "live"
-      )
+      status: [hero, iss, calendar].some((source) => source.status !== "live")
         ? "degraded"
         : "live",
     }

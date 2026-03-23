@@ -78,23 +78,12 @@ export type AstroHubCalendarEvent = {
   relatedHint?: string;
 };
 
-export type AstroHubExploreModule = {
-  title: string;
-  summary: string;
-  status: string;
-  sourceLabel?: string;
-  url?: string;
-  imageUrl?: string | null;
-  actions?: AstroHubActionLink[];
-};
-
 export type AstroHubSourceMap = {
   meta: AstroHubMetaData;
   telemetry: { items: MissionTelemetrySource[] };
   hero: AstroHubHeroData;
   iss: AstroHubIssData;
   calendar: { items: AstroHubCalendarEvent[] };
-  explore: { items: AstroHubExploreModule[] };
 };
 
 export type AstroHubSourceKey = keyof AstroHubSourceMap;
@@ -113,7 +102,6 @@ export const astroHubSourceKeys: AstroHubSourceKey[] = [
   "hero",
   "iss",
   "calendar",
-  "explore",
 ];
 
 export const astroHubMockSourceData: AstroHubSourceMap = {
@@ -196,7 +184,8 @@ export const astroHubMockSourceData: AstroHubSourceMap = {
         visibility: "High contrast with IR filter",
         summary: "Great Red Spot transit window with steady seeing.",
         body: "Great Red Spot transit window with steady seeing predicted. IR pass will help separate belt structure if RGB is mushy.",
-        relatedHint: "Open the Explore layer for target queue context.",
+        relatedHint:
+          "Check Mission Watch for the latest NASA headlines in the hub feed.",
       },
       {
         id: "mock:aurora",
@@ -209,28 +198,6 @@ export const astroHubMockSourceData: AstroHubSourceMap = {
         body: "Elevated solar wind stream on approach. Aurora probability bump for high latitudes; mid-latitudes should watch Kp in real time.",
         relatedHint:
           "Cross-check with telemetry strip freshness before driving out.",
-      },
-    ],
-  },
-  explore: {
-    items: [
-      {
-        title: "Transient targets queue",
-        summary:
-          "Mock list of photogenic targets ranked by visibility, atmosphere, and moon-phase impact.",
-        status: "3 high-priority captures available",
-      },
-      {
-        title: "Instrument thermal profile",
-        summary:
-          "Prototype module for tracking thermal drift and calibration advisories before long exposure runs.",
-        status: "Cooling trend stable / 0.4C variance",
-      },
-      {
-        title: "Mission notes digest",
-        summary:
-          "Summarized operation notes from previous sessions to validate narrative continuity in the redesign.",
-        status: "6 notes synthesized in mock stream",
       },
     ],
   },
