@@ -13,7 +13,7 @@
 - Services: business logic, ownership/visibility rules
 - Repositories/DB access: Prisma operations
 - AI boundary: provider integrations and prompt/schema helpers should stay behind server-side adapters under `apps/web/src/server/ai`, not inside route handlers
-- Astro Hub chat (`POST /api/chat`): streams **NDJSON** (`application/x-ndjson`) with typed events (`text_delta`, `citations`, `error`, `done`) defined in `apps/web/src/server/chat-stream.ts`. The model call uses the OpenAI **Responses** API in `apps/web/src/server/ai/responses-chat.ts` (not Chat Completions). **Astro Hub source tools** (`astro_hub_*` in `apps/web/src/server/tools/astro-hub-chat.ts`) wrap the same `getAstroHub*` services as the hub UI so the assistant can ground answers in live module data (#165). **Native web search** (`web_search` tool) is enabled alongside those tools; when used, the server emits a `citations` line with source URLs before `done` (#166).
+- App chat (`POST /api/chat`): request body includes `messages`, optional **`surface`** (defaults to `astro_hub`; values are declared in `apps/web/src/lib/chat-surface.ts` and validated in `apps/web/src/server/chat/schemas.ts`), and optional **`context`** (page-scoped key/value for future profiles). `streamChatDispatch` in `apps/web/src/server/chat/dispatch.ts` routes each surface to a **profile** under `apps/web/src/server/chat/surfaces/` (tools + instructions + executor). The UI uses `FloatingChatPanel` (`apps/web/src/components/chat/floating-chat-panel.tsx`) with matching `surface` / `context` props. Streams **NDJSON** (`application/x-ndjson`) with events (`text_delta`, `citations`, `error`, `done`) from `apps/web/src/server/chat-stream.ts`. The OpenAI **Responses** API is invoked via `apps/web/src/server/ai/responses-chat.ts` (generic tools + `executeFunctionTool`) per profile. The **astro_hub** profile uses `astro_hub_*` tools (#165) and **web_search** (#166) with `citations` before `done`.
 - Tool boundary: typed agent-facing actions should live under `apps/web/src/server/tools` and delegate to services rather than duplicating business rules
 
 ## Core domain entities
@@ -73,7 +73,7 @@
   - `POST /api/internal/export-jobs/:jobId/callback`
   - `POST /api/internal/auto-thumb-jobs/:jobId/callback`
 - Chat (authenticated):
-  - `POST /api/chat` — NDJSON stream of assistant events for the Astro Hub widget
+  - `POST /api/chat` — NDJSON stream; `surface` selects the chat profile (see layering above)
 
 ## Path conventions
 

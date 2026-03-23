@@ -1,9 +1,27 @@
 import type OpenAI from "openai";
+import type { ResponseIncludable } from "openai/resources/responses/responses";
 import { describe, expect, it, vi } from "vitest";
+import {
+  executeAstroHubChatToolByName,
+  openAIAstroHubChatTools,
+} from "../tools/astro-hub-chat";
 import {
   extractCitationsFromResponse,
   streamOpenAIResponsesChat,
 } from "./responses-chat";
+
+const TEST_TOOLS: OpenAI.Responses.ResponseCreateParamsStreaming["tools"] = [
+  ...openAIAstroHubChatTools(),
+  { type: "web_search" },
+];
+
+const TEST_INCLUDE: ResponseIncludable[] = ["web_search_call.action.sources"];
+
+const TEST_STREAM_OPTIONS = {
+  tools: TEST_TOOLS,
+  include: TEST_INCLUDE,
+  executeFunctionTool: executeAstroHubChatToolByName,
+};
 
 async function collectEvents(
   gen: AsyncGenerator<import("../chat-stream").ChatStreamEvent>
@@ -73,6 +91,7 @@ describe("streamOpenAIResponsesChat", () => {
         ],
         toolContext,
         client,
+        ...TEST_STREAM_OPTIONS,
       })
     );
 
@@ -125,6 +144,7 @@ describe("streamOpenAIResponsesChat", () => {
         messages: [{ role: "user", content: "u" }],
         toolContext,
         client: { responses: { create } } as unknown as OpenAI,
+        ...TEST_STREAM_OPTIONS,
       })
     );
 
@@ -198,6 +218,7 @@ describe("streamOpenAIResponsesChat", () => {
         messages: [{ role: "user", content: "u" }],
         toolContext,
         client: { responses: { create } } as unknown as OpenAI,
+        ...TEST_STREAM_OPTIONS,
       })
     );
 
