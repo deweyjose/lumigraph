@@ -20,6 +20,13 @@ import type {
   ChatStreamError,
   ChatStreamEvent,
 } from "../chat-stream";
+import {
+  chatDebug,
+  chatError,
+  chatInfo,
+  chatWarn,
+  isChatDebugEnabled,
+} from "../chat-log";
 import type { ToolContext } from "../tools/core";
 import {
   executeAstroHubChatToolByName,
@@ -27,6 +34,17 @@ import {
 } from "../tools/astro-hub-chat";
 
 const MAX_TOOL_ROUNDS = 5;
+
+/** Count native web search invocations in a completed response (no query/URL logging). */
+export function countWebSearchCalls(response: Response): number {
+  let n = 0;
+  for (const item of response.output) {
+    if (item.type === "web_search_call") {
+      n += 1;
+    }
+  }
+  return n;
+}
 
 function mapMessagesToInput(
   messages: AiChatMessage[]
@@ -112,15 +130,45 @@ export function extractCitationsFromResponse(
 
 async function buildFunctionCallOutputItems(
   calls: ResponseFunctionToolCallItem[],
-  toolContext: ToolContext
+  toolContext: ToolContext,
+  toolsUsed: Set<string>
 ): Promise<ResponseInputItem[]> {
+  const chatRunId = toolContext.chatRunId;
   return Promise.all(
     calls.map(async (call) => {
+      const tool = call.name;
+      toolsUsed.add(tool);
+      const t0 = performance.now();
       const result = await executeAstroHubChatToolByName(
-        call.name,
+        tool,
         toolContext,
         call.arguments
       );
+      const durationMs = Math.round(performance.now() - t0);
+
+      if (chatRunId) {
+        if (result.ok) {
+          if (isChatDebugEnabled()) {
+            chatDebug({
+              event: "tool",
+              chatRunId,
+              tool,
+              ok: true,
+              durationMs,
+            });
+          }
+        } else {
+          chatWarn({
+            event: "tool",
+            chatRunId,
+            tool,
+            ok: false,
+            code: result.code,
+            durationMs,
+          });
+        }
+      }
+
       const output = result.ok
         ? JSON.stringify(result.data)
         : JSON.stringify({
@@ -222,6 +270,8 @@ export async function* streamOpenAIResponsesChat({
     mapMessagesToInput(messages);
   let previousResponseId: string | undefined;
   const citationAcc = new Map<string, ChatCitation>();
+  const toolsUsed = new Set<string>();
+  const chatRunId = toolContext.chatRunId;
 
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -250,6 +300,14 @@ export async function* streamOpenAIResponsesChat({
         if (chunk.kind === "client_event") {
           yield chunk.event;
           if (chunk.event.type === "error") {
+            if (chatRunId) {
+              chatWarn({
+                event: "responses_stream_error",
+                chatRunId,
+                round,
+                message: chunk.event.message,
+              });
+            }
             return;
           }
         } else {
@@ -258,6 +316,14 @@ export async function* streamOpenAIResponsesChat({
       }
 
       if (!completedResponse) {
+        if (chatRunId) {
+          chatWarn({
+            event: "responses_incomplete",
+            chatRunId,
+            round,
+            message: "No completed response after stream",
+          });
+        }
         yield {
           type: "error",
           message: "Chat response ended without completion. Please try again.",
@@ -265,11 +331,26 @@ export async function* streamOpenAIResponsesChat({
         return;
       }
 
+      const calls = extractFunctionCalls(completedResponse);
+      const webSearchCallCount = countWebSearchCalls(completedResponse);
+
+      if (chatRunId) {
+        chatInfo({
+          event: "responses_round",
+          chatRunId,
+          round,
+          responseId: completedResponse.id,
+          previousResponseId: previousResponseId ?? null,
+          functionCallCount: calls.length,
+          functionToolNames: calls.map((c) => c.name),
+          webSearchCallCount,
+        });
+      }
+
       previousResponseId = completedResponse.id;
       for (const c of extractCitationsFromResponse(completedResponse)) {
         mergeCitationUrl(citationAcc, c.url, c.title);
       }
-      const calls = extractFunctionCalls(completedResponse);
 
       if (calls.length === 0) {
         if (citationAcc.size > 0) {
@@ -278,13 +359,33 @@ export async function* streamOpenAIResponsesChat({
             citations: [...citationAcc.values()],
           };
         }
+        if (chatRunId) {
+          chatInfo({
+            event: "chat_run_complete",
+            chatRunId,
+            totalRounds: round + 1,
+            toolsUsed: [...toolsUsed],
+            citationCount: citationAcc.size,
+          });
+        }
         yield { type: "done" };
         return;
       }
 
-      nextInput = await buildFunctionCallOutputItems(calls, toolContext);
+      nextInput = await buildFunctionCallOutputItems(
+        calls,
+        toolContext,
+        toolsUsed
+      );
     }
 
+    if (chatRunId) {
+      chatWarn({
+        event: "tool_round_limit",
+        chatRunId,
+        maxRounds: MAX_TOOL_ROUNDS,
+      });
+    }
     yield {
       type: "error",
       message:
@@ -295,6 +396,14 @@ export async function* streamOpenAIResponsesChat({
       err instanceof Error
         ? err.message
         : "Chat temporarily unavailable. Please try again.";
+    if (chatRunId) {
+      chatError({
+        event: "responses_chat_throw",
+        chatRunId,
+        message,
+      });
+      chatDebug({ event: "responses_chat_throw_detail", chatRunId }, err);
+    }
     yield { type: "error", message };
   }
 }

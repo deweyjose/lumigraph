@@ -54,6 +54,7 @@ describe("POST /api/chat", () => {
   });
 
   it("streams NDJSON events for valid requests", async () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
     authMock.mockResolvedValue({ user: { id: "u1" } });
     streamAstroHubChatMock.mockReturnValue(
       (async function* () {
@@ -85,7 +86,12 @@ describe("POST /api/chat", () => {
 
     expect(streamAstroHubChatMock).toHaveBeenCalledWith(
       [{ role: "user", content: "Say hi" }],
-      { userId: "u1" }
+      expect.objectContaining({
+        userId: "u1",
+        chatRunId: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+        ),
+      })
     );
   });
 });

@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
+import { chatDebug, chatError, chatInfo, chatWarn } from "@/server/chat-log";
 import { encodeChatStreamLine } from "@/server/chat-stream";
 import { streamAstroHubChat } from "@/server/services/chat";
 
@@ -40,9 +42,18 @@ export async function POST(request: Request) {
     );
   }
 
+  const chatRunId = randomUUID();
+
   try {
+    chatInfo({
+      event: "chat_run_start",
+      chatRunId,
+      userId: session.user.id,
+    });
+
     const stream = streamAstroHubChat(body.messages, {
       userId: session.user.id,
+      chatRunId,
     });
 
     return new Response(
@@ -61,6 +72,15 @@ export async function POST(request: Request) {
               err instanceof Error
                 ? err.message
                 : "Chat temporarily unavailable. Please try again.";
+            chatWarn({
+              event: "chat_stream_enumerate_error",
+              chatRunId,
+              message: msg,
+            });
+            chatDebug(
+              { event: "chat_stream_enumerate_error_detail", chatRunId },
+              err
+            );
             controller.enqueue(
               encoder.encode(
                 encodeChatStreamLine({ type: "error", message: msg })
@@ -81,6 +101,12 @@ export async function POST(request: Request) {
     );
   } catch (e) {
     const message = e instanceof Error ? e.message : "Chat service unavailable";
+    chatError({
+      event: "chat_route_error",
+      chatRunId,
+      message,
+    });
+    chatDebug({ event: "chat_route_error_detail", chatRunId }, e);
     return NextResponse.json({ code: "CHAT_ERROR", message }, { status: 503 });
   }
 }
