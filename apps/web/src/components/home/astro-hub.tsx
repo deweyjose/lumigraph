@@ -3,14 +3,16 @@ import { getAstroHubCalendarSource } from "@/server/services/astro-sources/calen
 import { getAstroHubHeroSource } from "@/server/services/astro-sources/hero";
 import { getAstroHubIssSource } from "@/server/services/astro-sources/iss";
 import {
-  CalendarPanelCard,
   CalendarPanelSkeleton,
   HeroSurfaceCard,
   HeroSurfaceSkeleton,
   IssTrackerPanelSkeleton,
   ModuleError,
 } from "./astro-hub-panels";
-import { IssTrackerPanel } from "./iss-tracker-panel";
+import {
+  DeferredCalendarPanel,
+  DeferredIssTrackerPanel,
+} from "./astro-hub-client-panels";
 import { ChatWidget } from "./chat-widget";
 
 async function HeroSurfaceSection() {
@@ -27,7 +29,7 @@ async function HeroSurfaceSection() {
 async function IssTrackerSection() {
   try {
     const iss = await getAstroHubIssSource();
-    return <IssTrackerPanel initial={iss} />;
+    return <DeferredIssTrackerPanel initial={iss} />;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "ISS telemetry unavailable";
@@ -39,7 +41,7 @@ async function CalendarSection() {
   try {
     const calendar = await getAstroHubCalendarSource();
     return (
-      <CalendarPanelCard
+      <DeferredCalendarPanel
         events={calendar.data.items}
         sourceLabel={calendar.source}
         sourceStatus={calendar.status}
@@ -59,12 +61,15 @@ export function AstroHub() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_45%),radial-gradient(circle_at_78%_20%,rgba(34,197,94,0.1),transparent_30%),linear-gradient(180deg,rgba(8,16,30,0.92),rgba(7,13,25,1))]" />
         <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(148,163,184,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.14)_1px,transparent_1px)] [background-size:40px_40px]" />
         <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <header className="space-y-4">
+          <header className="space-y-4" aria-labelledby="astro-hub-page-title">
             <p className="text-xs tracking-[0.22em] text-cyan-200/85 uppercase">
               Astro Hub Mission Control
             </p>
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              <h1
+                id="astro-hub-page-title"
+                className="text-3xl font-semibold tracking-tight text-white sm:text-4xl"
+              >
                 Live Orbit Desk
               </h1>
               <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
@@ -75,19 +80,28 @@ export function AstroHub() {
             </div>
           </header>
 
-          <section className="grid gap-6 xl:grid-cols-[1.8fr_1fr]">
-            <Suspense fallback={<HeroSurfaceSkeleton />}>
-              <HeroSurfaceSection />
-            </Suspense>
+          <section
+            className="grid gap-6 xl:grid-cols-[1.8fr_1fr]"
+            aria-label="Astro Hub live modules"
+          >
+            <section aria-label="Today in Space module">
+              <Suspense fallback={<HeroSurfaceSkeleton />}>
+                <HeroSurfaceSection />
+              </Suspense>
+            </section>
 
-            <div className="space-y-6">
-              <Suspense fallback={<IssTrackerPanelSkeleton />}>
-                <IssTrackerSection />
-              </Suspense>
-              <Suspense fallback={<CalendarPanelSkeleton />}>
-                <CalendarSection />
-              </Suspense>
-            </div>
+            <aside className="space-y-6" aria-label="Telemetry modules">
+              <section aria-label="ISS telemetry module">
+                <Suspense fallback={<IssTrackerPanelSkeleton />}>
+                  <IssTrackerSection />
+                </Suspense>
+              </section>
+              <section aria-label="Mission Watch module">
+                <Suspense fallback={<CalendarPanelSkeleton />}>
+                  <CalendarSection />
+                </Suspense>
+              </section>
+            </aside>
           </section>
         </div>
       </div>

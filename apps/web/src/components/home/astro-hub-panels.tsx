@@ -166,7 +166,8 @@ export function HeroSurfaceCard({
               <img
                 src={hero.imageUrl}
                 alt={hero.title}
-                className="aspect-[4/3] h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                decoding="async"
+                className="aspect-[4/3] h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.02]"
               />
             </a>
           ) : null}

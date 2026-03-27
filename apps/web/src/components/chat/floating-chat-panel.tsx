@@ -288,7 +288,13 @@ export function FloatingChatPanel({
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-40">
+      <div
+        className="fixed z-40"
+        style={{
+          bottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))",
+          right: "max(1.5rem, calc(env(safe-area-inset-right) + 0.75rem))",
+        }}
+      >
         {!isOpen ? (
           <Button
             size="icon"
