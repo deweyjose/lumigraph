@@ -83,6 +83,7 @@ export function useIssTelemetry(
 
   useEffect(() => {
     let cancelled = false;
+    let intervalId: number | null = null;
 
     async function poll() {
       setIsRefreshing(true);
@@ -122,13 +123,44 @@ export function useIssTelemetry(
       }
     }
 
-    const intervalId = window.setInterval(() => {
+    const startPolling = () => {
+      if (intervalId !== null) {
+        return;
+      }
+      intervalId = window.setInterval(() => {
+        void poll();
+      }, POLL_INTERVAL_MS);
+    };
+
+    const stopPolling = () => {
+      if (intervalId === null) {
+        return;
+      }
+      window.clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        stopPolling();
+        return;
+      }
+
+      // Refresh immediately when the tab becomes active again.
       void poll();
-    }, POLL_INTERVAL_MS);
+      startPolling();
+    };
+
+    if (document.visibilityState === "visible") {
+      startPolling();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

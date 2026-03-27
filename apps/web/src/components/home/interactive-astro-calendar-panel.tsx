@@ -294,6 +294,7 @@ export function InteractiveAstroCalendarPanel({
 }) {
   const [dayFilter, setDayFilter] = useState<string>("all");
   const [active, setActive] = useState<AstroHubCalendarEvent | null>(null);
+  const activeTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const { dayKeys, hasUndated } = useMemo(() => {
     const keys = new Set<string>();
@@ -355,7 +356,7 @@ export function InteractiveAstroCalendarPanel({
             role="tab"
             aria-selected={dayFilter === "all"}
             onClick={() => setDayFilter("all")}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/60 ${
               dayFilter === "all"
                 ? "border-violet-300/50 bg-violet-500/15 text-violet-50"
                 : "border-white/10 bg-slate-900/50 text-slate-300 hover:border-white/20"
@@ -370,7 +371,7 @@ export function InteractiveAstroCalendarPanel({
               role="tab"
               aria-selected={dayFilter === key}
               onClick={() => setDayFilter(key)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/60 ${
                 dayFilter === key
                   ? "border-violet-300/50 bg-violet-500/15 text-violet-50"
                   : "border-white/10 bg-slate-900/50 text-slate-300 hover:border-white/20"
@@ -385,7 +386,7 @@ export function InteractiveAstroCalendarPanel({
               role="tab"
               aria-selected={dayFilter === "undated"}
               onClick={() => setDayFilter("undated")}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/60 ${
                 dayFilter === "undated"
                   ? "border-violet-300/50 bg-violet-500/15 text-violet-50"
                   : "border-white/10 bg-slate-900/50 text-slate-300 hover:border-white/20"
@@ -400,15 +401,20 @@ export function InteractiveAstroCalendarPanel({
       <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto py-2 pr-1">
         {filtered.length === 0 ? (
           <li className="rounded-xl border border-white/10 bg-slate-900/40 px-3 py-6 text-center text-sm text-slate-400">
-            No events for this day.
+            {events.length > 0
+              ? "No events match this day filter yet. Try All days to see the latest mission items."
+              : "No mission events are available right now. Source feeds may be delayed."}
           </li>
         ) : (
           filtered.map((event) => (
             <li key={event.id}>
               <button
                 type="button"
-                onClick={() => setActive(event)}
-                className="flex w-full items-start gap-3 rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-slate-900/90"
+                onClick={(e) => {
+                  activeTriggerRef.current = e.currentTarget;
+                  setActive(event);
+                }}
+                className="flex min-h-11 w-full items-start gap-3 rounded-xl border border-white/10 bg-slate-900/60 px-3 py-3 text-left transition-all duration-300 hover:-translate-y-1 hover:border-cyan-200/30 hover:bg-slate-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/60"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -461,7 +467,12 @@ export function InteractiveAstroCalendarPanel({
         <MissionWatchEventDetailDialog
           key={active.id}
           event={active}
-          onClosed={() => setActive(null)}
+          onClosed={() => {
+            setActive(null);
+            window.requestAnimationFrame(() => {
+              activeTriggerRef.current?.focus();
+            });
+          }}
         />
       ) : null}
     </article>
