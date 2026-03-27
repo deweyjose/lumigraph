@@ -1,10 +1,9 @@
 import { Suspense } from "react";
-import { Clock3, Radio, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { getAstroHubCalendarSource } from "@/server/services/astro-sources/calendar";
 import { getAstroHubHeroSource } from "@/server/services/astro-sources/hero";
 import { getAstroHubIssSource } from "@/server/services/astro-sources/iss";
 import { getAstroHubMetaSource } from "@/server/services/astro-sources/meta";
-import { getAstroHubTelemetrySource } from "@/server/services/astro-sources/telemetry";
 import {
   CalendarPanelCard,
   CalendarPanelSkeleton,
@@ -13,41 +12,20 @@ import {
   IssTrackerPanel,
   IssTrackerPanelSkeleton,
   ModuleError,
-  TelemetryStrip,
-  TelemetryStripSkeleton,
 } from "./astro-hub-panels";
 import { ChatWidget } from "./chat-widget";
 
-async function MissionDayBadge() {
+async function MissionDayCalloutLine() {
   try {
     const meta = await getAstroHubMetaSource();
     return (
-      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/20 bg-slate-800/50 px-3 py-1 text-xs text-slate-200">
-        <ShieldCheck className="h-3.5 w-3.5" />
-        {meta.data.missionDay}
-      </div>
+      <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
+        <ShieldCheck className="h-3 w-3 shrink-0 text-slate-500" />
+        <span>{meta.data.missionDay}</span>
+      </p>
     );
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Mission stream unavailable";
-    return <ModuleError title="Mission badge unavailable" message={message} />;
-  }
-}
-
-function MissionDayBadgeSkeleton() {
-  return (
-    <div className="h-8 w-28 animate-pulse rounded-full border border-slate-200/10 bg-slate-950/45" />
-  );
-}
-
-async function TelemetryStripSection() {
-  try {
-    const telemetry = await getAstroHubTelemetrySource();
-    return <TelemetryStrip telemetry={telemetry.data.items} />;
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Telemetry stream unavailable";
-    return <ModuleError title="Telemetry unavailable" message={message} />;
+  } catch {
+    return null;
   }
 }
 
@@ -123,29 +101,12 @@ export function AstroHub() {
                 <p className="mt-1 font-medium text-cyan-100">
                   Live feeds + suspense
                 </p>
+                <Suspense fallback={null}>
+                  <MissionDayCalloutLine />
+                </Suspense>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200/25 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-100">
-                <Radio className="h-3.5 w-3.5 motion-safe:animate-pulse" />
-                Live Layer
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-violet-200/20 bg-violet-500/10 px-3 py-1 text-xs text-violet-100">
-                <Clock3 className="h-3.5 w-3.5" />
-                Time Layer
-              </div>
-              <Suspense fallback={<MissionDayBadgeSkeleton />}>
-                <MissionDayBadge />
-              </Suspense>
             </div>
           </header>
-
-          <section aria-label="Live telemetry strip">
-            <h2 className="sr-only">Source status</h2>
-            <Suspense fallback={<TelemetryStripSkeleton />}>
-              <TelemetryStripSection />
-            </Suspense>
-          </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.8fr_1fr]">
             <Suspense fallback={<HeroSurfaceSkeleton />}>

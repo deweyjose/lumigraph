@@ -36,7 +36,7 @@ export const astroHubChatTools = [
   defineTool({
     name: "astro_hub_meta",
     description:
-      "Fetch Astro Hub mission meta (e.g. mission day badge) as shown on the hub.",
+      "Fetch Astro Hub mission meta (e.g. mission day line in the hub header callout).",
     inputSchema: emptyInput,
     async execute() {
       const data = await getAstroHubMetaSource();
@@ -66,7 +66,7 @@ export const astroHubChatTools = [
   defineTool({
     name: "astro_hub_telemetry",
     description:
-      "Fetch the aggregated telemetry strip sources (freshness and trust signals) for hero, ISS, and Mission Watch (calendar) modules.",
+      "Fetch aggregated Astro Hub source health (freshness and trust signals) for hero, ISS, and Mission Watch (calendar) modules.",
     inputSchema: emptyInput,
     async execute() {
       const data = await getAstroHubTelemetrySource();

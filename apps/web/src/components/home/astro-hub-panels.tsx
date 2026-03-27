@@ -1,19 +1,10 @@
-import {
-  AlertTriangle,
-  ArrowUpRight,
-  CheckCircle2,
-  Circle,
-  Download,
-  Orbit,
-  Play,
-} from "lucide-react";
+import { ArrowUpRight, Circle, Download, Orbit, Play } from "lucide-react";
 import type {
   AstroHubActionLink,
   AstroHubCalendarEvent,
   AstroHubHeroData,
   AstroHubIssData,
   MissionState,
-  MissionTelemetrySource,
 } from "@/lib/astro-hub";
 import { InteractiveAstroCalendarPanel } from "./interactive-astro-calendar-panel";
 
@@ -109,64 +100,6 @@ export function ModuleError({
       <p className="font-medium">{title}</p>
       <p className="mt-1 text-red-200/80">{message}</p>
     </div>
-  );
-}
-
-export function TelemetryStripSkeleton() {
-  return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          className="h-32 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45"
-        />
-      ))}
-    </div>
-  );
-}
-
-export function TelemetryStrip({
-  telemetry,
-}: {
-  telemetry: MissionTelemetrySource[];
-}) {
-  return (
-    <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-      {telemetry.map((source) => (
-        <li
-          key={source.id}
-          className="rounded-2xl border border-slate-200/15 bg-slate-950/60 p-4 backdrop-blur"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs tracking-[0.15em] text-slate-500 uppercase">
-                {source.source}
-              </p>
-              <p className="mt-1 text-sm text-slate-300">{source.freshness}</p>
-            </div>
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize ${statusStyles(source.status)}`}
-            >
-              <Circle className="h-2 w-2 fill-current" />
-              {source.status}
-            </span>
-          </div>
-          <div className="mt-3 flex items-start gap-2 text-xs text-slate-300">
-            {source.status === "live" ? (
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 flex-none text-emerald-300" />
-            ) : (
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none text-amber-300" />
-            )}
-            <div>
-              <p>{source.trust}</p>
-              {source.fallback ? (
-                <p className="mt-1 text-slate-400">{source.fallback}</p>
-              ) : null}
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }
 
