@@ -1,30 +1,12 @@
-import { ArrowUpRight, Circle, Download, Orbit, Play } from "lucide-react";
+import { ArrowUpRight, Download, Play } from "lucide-react";
 import type {
   AstroHubActionLink,
   AstroHubCalendarEvent,
   AstroHubHeroData,
-  AstroHubIssData,
   MissionState,
 } from "@/lib/astro-hub";
+import { HubSourceStatusPill } from "./astro-hub-source-status";
 import { InteractiveAstroCalendarPanel } from "./interactive-astro-calendar-panel";
-
-function statusStyles(status: MissionState) {
-  return {
-    live: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100",
-    degraded: "border-amber-300/30 bg-amber-500/10 text-amber-100",
-    fallback: "border-slate-300/30 bg-slate-600/20 text-slate-100",
-  }[status];
-}
-
-function formatLatitude(value: number) {
-  const suffix = value >= 0 ? "N" : "S";
-  return `${Math.abs(value).toFixed(2)}${suffix}`;
-}
-
-function formatLongitude(value: number) {
-  const suffix = value >= 0 ? "E" : "W";
-  return `${Math.abs(value).toFixed(2)}${suffix}`;
-}
 
 function toYouTubeEmbedUrl(value: string) {
   try {
@@ -53,19 +35,19 @@ function isDirectVideoUrl(value: string) {
   }
 }
 
-function actionIcon(kind: AstroHubActionLink["kind"]) {
+function heroActionIcon(kind: AstroHubActionLink["kind"]) {
   if (kind === "video") {
-    return <Play className="h-3 w-3" />;
+    return <Play className="h-3 w-3 shrink-0" />;
   }
 
   if (kind === "download" || kind === "media") {
-    return <Download className="h-3 w-3" />;
+    return <Download className="h-3 w-3 shrink-0" />;
   }
 
-  return <ArrowUpRight className="h-3 w-3" />;
+  return <ArrowUpRight className="h-3 w-3 shrink-0" />;
 }
 
-function ActionLinks({ actions }: { actions?: AstroHubActionLink[] }) {
+function HeroOutboundLinks({ actions }: { actions?: AstroHubActionLink[] }) {
   if (!actions?.length) {
     return null;
   }
@@ -78,9 +60,9 @@ function ActionLinks({ actions }: { actions?: AstroHubActionLink[] }) {
           href={action.href}
           target="_blank"
           rel="noreferrer noopener"
-          className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/20 bg-slate-950/60 px-3 py-1.5 text-xs text-cyan-100 transition-colors hover:border-cyan-200/40 hover:bg-cyan-500/10"
+          className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/20 bg-slate-950/60 px-3 py-1.5 text-xs font-medium text-cyan-100 transition-colors hover:border-cyan-200/40 hover:bg-cyan-500/10"
         >
-          {actionIcon(action.kind)}
+          {heroActionIcon(action.kind)}
           {action.label}
         </a>
       ))}
@@ -110,16 +92,14 @@ export function HeroSurfaceSkeleton() {
 }
 
 export function HeroSurface({ hero }: { hero: AstroHubHeroData }) {
-  return <HeroSurfaceCard hero={hero} sourceLabel={hero.mediaLabel} />;
+  return <HeroSurfaceCard hero={hero} />;
 }
 
 export function HeroSurfaceCard({
   hero,
-  sourceLabel,
   sourceStatus,
 }: {
   hero: AstroHubHeroData;
-  sourceLabel: string;
   sourceStatus?: MissionState;
 }) {
   const mediaUrl = hero.sourceUrl ?? hero.imageUrl;
@@ -144,19 +124,11 @@ export function HeroSurfaceCard({
             {hero.summary}
           </p>
         </div>
-        <div className="space-y-2 text-right">
-          <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-100">
-            {hero.trustSignal}
+        {sourceStatus ? (
+          <div className="shrink-0 self-start">
+            <HubSourceStatusPill status={sourceStatus} />
           </div>
-          {sourceStatus ? (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize ${statusStyles(sourceStatus)}`}
-            >
-              <Circle className="h-2 w-2 fill-current" />
-              {sourceStatus}
-            </span>
-          ) : null}
-        </div>
+        ) : null}
       </div>
 
       <div className="relative mt-6 overflow-hidden rounded-2xl border border-cyan-200/15 bg-slate-900/70">
@@ -200,26 +172,18 @@ export function HeroSurfaceCard({
           ) : null}
 
           <div className={renderVideo || hero.imageUrl ? "" : "lg:col-span-2"}>
-            <p className="text-xs tracking-[0.18em] text-slate-300 uppercase">
-              {sourceLabel}
+            <p className="text-sm font-medium leading-snug text-slate-200">
+              {hero.trustSignal}
             </p>
+            {hero.publishedDisplay ? (
+              <p className="mt-1 text-xs text-violet-200">
+                {hero.publishedDisplay}
+              </p>
+            ) : null}
             {hero.copyright ? (
               <p className="mt-2 text-xs text-slate-400">{hero.copyright}</p>
             ) : null}
-            <dl className="mt-6 grid gap-3 sm:grid-cols-2">
-              {hero.metrics.map((metric) => (
-                <div
-                  key={metric.label}
-                  className="rounded-xl border border-white/10 bg-slate-950/40 px-4 py-3"
-                >
-                  <dt className="text-xs text-slate-400">{metric.label}</dt>
-                  <dd className="mt-1 text-sm font-medium text-cyan-50">
-                    {metric.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <ActionLinks actions={hero.actions} />
+            <HeroOutboundLinks actions={hero.actions} />
           </div>
         </div>
       </div>
@@ -229,68 +193,7 @@ export function HeroSurfaceCard({
 
 export function IssTrackerPanelSkeleton() {
   return (
-    <div className="h-60 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45" />
-  );
-}
-
-export function IssTrackerPanel({ iss }: { iss: AstroHubIssData }) {
-  const isLiveTelemetry = iss.confidence.includes("Where The ISS At");
-
-  return (
-    <article className="rounded-2xl border border-slate-200/15 bg-slate-950/65 p-5 backdrop-blur">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-white">ISS Tracker</h2>
-        <span className="text-xs text-cyan-200">
-          {isLiveTelemetry ? "Live telemetry" : "Fallback telemetry"}
-        </span>
-      </div>
-      <div className="mt-4 flex items-center gap-4">
-        <div className="relative h-20 w-20 rounded-full border border-cyan-200/25">
-          <div className="absolute inset-2 rounded-full border border-cyan-300/25" />
-          <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.8)] motion-safe:animate-pulse" />
-          <Orbit className="absolute right-2 top-2 h-3.5 w-3.5 text-cyan-200/70 motion-safe:animate-[spin_9s_linear_infinite]" />
-        </div>
-        <dl className="grid flex-1 grid-cols-2 gap-2 text-xs text-slate-300">
-          <div>
-            <dt className="text-slate-500">Latitude</dt>
-            <dd className="font-medium text-cyan-50">
-              {formatLatitude(iss.latitude)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Longitude</dt>
-            <dd className="font-medium text-cyan-50">
-              {formatLongitude(iss.longitude)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Velocity</dt>
-            <dd className="font-medium text-cyan-50">
-              {iss.speedKph.toLocaleString("en-US")} km/h
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Altitude</dt>
-            <dd className="font-medium text-cyan-50">
-              {iss.altitudeKm
-                ? `${iss.altitudeKm.toLocaleString("en-US")} km`
-                : "Model pending"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Next pass</dt>
-            <dd className="font-medium text-cyan-50">{iss.nextPass}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Visibility</dt>
-            <dd className="font-medium text-cyan-50">
-              {iss.visibility ?? "unknown"}
-            </dd>
-          </div>
-        </dl>
-      </div>
-      <p className="mt-4 text-xs text-slate-400">{iss.confidence}</p>
-    </article>
+    <div className="h-[28rem] max-h-[80vh] animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45 sm:h-96" />
   );
 }
 

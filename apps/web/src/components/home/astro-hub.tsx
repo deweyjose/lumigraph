@@ -1,44 +1,22 @@
 import { Suspense } from "react";
-import { ShieldCheck } from "lucide-react";
 import { getAstroHubCalendarSource } from "@/server/services/astro-sources/calendar";
 import { getAstroHubHeroSource } from "@/server/services/astro-sources/hero";
 import { getAstroHubIssSource } from "@/server/services/astro-sources/iss";
-import { getAstroHubMetaSource } from "@/server/services/astro-sources/meta";
 import {
   CalendarPanelCard,
   CalendarPanelSkeleton,
   HeroSurfaceCard,
   HeroSurfaceSkeleton,
-  IssTrackerPanel,
   IssTrackerPanelSkeleton,
   ModuleError,
 } from "./astro-hub-panels";
+import { IssTrackerPanel } from "./iss-tracker-panel";
 import { ChatWidget } from "./chat-widget";
-
-async function MissionDayCalloutLine() {
-  try {
-    const meta = await getAstroHubMetaSource();
-    return (
-      <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
-        <ShieldCheck className="h-3 w-3 shrink-0 text-slate-500" />
-        <span>{meta.data.missionDay}</span>
-      </p>
-    );
-  } catch {
-    return null;
-  }
-}
 
 async function HeroSurfaceSection() {
   try {
     const hero = await getAstroHubHeroSource();
-    return (
-      <HeroSurfaceCard
-        hero={hero.data}
-        sourceLabel={hero.source}
-        sourceStatus={hero.status}
-      />
-    );
+    return <HeroSurfaceCard hero={hero.data} sourceStatus={hero.status} />;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Hero source unavailable";
@@ -49,7 +27,7 @@ async function HeroSurfaceSection() {
 async function IssTrackerSection() {
   try {
     const iss = await getAstroHubIssSource();
-    return <IssTrackerPanel iss={iss.data} />;
+    return <IssTrackerPanel initial={iss} />;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "ISS telemetry unavailable";
@@ -85,26 +63,15 @@ export function AstroHub() {
             <p className="text-xs tracking-[0.22em] text-cyan-200/85 uppercase">
               Astro Hub Mission Control
             </p>
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                  Live Orbit Desk
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
-                  Source-scoped APIs stream panel-by-panel so we can mix live
-                  feeds, graceful fallbacks, and suspense boundaries without
-                  coupling the whole hub to a single provider.
-                </p>
-              </div>
-              <div className="rounded-xl border border-cyan-200/20 bg-slate-950/50 px-4 py-3 text-xs text-slate-200 backdrop-blur">
-                <p className="text-slate-400">Astro Hub wiring</p>
-                <p className="mt-1 font-medium text-cyan-100">
-                  Live feeds + suspense
-                </p>
-                <Suspense fallback={null}>
-                  <MissionDayCalloutLine />
-                </Suspense>
-              </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                Live Orbit Desk
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm text-slate-300 sm:text-base">
+                Source-scoped APIs stream panel-by-panel so we can mix live
+                feeds, graceful fallbacks, and suspense boundaries without
+                coupling the whole hub to a single provider.
+              </p>
             </div>
           </header>
 

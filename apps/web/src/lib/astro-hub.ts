@@ -31,7 +31,8 @@ export type AstroHubHeroData = {
   summary: string;
   mediaLabel: string;
   mediaType?: "image" | "video";
-  metrics: Array<{ label: string; value: string }>;
+  /** Human-readable publish instant (same style as Mission Watch `window`). */
+  publishedDisplay?: string;
   trustSignal: string;
   copyright?: string;
   imageUrl?: string;
@@ -147,12 +148,7 @@ export const astroHubMockSourceData: AstroHubSourceMap = {
     summary:
       "Simulated mission blend of APOD framing, recent transit geometry, and orbital weather context to evaluate hero storytelling before live providers are wired.",
     mediaLabel: "Dominant Surface / Mock Feed",
-    metrics: [
-      { label: "Exposure Stack", value: "19 x 240s" },
-      { label: "Spectral Band", value: "Ha + OIII" },
-      { label: "Signal Quality", value: "91 / 100" },
-      { label: "Source Blend", value: "NASA + ISS + Launch" },
-    ],
+    publishedDisplay: "Mar 22, 2026, 9:05 PM",
     trustSignal: "Telemetry confidence 0.93 (mocked contract)",
   },
   iss: {
