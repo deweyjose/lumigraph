@@ -7,10 +7,10 @@ import {
   CalendarPanelSkeleton,
   HeroSurfaceCard,
   HeroSurfaceSkeleton,
-  IssTrackerPanel,
   IssTrackerPanelSkeleton,
   ModuleError,
 } from "./astro-hub-panels";
+import { IssTrackerPanel } from "./iss-tracker-panel";
 import { ChatWidget } from "./chat-widget";
 
 async function HeroSurfaceSection() {
@@ -27,7 +27,7 @@ async function HeroSurfaceSection() {
 async function IssTrackerSection() {
   try {
     const iss = await getAstroHubIssSource();
-    return <IssTrackerPanel iss={iss.data} />;
+    return <IssTrackerPanel initial={iss} />;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "ISS telemetry unavailable";

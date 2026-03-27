@@ -1,23 +1,12 @@
-import { ArrowUpRight, Download, Orbit, Play } from "lucide-react";
+import { ArrowUpRight, Download, Play } from "lucide-react";
 import type {
   AstroHubActionLink,
   AstroHubCalendarEvent,
   AstroHubHeroData,
-  AstroHubIssData,
   MissionState,
 } from "@/lib/astro-hub";
 import { HubSourceStatusPill } from "./astro-hub-source-status";
 import { InteractiveAstroCalendarPanel } from "./interactive-astro-calendar-panel";
-
-function formatLatitude(value: number) {
-  const suffix = value >= 0 ? "N" : "S";
-  return `${Math.abs(value).toFixed(2)}${suffix}`;
-}
-
-function formatLongitude(value: number) {
-  const suffix = value >= 0 ? "E" : "W";
-  return `${Math.abs(value).toFixed(2)}${suffix}`;
-}
 
 function toYouTubeEmbedUrl(value: string) {
   try {
@@ -204,70 +193,7 @@ export function HeroSurfaceCard({
 
 export function IssTrackerPanelSkeleton() {
   return (
-    <div className="h-60 animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45" />
-  );
-}
-
-export function IssTrackerPanel({ iss }: { iss: AstroHubIssData }) {
-  const isLiveTelemetry = iss.confidence.includes("Where The ISS At");
-
-  return (
-    <article className="rounded-2xl border border-slate-200/15 bg-slate-950/65 p-5 backdrop-blur">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-white">ISS Tracker</h2>
-        {isLiveTelemetry ? null : (
-          <span className="rounded-full border border-amber-300/35 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-100">
-            Fallback position
-          </span>
-        )}
-      </div>
-      <div className="mt-4 flex items-center gap-4">
-        <div className="relative h-20 w-20 rounded-full border border-cyan-200/25">
-          <div className="absolute inset-2 rounded-full border border-cyan-300/25" />
-          <div className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.8)] motion-safe:animate-pulse" />
-          <Orbit className="absolute right-2 top-2 h-3.5 w-3.5 text-cyan-200/70 motion-safe:animate-[spin_9s_linear_infinite]" />
-        </div>
-        <dl className="grid flex-1 grid-cols-2 gap-2 text-xs text-slate-300">
-          <div>
-            <dt className="text-slate-500">Latitude</dt>
-            <dd className="font-medium text-cyan-50">
-              {formatLatitude(iss.latitude)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Longitude</dt>
-            <dd className="font-medium text-cyan-50">
-              {formatLongitude(iss.longitude)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Velocity</dt>
-            <dd className="font-medium text-cyan-50">
-              {iss.speedKph.toLocaleString("en-US")} km/h
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Altitude</dt>
-            <dd className="font-medium text-cyan-50">
-              {iss.altitudeKm
-                ? `${iss.altitudeKm.toLocaleString("en-US")} km`
-                : "Model pending"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Next pass</dt>
-            <dd className="font-medium text-cyan-50">{iss.nextPass}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Visibility</dt>
-            <dd className="font-medium text-cyan-50">
-              {iss.visibility ?? "unknown"}
-            </dd>
-          </div>
-        </dl>
-      </div>
-      <p className="mt-4 text-xs text-slate-400">{iss.confidence}</p>
-    </article>
+    <div className="h-[28rem] max-h-[80vh] animate-pulse rounded-2xl border border-slate-200/10 bg-slate-950/45 sm:h-96" />
   );
 }
 

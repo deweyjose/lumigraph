@@ -23,7 +23,9 @@ export async function getAstroHubIssSource() {
     const payload = await fetchJson<WhereTheIssAtResponse>(
       WHERE_THE_ISS_AT_URL,
       {
-        revalidateSeconds: 30,
+        // Match client poll interval (see use-iss-telemetry) so the API can
+        // return fresh upstream data instead of a 30s Next fetch cache.
+        revalidateSeconds: 2,
       }
     );
     await writeAstroSourceOutput("iss", payload);
