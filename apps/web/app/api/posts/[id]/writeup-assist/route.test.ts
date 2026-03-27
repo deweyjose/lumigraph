@@ -6,12 +6,14 @@ const {
   getPostForOwnerMock,
   generateFromInterviewMock,
   refineMock,
+  expandMock,
 } = vi.hoisted(() => ({
   authMock: vi.fn(),
   hasOpenAIApiKeyMock: vi.fn(),
   getPostForOwnerMock: vi.fn(),
   generateFromInterviewMock: vi.fn(),
   refineMock: vi.fn(),
+  expandMock: vi.fn(),
 }));
 
 vi.mock("auth", () => ({
@@ -29,6 +31,7 @@ vi.mock("@/server/services/posts", () => ({
 vi.mock("@/server/services/post-writeup-assist", () => ({
   generatePostWriteupFromInterview: generateFromInterviewMock,
   refinePostWriteup: refineMock,
+  expandPostWriteup: expandMock,
 }));
 
 import { POST } from "./route";
@@ -59,6 +62,7 @@ describe("POST /api/posts/:id/writeup-assist", () => {
     getPostForOwnerMock.mockReset();
     generateFromInterviewMock.mockReset();
     refineMock.mockReset();
+    expandMock.mockReset();
   });
 
   it("returns 401 for unauthenticated callers", async () => {
@@ -173,6 +177,35 @@ describe("POST /api/posts/:id/writeup-assist", () => {
       description: "Refined text",
     });
     expect(refineMock).toHaveBeenCalledOnce();
+    expect(generateFromInterviewMock).not.toHaveBeenCalled();
+  });
+
+  it("returns expanded write-up when action is expand", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    hasOpenAIApiKeyMock.mockReturnValue(true);
+    getPostForOwnerMock.mockResolvedValue(postFixture);
+    expandMock.mockResolvedValue({
+      description: "Expanded text with object context.",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/posts/post-1/writeup-assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "expand",
+          description: "Some draft text",
+        }),
+      }),
+      { params: Promise.resolve({ id: "post-1" }) }
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      description: "Expanded text with object context.",
+    });
+    expect(expandMock).toHaveBeenCalledOnce();
+    expect(refineMock).not.toHaveBeenCalled();
     expect(generateFromInterviewMock).not.toHaveBeenCalled();
   });
 

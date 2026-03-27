@@ -30,6 +30,7 @@ export function PostEditorForm({
   const [isSaving, setIsSaving] = useState(false);
   const [writeupAssistOpen, setWriteupAssistOpen] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
+  const [isExpanding, setIsExpanding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSave(e: React.FormEvent) {
@@ -104,6 +105,43 @@ export function PostEditorForm({
     }
   }
 
+  async function onExpandWriteup() {
+    const trimmed = description.trim();
+    if (!trimmed) {
+      setError("Add some write-up text before expanding.");
+      return;
+    }
+    setError(null);
+    setIsExpanding(true);
+    try {
+      const res = await fetch(`/api/posts/${postId}/writeup-assist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "expand",
+          description: trimmed,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        description?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        setError(data.message ?? "Failed to expand write-up");
+        return;
+      }
+      if (typeof data.description === "string" && data.description.trim()) {
+        setDescription(data.description.trim());
+      } else {
+        setError("Expanded write-up was empty");
+      }
+    } catch {
+      setError("Failed to expand write-up");
+    } finally {
+      setIsExpanding(false);
+    }
+  }
+
   return (
     <form onSubmit={onSave} className="mt-6 space-y-4 rounded-lg border p-4">
       <h2 className="text-lg font-semibold">Post editor</h2>
@@ -138,8 +176,23 @@ export function PostEditorForm({
               type="button"
               variant="outline"
               size="sm"
+              onClick={() => void onExpandWriteup()}
+              disabled={
+                isExpanding || isRefining || isSaving || !description.trim()
+              }
+              className="inline-flex items-center gap-1.5"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              {isExpanding ? "Expanding..." : "Expand"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() => void onRefineWriteup()}
-              disabled={isRefining || isSaving || !description.trim()}
+              disabled={
+                isRefining || isExpanding || isSaving || !description.trim()
+              }
               className="inline-flex items-center gap-1.5"
             >
               <Wand2 className="h-3.5 w-3.5" />

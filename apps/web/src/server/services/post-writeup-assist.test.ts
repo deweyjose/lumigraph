@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  expandPostWriteup,
   generatePostWriteupFromInterview,
   refinePostWriteup,
 } from "./post-writeup-assist";
@@ -8,8 +9,16 @@ const { generateOpenAIJsonObjectMock } = vi.hoisted(() => ({
   generateOpenAIJsonObjectMock: vi.fn(),
 }));
 
+const { generateOpenAIResponsesJsonObjectMock } = vi.hoisted(() => ({
+  generateOpenAIResponsesJsonObjectMock: vi.fn(),
+}));
+
 vi.mock("@/server/ai/json", () => ({
   generateOpenAIJsonObject: generateOpenAIJsonObjectMock,
+}));
+
+vi.mock("@/server/ai/responses-json", () => ({
+  generateOpenAIResponsesJsonObject: generateOpenAIResponsesJsonObjectMock,
 }));
 
 const baseContext = {
@@ -23,6 +32,7 @@ const baseContext = {
 
 beforeEach(() => {
   generateOpenAIJsonObjectMock.mockReset();
+  generateOpenAIResponsesJsonObjectMock.mockReset();
 });
 
 describe("generatePostWriteupFromInterview", () => {
@@ -59,5 +69,24 @@ describe("refinePostWriteup", () => {
 
     expect(result.description).toBe("Polished text.");
     expect(generateOpenAIJsonObjectMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe("expandPostWriteup", () => {
+  it("returns trimmed expanded text", async () => {
+    generateOpenAIResponsesJsonObjectMock.mockResolvedValue({
+      description:
+        "  Expanded write-up text with researched object context and a Wikipedia URL.  ",
+    });
+
+    const result = await expandPostWriteup(
+      baseContext,
+      "Short draft about the Orion Nebula."
+    );
+
+    expect(result.description).toBe(
+      "Expanded write-up text with researched object context and a Wikipedia URL."
+    );
+    expect(generateOpenAIResponsesJsonObjectMock).toHaveBeenCalledOnce();
   });
 });

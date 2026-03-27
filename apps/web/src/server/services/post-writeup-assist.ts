@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { generateOpenAIJsonObject } from "@/server/ai/json";
+import { generateOpenAIResponsesJsonObject } from "@/server/ai/responses-json";
 import {
+  POST_WRITEUP_ASSIST_EXPAND_SYSTEM_PROMPT,
   POST_WRITEUP_ASSIST_INTERVIEW_SYSTEM_PROMPT,
   POST_WRITEUP_ASSIST_REFINE_SYSTEM_PROMPT,
 } from "@/server/ai/prompts";
@@ -16,6 +18,23 @@ const GeneratedWriteupSchema = z.object({
 const RefinedWriteupSchema = z.object({
   description: z.string().min(1).max(900),
 });
+
+const ExpandedWriteupSchema = z.object({
+  description: z.string().min(220).max(1800),
+});
+
+const ExpandedWriteupJsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["description"],
+  properties: {
+    description: {
+      type: "string",
+      minLength: 220,
+      maxLength: 1800,
+    },
+  },
+} as const;
 
 export type PostWriteupAssistContext = {
   title: string;
@@ -109,6 +128,40 @@ export async function refinePostWriteup(
     systemPrompt: POST_WRITEUP_ASSIST_REFINE_SYSTEM_PROMPT,
     userPrompt: buildRefineUserPrompt(context, currentDescription),
     schema: RefinedWriteupSchema,
+  });
+
+  return { description: response.description.trim() };
+}
+
+function buildExpandUserPrompt(
+  context: PostWriteupAssistContext,
+  currentDescription: string
+) {
+  return [
+    "Expand the current draft into a fuller write-up.",
+    "Use post context to avoid contradicting metadata.",
+    "Use web research only for stable target facts that can be identified with high confidence.",
+    "",
+    "Post context:",
+    buildPostContextLines(context),
+    "",
+    "Current draft:",
+    currentDescription.trim(),
+  ].join("\n");
+}
+
+export async function expandPostWriteup(
+  context: PostWriteupAssistContext,
+  currentDescription: string
+) {
+  const response = await generateOpenAIResponsesJsonObject({
+    instructions: POST_WRITEUP_ASSIST_EXPAND_SYSTEM_PROMPT,
+    input: buildExpandUserPrompt(context, currentDescription),
+    schema: ExpandedWriteupSchema,
+    jsonSchema: ExpandedWriteupJsonSchema,
+    schemaName: "post_writeup_expand",
+    tools: [{ type: "web_search" }],
+    include: ["web_search_call.action.sources"],
   });
 
   return { description: response.description.trim() };

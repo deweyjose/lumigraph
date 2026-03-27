@@ -8,6 +8,7 @@ import {
 } from "@/lib/post-writeup-interview-questions";
 import { getPostForOwner } from "@/server/services/posts";
 import {
+  expandPostWriteup,
   generatePostWriteupFromInterview,
   refinePostWriteup,
 } from "@/server/services/post-writeup-assist";
@@ -49,6 +50,10 @@ const BodySchema = z.discriminatedUnion("action", [
   }),
   z.object({
     action: z.literal("refine"),
+    description: z.string().min(1).max(10_000),
+  }),
+  z.object({
+    action: z.literal("expand"),
     description: z.string().min(1).max(10_000),
   }),
 ]);
@@ -109,6 +114,11 @@ export async function POST(
   try {
     if (parsed.data.action === "refine") {
       const draft = await refinePostWriteup(context, parsed.data.description);
+      return Response.json(draft);
+    }
+
+    if (parsed.data.action === "expand") {
+      const draft = await expandPostWriteup(context, parsed.data.description);
       return Response.json(draft);
     }
 
