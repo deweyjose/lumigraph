@@ -55,7 +55,6 @@ describe("astro-hub chat tools", () => {
         title: "Test APOD",
         summary: "Summary",
         mediaLabel: "Image",
-        metrics: [],
         trustSignal: "NASA",
       },
     });

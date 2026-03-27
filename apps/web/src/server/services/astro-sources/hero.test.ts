@@ -12,6 +12,7 @@ vi.mock("../astro-hub-mock", async () => {
   };
 });
 
+import { formatAstroDateTime } from "./shared";
 import { getAstroHubHeroSource } from "./hero";
 
 describe("getAstroHubHeroSource", () => {
@@ -48,14 +49,12 @@ describe("getAstroHubHeroSource", () => {
       title: "Pillars of Creation",
       mediaLabel: "NASA APOD / Image",
       mediaType: "image",
-      trustSignal: "Official NASA APOD feed",
+      trustSignal: "Official NASA APOD Feed",
       copyright: "NASA / ESA",
       sourceUrl: "https://apod.nasa.gov/apod/image/example.jpg",
     });
-    expect(source.data.metrics).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ label: "Source", value: "NASA APOD" }),
-      ])
+    expect(source.data.publishedDisplay).toBe(
+      formatAstroDateTime("2026-03-11T12:00:00.000Z")
     );
     expect(source.data.actions).toEqual(
       expect.arrayContaining([
@@ -97,6 +96,7 @@ describe("getAstroHubHeroSource", () => {
       sourceUrl:
         "https://apod.nasa.gov/apod/image/2603/DepartingEarth_Messenger.mp4",
       imageUrl: undefined,
+      publishedDisplay: formatAstroDateTime("2026-03-22T12:00:00.000Z"),
     });
   });
 });

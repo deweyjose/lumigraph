@@ -4,7 +4,6 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   CalendarDays,
-  Circle,
   Download,
   Maximize2,
   Play,
@@ -17,6 +16,7 @@ import type {
   MissionState,
 } from "@/lib/astro-hub";
 import { cn } from "@/lib/utils";
+import { HubSourceStatusPill } from "./astro-hub-source-status";
 
 const STREAM_LABEL: Record<AstroHubCalendarStream, string> = {
   artemis: "Artemis",
@@ -24,14 +24,6 @@ const STREAM_LABEL: Record<AstroHubCalendarStream, string> = {
   nasa_news: "NASA news",
   mock: "Mock window",
 };
-
-function statusStyles(status: MissionState) {
-  return {
-    live: "border-emerald-300/30 bg-emerald-500/10 text-emerald-100",
-    degraded: "border-amber-300/30 bg-amber-500/10 text-amber-100",
-    fallback: "border-slate-300/30 bg-slate-600/20 text-slate-100",
-  }[status];
-}
 
 function actionIcon(kind: AstroHubActionLink["kind"]) {
   if (kind === "video") {
@@ -349,14 +341,7 @@ export function InteractiveAstroCalendarPanel({
             ephemeris. Tap a row for detail and outbound links.
           </p>
         </div>
-        {sourceStatus ? (
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium capitalize ${statusStyles(sourceStatus)}`}
-          >
-            <Circle className="h-2 w-2 fill-current" />
-            {sourceStatus}
-          </span>
-        ) : null}
+        {sourceStatus ? <HubSourceStatusPill status={sourceStatus} /> : null}
       </div>
 
       {events.length > 0 ? (

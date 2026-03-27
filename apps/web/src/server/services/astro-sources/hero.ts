@@ -6,6 +6,7 @@ import {
 import {
   fetchJson,
   fetchText,
+  formatAstroDateTime,
   parseRssItems,
   selectActionLinks,
   writeAstroSourceOutput,
@@ -53,6 +54,9 @@ export async function getAstroHubHeroSource() {
     await writeAstroSourceOutput("hero", apod);
     const mediaType = normalizeApodMediaType(apod.media_type);
 
+    const publishedDisplay =
+      formatAstroDateTime(`${apod.date}T12:00:00.000Z`) ?? apod.date;
+
     return buildAstroHubSourceEnvelope(
       "hero",
       {
@@ -61,16 +65,8 @@ export async function getAstroHubHeroSource() {
         mediaLabel:
           mediaType === "image" ? "NASA APOD / Image" : "NASA APOD / Video",
         mediaType,
-        metrics: [
-          { label: "Source", value: "NASA APOD" },
-          { label: "Published", value: apod.date },
-          { label: "Media Type", value: mediaType },
-          {
-            label: "Asset URL",
-            value: apod.hdurl ? "HD available" : "Standard",
-          },
-        ],
-        trustSignal: "Official NASA APOD feed",
+        publishedDisplay,
+        trustSignal: "Official NASA APOD Feed",
         copyright: apod.copyright,
         imageUrl: mediaType === "image" ? apod.url : undefined,
         sourceUrl: apod.url,
@@ -98,6 +94,11 @@ export async function getAstroHubHeroSource() {
       const [fallbackItem] = parseRssItems(rss, 1);
 
       if (fallbackItem) {
+        const publishedDisplay =
+          formatAstroDateTime(fallbackItem.publishedAt) ??
+          fallbackItem.publishedAt ??
+          "Date unavailable";
+
         return buildAstroHubSourceEnvelope(
           "hero",
           {
@@ -107,18 +108,7 @@ export async function getAstroHubHeroSource() {
               260
             ),
             mediaLabel: "NASA Image of the Day / RSS",
-            metrics: [
-              { label: "Source", value: "NASA IOTD" },
-              {
-                label: "Published",
-                value: fallbackItem.publishedAt ?? "Date unavailable",
-              },
-              {
-                label: "Image",
-                value: fallbackItem.imageUrl ? "Included" : "Unavailable",
-              },
-              { label: "Fallback", value: "APOD unavailable" },
-            ],
+            publishedDisplay,
             trustSignal: "Official NASA RSS fallback",
             imageUrl: fallbackItem.imageUrl ?? undefined,
             mediaType: "image",
