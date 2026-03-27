@@ -9,12 +9,12 @@ const visibilityConfig: Record<
   DRAFT: {
     label: "Draft",
     className:
-      "bg-amber-500/20 text-amber-600 dark:bg-amber-500/25 dark:text-amber-400 border border-amber-500/30",
+      "border-amber-400/35 bg-amber-400/14 text-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
   },
   PUBLISHED: {
     label: "Published",
     className:
-      "bg-emerald-500/20 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400 border border-emerald-500/30",
+      "border-emerald-400/35 bg-emerald-400/14 text-emerald-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]",
   },
 };
 
@@ -29,7 +29,7 @@ export function VisibilityBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-[0.18em] uppercase backdrop-blur-md",
         config.className,
         className
       )}

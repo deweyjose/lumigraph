@@ -48,12 +48,13 @@ export default async function DraftsPage() {
       {myPosts.length > 0 ? (
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {myPosts.map((post: PostCardPost) => (
-            <li key={post.id}>
+            <li key={post.id} className="h-full">
               <PostCard
                 post={{
                   id: post.id,
                   slug: post.slug,
                   title: post.title,
+                  description: post.description,
                   status: post.status,
                   finalImageAssetId: post.finalImageAssetId,
                   finalThumbAssetId: post.finalThumbAssetId,
