@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/auth/form-field";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getPostSaveNavigation } from "./post-save-navigation";
+import { PostWriteupAssistDialog } from "./post-writeup-assist-dialog";
 
 type Props = {
   postId: string;
@@ -26,6 +28,8 @@ export function PostEditorForm({
   const [slug, setSlug] = useState(initialSlug);
   const [description, setDescription] = useState(initialDescription ?? "");
   const [isSaving, setIsSaving] = useState(false);
+  const [writeupAssistOpen, setWriteupAssistOpen] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSave(e: React.FormEvent) {
@@ -63,6 +67,43 @@ export function PostEditorForm({
     }
   }
 
+  async function onRefineWriteup() {
+    const trimmed = description.trim();
+    if (!trimmed) {
+      setError("Add some write-up text before refining.");
+      return;
+    }
+    setError(null);
+    setIsRefining(true);
+    try {
+      const res = await fetch(`/api/posts/${postId}/writeup-assist`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "refine",
+          description: trimmed,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        description?: string;
+        message?: string;
+      };
+      if (!res.ok) {
+        setError(data.message ?? "Failed to refine write-up");
+        return;
+      }
+      if (typeof data.description === "string" && data.description.trim()) {
+        setDescription(data.description.trim());
+      } else {
+        setError("Refined write-up was empty");
+      }
+    } catch {
+      setError("Failed to refine write-up");
+    } finally {
+      setIsRefining(false);
+    }
+  }
+
   return (
     <form onSubmit={onSave} className="mt-6 space-y-4 rounded-lg border p-4">
       <h2 className="text-lg font-semibold">Post editor</h2>
@@ -79,7 +120,33 @@ export function PostEditorForm({
         onChange={(e) => setSlug(e.target.value)}
       />
       <div className="space-y-2">
-        <Label htmlFor="post-description">Write-up</Label>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Label htmlFor="post-description">Write-up</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setWriteupAssistOpen(true)}
+              disabled={isSaving}
+              className="inline-flex items-center gap-1.5"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Guided write-up
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void onRefineWriteup()}
+              disabled={isRefining || isSaving || !description.trim()}
+              className="inline-flex items-center gap-1.5"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              {isRefining ? "Refining..." : "Refine"}
+            </Button>
+          </div>
+        </div>
         <textarea
           id="post-description"
           rows={5}
@@ -99,6 +166,12 @@ export function PostEditorForm({
       <Button type="submit" disabled={isSaving}>
         {isSaving ? "Saving..." : "Save draft"}
       </Button>
+      <PostWriteupAssistDialog
+        postId={postId}
+        open={writeupAssistOpen}
+        onOpenChange={setWriteupAssistOpen}
+        onApplyDescription={(next) => setDescription(next)}
+      />
     </form>
   );
 }

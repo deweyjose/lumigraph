@@ -8,6 +8,8 @@ export type PostCardPost = {
   id: string;
   slug: string;
   title: string;
+  /** Write-up body; shown as a short excerpt on the card when set. */
+  description?: string | null;
   status: PostStatus;
   finalImageAssetId: string | null;
   finalThumbAssetId: string | null;
@@ -36,84 +38,102 @@ export function PostCard({
       .join(" · ") || undefined;
   const previewAssetId = post.finalThumbAssetId ?? post.finalImageAssetId;
   const isWorkspaceTone = tone === "workspace";
+  const writeupExcerpt = post.description?.replace(/\s+/g, " ").trim() ?? "";
+  const metaText = subtitle ?? post.slug;
 
   return (
     <Card
       className={cn(
-        "overflow-hidden transition-shadow hover:shadow-md",
+        "group flex h-full flex-col overflow-hidden border-white/10 bg-white/[0.03] py-0 transition-all duration-300 hover:-translate-y-1 hover:border-white/16 hover:shadow-[0_28px_90px_-45px_rgba(0,0,0,0.95)]",
         isWorkspaceTone &&
-          "gap-0 rounded-[1.75rem] border-white/10 bg-white/[0.035] text-white shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm hover:bg-white/[0.05]"
+          "gap-0 rounded-[1.75rem] bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))] text-white shadow-[0_20px_70px_-38px_rgba(0,0,0,0.9)] backdrop-blur-sm hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.025))]"
       )}
     >
       <Link
         href={href}
         className={cn(
-          "block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          "flex min-h-0 flex-1 flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           isWorkspaceTone && "rounded-[1.75rem]"
         )}
         aria-label={`View post: ${post.title}`}
       >
         <div
           className={cn(
-            "relative aspect-video w-full bg-muted/50",
-            isWorkspaceTone && "bg-white/[0.04]"
+            "relative w-full shrink-0 overflow-hidden bg-muted/50",
+            isWorkspaceTone
+              ? "aspect-[1.16/1] rounded-b-[1.4rem]"
+              : "aspect-[4/3] rounded-b-3xl"
           )}
         >
           {previewAssetId ? (
             <img
               src={`/api/assets/${previewAssetId}/view`}
               alt=""
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
             <div
-              className="flex h-full w-full items-center justify-center text-muted-foreground"
+              className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.16),transparent_55%),linear-gradient(180deg,rgba(30,41,59,0.95),rgba(15,23,42,0.98))] text-slate-400"
               aria-hidden
             >
               <ImageIcon className="h-12 w-12" strokeWidth={1.25} />
             </div>
           )}
-          <div className="absolute right-2 top-2">
-            <VisibilityBadge visibility={post.status} />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,10,22,0.12),rgba(6,10,22,0.2)_35%,rgba(6,10,22,0.92)_100%)]" />
+          <div className="absolute right-3 top-3">
+            <VisibilityBadge visibility={post.status} className="shadow-lg" />
           </div>
+          <CardHeader className="absolute inset-x-0 bottom-0 gap-1 px-5 pb-4 pt-12">
+            <p className="line-clamp-1 text-[11px] font-medium tracking-[0.16em] text-white/68 uppercase">
+              {metaText}
+            </p>
+            <CardTitle
+              className={cn(
+                "line-clamp-2 text-balance font-semibold tracking-tight text-white",
+                isWorkspaceTone
+                  ? "text-[1.65rem] leading-[1.02]"
+                  : "text-xl leading-tight"
+              )}
+            >
+              {post.title}
+            </CardTitle>
+          </CardHeader>
         </div>
-        <CardHeader className={cn("pb-2", isWorkspaceTone && "pb-1")}>
-          <CardTitle
-            className={cn(
-              "line-clamp-2 text-base font-semibold",
-              isWorkspaceTone && "text-2xl text-white"
-            )}
-          >
-            {post.title}
-          </CardTitle>
-          {subtitle && (
+        <CardContent
+          className={cn(
+            "mt-auto flex flex-1 flex-col justify-between px-5 pb-5 pt-4",
+            isWorkspaceTone && "gap-4"
+          )}
+        >
+          {writeupExcerpt ? (
             <p
               className={cn(
-                "text-sm text-muted-foreground",
-                isWorkspaceTone && "text-slate-300"
+                "line-clamp-3 text-sm leading-6 text-muted-foreground",
+                isWorkspaceTone && "text-slate-300/95"
               )}
             >
-              {subtitle}
+              {writeupExcerpt}
+            </p>
+          ) : (
+            <p
+              className={cn(
+                "text-sm leading-6 text-muted-foreground",
+                isWorkspaceTone && "text-slate-400"
+              )}
+            >
+              Add a write-up to give this capture more context in the gallery.
             </p>
           )}
-        </CardHeader>
-        <CardContent className="pt-0">
-          <p
-            className={cn(
-              "text-xs text-muted-foreground",
-              isWorkspaceTone && "text-slate-400"
-            )}
-          >
-            <span className="sr-only">Slug: </span>
-            <code
+          {post.targetType ? (
+            <p
               className={cn(
-                "rounded bg-muted px-1.5 py-0.5 font-mono",
-                isWorkspaceTone && "bg-white/8 text-slate-200"
+                "pt-1 text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground/80",
+                isWorkspaceTone && "text-slate-500"
               )}
             >
-              {post.slug}
-            </code>
-          </p>
+              {post.targetType}
+            </p>
+          ) : null}
         </CardContent>
       </Link>
     </Card>
