@@ -64,6 +64,10 @@ export function PostImageInspector({
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
 
   useEffect(() => {
+    setImageSize({ width: 0, height: 0 });
+  }, [src]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const mediaQuery = window.matchMedia("(pointer: fine)");
@@ -292,11 +296,11 @@ export function PostImageInspector({
   return (
     <>
       <div className={cn(className)}>
-        <figure className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.04] shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
+        <figure className="block w-full overflow-hidden rounded-[1.6rem] border border-white/10 bg-white/[0.04] shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
           <img
             src={src}
             alt={alt}
-            className="max-h-[70vh] w-full object-contain"
+            className="block h-auto w-full max-w-none align-middle"
             onLoad={(event) =>
               setImageSize({
                 width: event.currentTarget.naturalWidth,
