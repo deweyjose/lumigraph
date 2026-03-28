@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { getPrisma } from "@lumigraph/db";
+import { deleteS3Object, getS3Bucket } from "./s3";
 import { replacePostIntegrationSetLinksTx } from "./integration-sets";
 
 export type CreatePostInput = {
@@ -237,6 +238,77 @@ export async function getPostForOwner(postId: string, userId: string) {
   });
   if (!post || post.userId !== userId) return null;
   return post;
+}
+
+/**
+ * Deletes an owned post, unlinks integration sets (DB `SetNull`), cascades
+ * related rows, then best-effort deletes referenced S3 objects.
+ */
+export async function deletePostForOwner(
+  postId: string,
+  userId: string
+): Promise<"deleted" | "not_found"> {
+  const prisma = await getPrisma();
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      userId: true,
+      finalImageAssetId: true,
+      finalThumbAssetId: true,
+    },
+  });
+  if (!post || post.userId !== userId) return "not_found";
+
+  const finalIds = [post.finalImageAssetId, post.finalThumbAssetId].filter(
+    (id): id is string => typeof id === "string" && id.length > 0
+  );
+
+  const [assets, thumbJobs] = await Promise.all([
+    prisma.asset.findMany({
+      where: {
+        userId,
+        OR: [
+          { postId },
+          ...(finalIds.length > 0 ? [{ id: { in: finalIds } }] : []),
+        ],
+      },
+      select: { s3Key: true },
+    }),
+    prisma.autoThumbJob.findMany({
+      where: { postId, userId },
+      select: { outputThumbKey: true, sourceObjectKey: true },
+    }),
+  ]);
+
+  const keys = new Set<string>();
+  for (const a of assets) keys.add(a.s3Key);
+  for (const j of thumbJobs) {
+    if (j.outputThumbKey) keys.add(j.outputThumbKey);
+    if (j.sourceObjectKey) keys.add(j.sourceObjectKey);
+  }
+
+  await prisma.post.delete({ where: { id: postId } });
+
+  let bucket: string;
+  try {
+    bucket = getS3Bucket();
+  } catch {
+    return "deleted";
+  }
+  for (const key of keys) {
+    try {
+      await deleteS3Object(bucket, key);
+    } catch (err) {
+      console.error("[post-delete] S3 object delete failed", {
+        postId,
+        key,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return "deleted";
 }
 
 export async function setPostFinalAsset(

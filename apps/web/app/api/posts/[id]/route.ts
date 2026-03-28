@@ -5,6 +5,7 @@ import { apiError, apiValidationError } from "@/server/api-responses";
 import { toJsonSafe } from "@/server/json";
 import { InvalidIntegrationSelectionForPostError } from "@/server/services/integration-sets";
 import {
+  deletePostForOwner,
   getPostForOwner,
   updatePostDraftWithIntegrationSync,
 } from "@/server/services/posts";
@@ -104,4 +105,23 @@ export async function PUT(
     }
     return apiError(500, "SERVER_ERROR", "Failed to update post");
   }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return apiError(401, "UNAUTHORIZED", "Sign in to delete a post");
+  }
+  const { id } = await params;
+  if (!id) {
+    return apiError(400, "BAD_REQUEST", "Missing post id");
+  }
+  const result = await deletePostForOwner(id, session.user.id);
+  if (result === "not_found") {
+    return apiError(404, "NOT_FOUND", "Post not found or you do not own it");
+  }
+  return new NextResponse(null, { status: 204 });
 }

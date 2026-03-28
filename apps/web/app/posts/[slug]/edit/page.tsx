@@ -7,6 +7,7 @@ import { FinalImageUpload } from "@/components/posts/final-image-upload";
 import { PostEditorForm } from "@/components/posts/post-editor-form";
 import { PublishButton } from "@/components/posts/publish-button";
 import { Button } from "@/components/ui/button";
+import { DeletePostButton } from "@/components/posts/delete-post-button";
 import { PostLinkedIntegrationSummaries } from "@/components/posts/post-linked-integration-summaries";
 import { mapPostIntegrationSetsForSummary } from "@/lib/post-integration-preview";
 import { getLatestAutoThumbJobForPostOwner } from "@/server/services/auto-thumb-jobs";
@@ -112,6 +113,17 @@ export default async function PostEditPage({ params }: Props) {
           <PublishButton postId={post.id} className="mt-3" />
         </div>
       )}
+
+      <div className="mt-8 border-t border-border pt-6">
+        <p className="text-sm font-medium text-destructive">Danger zone</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Deleting removes this post and its final images. Published posts can
+          be deleted the same way; they disappear from the public gallery.
+        </p>
+        <div className="mt-3">
+          <DeletePostButton postId={post.id} postTitle={post.title} />
+        </div>
+      </div>
     </div>
   );
 }

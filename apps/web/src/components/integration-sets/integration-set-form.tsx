@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { DeleteIntegrationSetButton } from "@/components/integration-sets/delete-integration-set-button";
 import { IntegrationSetNotesAssistButtons } from "@/components/integration-sets/integration-set-notes-assist-buttons";
 
 type PostOption = { id: string; title: string; slug: string };
@@ -165,6 +166,21 @@ export function IntegrationSetForm({
             </Button>
           </div>
         </form>
+        {mode === "edit" && integrationSetId ? (
+          <div className="mt-8 border-t border-border pt-6">
+            <p className="text-sm font-medium text-destructive">Danger zone</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Deleting removes this integration set and all of its files from
+              storage.
+            </p>
+            <div className="mt-3">
+              <DeleteIntegrationSetButton
+                integrationSetId={integrationSetId}
+                title={title.trim() || initialTitle || "this integration set"}
+              />
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

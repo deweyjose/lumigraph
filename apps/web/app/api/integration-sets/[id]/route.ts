@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "auth";
 import {
+  deleteIntegrationSetForOwner,
   getIntegrationSetForOwner,
   updateIntegrationSet,
 } from "@/server/services/integration-sets";
@@ -80,4 +81,32 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { code: "UNAUTHORIZED", message: "Sign in to delete integration sets" },
+      { status: 401 }
+    );
+  }
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json(
+      { code: "BAD_REQUEST", message: "Missing integration set id" },
+      { status: 400 }
+    );
+  }
+  const result = await deleteIntegrationSetForOwner(id, session.user.id);
+  if (result === "not_found") {
+    return NextResponse.json(
+      { code: "NOT_FOUND", message: "Integration set not found" },
+      { status: 404 }
+    );
+  }
+  return new NextResponse(null, { status: 204 });
 }

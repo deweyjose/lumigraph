@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { authMock, getPostForOwnerMock, updatePostDraftMock } = vi.hoisted(
-  () => ({
-    authMock: vi.fn(),
-    getPostForOwnerMock: vi.fn(),
-    updatePostDraftMock: vi.fn(),
-  })
-);
+const {
+  authMock,
+  getPostForOwnerMock,
+  updatePostDraftMock,
+  deletePostForOwnerMock,
+} = vi.hoisted(() => ({
+  authMock: vi.fn(),
+  getPostForOwnerMock: vi.fn(),
+  updatePostDraftMock: vi.fn(),
+  deletePostForOwnerMock: vi.fn(),
+}));
 
 vi.mock("auth", () => ({
   auth: authMock,
@@ -15,15 +19,17 @@ vi.mock("auth", () => ({
 vi.mock("@/server/services/posts", () => ({
   getPostForOwner: getPostForOwnerMock,
   updatePostDraft: updatePostDraftMock,
+  deletePostForOwner: deletePostForOwnerMock,
 }));
 
-import { GET } from "./route";
+import { DELETE, GET } from "./route";
 
 describe("GET /api/posts/:id", () => {
   beforeEach(() => {
     authMock.mockReset();
     getPostForOwnerMock.mockReset();
     updatePostDraftMock.mockReset();
+    deletePostForOwnerMock.mockReset();
   });
 
   it("rejects unauthenticated access", async () => {
@@ -97,5 +103,56 @@ describe("GET /api/posts/:id", () => {
       code: "BAD_REQUEST",
       message: "Missing post id",
     });
+  });
+});
+
+describe("DELETE /api/posts/:id", () => {
+  beforeEach(() => {
+    authMock.mockReset();
+    deletePostForOwnerMock.mockReset();
+  });
+
+  it("rejects unauthenticated access", async () => {
+    authMock.mockResolvedValue(null);
+
+    const response = await DELETE(
+      new Request("http://localhost/api/posts/post-1"),
+      { params: Promise.resolve({ id: "post-1" }) }
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      code: "UNAUTHORIZED",
+      message: "Sign in to delete a post",
+    });
+  });
+
+  it("returns 404 when the post is not owned by the caller", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    deletePostForOwnerMock.mockResolvedValue("not_found");
+
+    const response = await DELETE(
+      new Request("http://localhost/api/posts/post-1"),
+      { params: Promise.resolve({ id: "post-1" }) }
+    );
+
+    expect(deletePostForOwnerMock).toHaveBeenCalledWith("post-1", "user-1");
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      code: "NOT_FOUND",
+      message: "Post not found or you do not own it",
+    });
+  });
+
+  it("returns 204 when deleted", async () => {
+    authMock.mockResolvedValue({ user: { id: "user-1" } });
+    deletePostForOwnerMock.mockResolvedValue("deleted");
+
+    const response = await DELETE(
+      new Request("http://localhost/api/posts/post-1"),
+      { params: Promise.resolve({ id: "post-1" }) }
+    );
+
+    expect(response.status).toBe(204);
   });
 });
