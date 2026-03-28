@@ -26,6 +26,7 @@
     "autoprefixer": "^10.4.27",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
     "next-auth": "5.0.0-beta.30",
@@ -36,7 +37,8 @@
     "react": "19.2.4",
     "react-arborist": "^3.4.3",
     "react-dom": "19.2.4",
-    "jszip": "^3.10.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
     "zod": "^4.3.6"

@@ -38,8 +38,13 @@ beforeEach(() => {
 describe("generatePostWriteupFromInterview", () => {
   it("returns a trimmed description from model JSON output", async () => {
     generateOpenAIJsonObjectMock.mockResolvedValue({
-      description:
-        "  A concise write-up for this target that meets minimum length requirements for the generated schema.  ",
+      description: `  ## The target
+M42 is a showcase nebula. ## Distance and light
+Roughly 1,300 light-years away. ## Deep time
+The nebula is young on cosmic scales; the universe is about 13.8 billion years old—figures here are approximate. ## When this light began its journey
+Long before recorded history on Earth. ## Your capture
+Backyard winter 2025 with modest gear.
+${" More context about the capture and why it matters to the reader.".repeat(12)}  `,
     });
 
     const result = await generatePostWriteupFromInterview(baseContext, {
@@ -51,7 +56,7 @@ describe("generatePostWriteupFromInterview", () => {
       tone: "",
     });
 
-    expect(result.description).toMatch(/^A concise write-up/);
+    expect(result.description).toMatch(/^## The target/);
     expect(generateOpenAIJsonObjectMock).toHaveBeenCalledOnce();
   });
 });
@@ -75,8 +80,12 @@ describe("refinePostWriteup", () => {
 describe("expandPostWriteup", () => {
   it("returns trimmed expanded text", async () => {
     generateOpenAIResponsesJsonObjectMock.mockResolvedValue({
-      description:
-        "  Expanded write-up text with researched object context and a Wikipedia URL.  ",
+      description: `  ## The target
+Orion Nebula detail. ## Distance and light
+About 1,300 light-years. ## Deep time
+Star-forming region; cosmic ages are approximate versus a 13.8 Gyr universe. ## When this light began its journey
+Ancient Earth eras, illustrative only.
+${" Expanded researched context and one Wikipedia URL sentence for the reader.".repeat(10)}  `,
     });
 
     const result = await expandPostWriteup(
@@ -84,9 +93,8 @@ describe("expandPostWriteup", () => {
       "Short draft about the Orion Nebula."
     );
 
-    expect(result.description).toBe(
-      "Expanded write-up text with researched object context and a Wikipedia URL."
-    );
+    expect(result.description).toMatch(/^## The target/);
+    expect(result.description.length).toBeGreaterThanOrEqual(400);
     expect(generateOpenAIResponsesJsonObjectMock).toHaveBeenCalledOnce();
   });
 });

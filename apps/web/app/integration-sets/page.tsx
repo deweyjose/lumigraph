@@ -150,7 +150,12 @@ export default async function IntegrationSetsPage() {
                     Open to manage files, notes, and exports.
                   </p>
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/integration-sets/${set.id}`}>Open</Link>
+                    <Link
+                      href={`/integration-sets/${set.id}`}
+                      aria-label={`Open integration set: ${set.title}`}
+                    >
+                      Open
+                    </Link>
                   </Button>
                 </div>
               </article>

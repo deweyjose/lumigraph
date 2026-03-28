@@ -79,18 +79,21 @@ function ActionLinks({
 
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
-      {actions.map((action) => (
-        <a
-          key={`${action.href}-${action.label}`}
-          href={action.href}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/20 bg-slate-950/60 px-3 py-1.5 text-xs text-cyan-100 transition-colors hover:border-cyan-200/40 hover:bg-cyan-500/10"
-        >
-          {actionIcon(action.kind)}
-          {action.label}
-        </a>
-      ))}
+      {actions.map((action) => {
+        const text = action.label.trim() || "Open link";
+        return (
+          <a
+            key={`${action.href}-${text}`}
+            href={action.href}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/20 bg-slate-950/60 px-3 py-1.5 text-xs text-cyan-100 transition-colors hover:border-cyan-200/40 hover:bg-cyan-500/10"
+          >
+            <span aria-hidden>{actionIcon(action.kind)}</span>
+            {text}
+          </a>
+        );
+      })}
     </div>
   );
 }

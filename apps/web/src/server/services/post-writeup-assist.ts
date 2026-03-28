@@ -12,15 +12,15 @@ import {
 } from "@/lib/post-writeup-interview-questions";
 
 const GeneratedWriteupSchema = z.object({
-  description: z.string().min(120).max(900),
+  description: z.string().min(400).max(4500),
 });
 
 const RefinedWriteupSchema = z.object({
-  description: z.string().min(1).max(900),
+  description: z.string().min(1).max(4500),
 });
 
 const ExpandedWriteupSchema = z.object({
-  description: z.string().min(220).max(1800),
+  description: z.string().min(400).max(8000),
 });
 
 const ExpandedWriteupJsonSchema = {
@@ -30,8 +30,8 @@ const ExpandedWriteupJsonSchema = {
   properties: {
     description: {
       type: "string",
-      minLength: 220,
-      maxLength: 1800,
+      minLength: 400,
+      maxLength: 8000,
     },
   },
 } as const;

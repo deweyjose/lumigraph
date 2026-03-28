@@ -10,11 +10,20 @@ import { cn } from "@/lib/utils";
 import { getPostSaveNavigation } from "./post-save-navigation";
 import { PostWriteupAssistDialog } from "./post-writeup-assist-dialog";
 
+type IntegrationSetOption = { id: string; title: string };
+
 type Props = {
   postId: string;
   initialTitle: string;
   initialSlug: string;
   initialDescription?: string | null;
+  /** Where to navigate after a slug change (default: public post view). */
+  saveRedirect?: "view" | "edit";
+  /** When set, post save syncs which integration sets link to this post. */
+  integrationSetOptions?: IntegrationSetOption[];
+  initialIntegrationSetIds?: string[];
+  /** When true, PUT always includes integrationSetIds (edit page). */
+  includeIntegrationSetIdsInSave?: boolean;
 };
 
 export function PostEditorForm({
@@ -22,11 +31,18 @@ export function PostEditorForm({
   initialTitle,
   initialSlug,
   initialDescription,
+  saveRedirect = "view",
+  integrationSetOptions,
+  initialIntegrationSetIds = [],
+  includeIntegrationSetIdsInSave = false,
 }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [slug, setSlug] = useState(initialSlug);
   const [description, setDescription] = useState(initialDescription ?? "");
+  const [linkedIntegrationSetIds, setLinkedIntegrationSetIds] = useState(
+    () => new Set(initialIntegrationSetIds)
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [writeupAssistOpen, setWriteupAssistOpen] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
@@ -38,14 +54,19 @@ export function PostEditorForm({
     setError(null);
     setIsSaving(true);
     try {
+      const payload: Record<string, unknown> = {
+        title: title.trim(),
+        slug: slug.trim(),
+        description: description.trim() || null,
+      };
+      if (includeIntegrationSetIdsInSave) {
+        payload.integrationSetIds = Array.from(linkedIntegrationSetIds);
+      }
+
       const res = await fetch(`/api/posts/${postId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          slug: slug.trim(),
-          description: description.trim() || null,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -53,7 +74,9 @@ export function PostEditorForm({
         return;
       }
       const savedSlug = typeof data.slug === "string" ? data.slug : slug.trim();
-      const navigation = getPostSaveNavigation(initialSlug, savedSlug);
+      const navigation = getPostSaveNavigation(initialSlug, savedSlug, {
+        mode: saveRedirect,
+      });
 
       if (navigation === "refresh") {
         router.refresh();
@@ -157,6 +180,45 @@ export function PostEditorForm({
         value={slug}
         onChange={(e) => setSlug(e.target.value)}
       />
+      {integrationSetOptions !== undefined &&
+        integrationSetOptions.length > 0 && (
+          <fieldset className="space-y-3 rounded-md border p-3">
+            <legend className="px-1 text-sm font-medium">
+              Integration sets on this post
+            </legend>
+            <p className="text-muted-foreground text-xs">
+              Choose which of your integration sets appear with this post.
+              Manage files on each set&apos;s own page.
+            </p>
+            <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
+              {integrationSetOptions.map((opt) => (
+                <li key={opt.id} className="flex items-start gap-2">
+                  <input
+                    id={`iset-${opt.id}`}
+                    type="checkbox"
+                    className="border-input mt-0.5 size-4 shrink-0 rounded border"
+                    checked={linkedIntegrationSetIds.has(opt.id)}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setLinkedIntegrationSetIds((prev) => {
+                        const next = new Set(prev);
+                        if (on) next.add(opt.id);
+                        else next.delete(opt.id);
+                        return next;
+                      });
+                    }}
+                  />
+                  <label
+                    htmlFor={`iset-${opt.id}`}
+                    className="cursor-pointer text-sm leading-tight"
+                  >
+                    {opt.title}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+        )}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label htmlFor="post-description">Write-up</Label>
@@ -202,7 +264,7 @@ export function PostEditorForm({
         </div>
         <textarea
           id="post-description"
-          rows={5}
+          rows={16}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className={cn(

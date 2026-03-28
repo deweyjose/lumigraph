@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { IntegrationSetNotesAssistButtons } from "@/components/integration-sets/integration-set-notes-assist-buttons";
 
 type PostOption = { id: string; title: string; slug: string };
 
@@ -95,10 +96,19 @@ export function IntegrationSetForm({
             required
           />
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <Label htmlFor="notes">Notes</Label>
+              {mode === "edit" && integrationSetId ? (
+                <IntegrationSetNotesAssistButtons
+                  integrationSetId={integrationSetId}
+                  notes={notes}
+                  onApplyNotes={setNotes}
+                />
+              ) : null}
+            </div>
             <textarea
               id="notes"
-              rows={3}
+              rows={5}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className={cn(
@@ -109,6 +119,11 @@ export function IntegrationSetForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="postId">Linked post (optional)</Label>
+            <p className="text-xs text-muted-foreground">
+              To attach several integration sets to one post, use{" "}
+              <span className="text-white/80">Edit post</span> on the post page
+              and select sets there.
+            </p>
             <Select
               id="postId"
               value={postId}

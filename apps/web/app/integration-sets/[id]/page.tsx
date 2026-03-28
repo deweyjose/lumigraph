@@ -8,8 +8,10 @@ import { listMyPosts } from "@/server/services/posts";
 import { getIntegrationSetForOwner } from "@/server/services/integration-sets";
 import { listAssetsByIntegrationSetForOwner } from "@/server/services/assets";
 import { listDownloadJobsForIntegrationSetForOwner } from "@/server/services/download-jobs";
+import { IntegrationInventoryPanel } from "@/components/integration-sets/integration-inventory-panel";
 import { IntegrationSetForm } from "@/components/integration-sets/integration-set-form";
 import { IntegrationAssetUpload } from "@/components/integration-sets/integration-asset-upload";
+import { summarizeIntegrationAssets } from "@/lib/integration-asset-summary";
 
 type Props = { params: Promise<{ id: string }> };
 type IntegrationAsset = NonNullable<
@@ -19,7 +21,14 @@ type PostOption = Awaited<ReturnType<typeof listMyPosts>>[number];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  return { title: `Integration Set ${id}` };
+  const session = await auth();
+  if (session?.user?.id) {
+    const set = await getIntegrationSetForOwner(id, session.user.id);
+    if (set) {
+      return { title: `${set.title} · Integration set` };
+    }
+  }
+  return { title: "Integration set" };
 }
 
 export default async function IntegrationSetDetailPage({ params }: Props) {
@@ -37,6 +46,15 @@ export default async function IntegrationSetDetailPage({ params }: Props) {
   ]);
   if (!set || !assets || !downloadJobs) notFound();
 
+  const inventorySummary = summarizeIntegrationAssets(
+    assets.map((a: IntegrationAsset) => ({
+      relativePath: a.relativePath,
+      filename: a.filename,
+      contentType: a.contentType,
+      sizeBytes: a.sizeBytes,
+    }))
+  );
+
   return (
     <div className="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <div className="mb-4">
@@ -53,6 +71,10 @@ export default async function IntegrationSetDetailPage({ params }: Props) {
       <p className="mt-1 text-sm text-muted-foreground">
         Private integration set. Upload files or folders and browse by path.
       </p>
+
+      <div className="mt-6">
+        <IntegrationInventoryPanel summary={inventorySummary} />
+      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr,1fr]">
         <IntegrationAssetUpload

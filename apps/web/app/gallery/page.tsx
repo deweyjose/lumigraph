@@ -40,7 +40,11 @@ export default async function GalleryPage() {
         {publicPosts.length > 0 ? (
           <ul className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {publicPosts.map((post: PostCardPost) => (
-              <li key={post.id} className="h-full">
+              <li
+                key={post.id}
+                className="h-full"
+                aria-label={`${post.status === "PUBLISHED" ? "Published post" : "Draft post"}: ${post.title}`}
+              >
                 <PostCard
                   post={{
                     id: post.id,

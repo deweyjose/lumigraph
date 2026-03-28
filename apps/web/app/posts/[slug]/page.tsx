@@ -2,21 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "auth";
-import { Download, ImageIcon } from "lucide-react";
-import { FinalImageUpload } from "@/components/posts/final-image-upload";
+import { ImageIcon, Pencil } from "lucide-react";
+import { PostDescriptionMarkdown } from "@/components/posts/post-description-markdown";
 import { PostImageInspector } from "@/components/posts/post-image-inspector";
+import { PostLinkedIntegrationSummaries } from "@/components/posts/post-linked-integration-summaries";
 import { PublishButton } from "@/components/posts/publish-button";
-import { PostEditorForm } from "@/components/posts/post-editor-form";
 import { Button } from "@/components/ui/button";
 import { VisibilityBadge } from "@/components/gallery/visibility-badge";
-import { getLatestAutoThumbJobForPostOwner } from "@/server/services/auto-thumb-jobs";
+import { formatShortUsDate } from "@/lib/format-date";
+import { mapPostIntegrationSetsForSummary } from "@/lib/post-integration-preview";
 import { getPostBySlugForView } from "@/server/services/posts";
 
 type Props = { params: Promise<{ slug: string }> };
-type IntegrationSet = NonNullable<
-  Awaited<ReturnType<typeof getPostBySlugForView>>
->["integrationSets"][number];
-type IntegrationAsset = IntegrationSet["assets"][number];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -32,10 +29,9 @@ export default async function PostDetailPage({ params }: Props) {
   const isOwner = session?.user?.id === post.userId;
   const imageAssetId = post.finalImageAssetId ?? null;
   const thumbAssetId = post.finalThumbAssetId ?? null;
-  const autoThumbJob =
-    isOwner && session?.user?.id
-      ? await getLatestAutoThumbJobForPostOwner(session.user.id, post.id)
-      : null;
+  const integrationSummarySets = mapPostIntegrationSetsForSummary(
+    post.integrationSets
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
@@ -49,56 +45,48 @@ export default async function PostDetailPage({ params }: Props) {
         {post.title}
       </h1>
       {(post.targetName || post.captureDate) && (
-        <p className="mt-1 text-muted-foreground">
-          {[post.targetName, post.captureDate?.toLocaleDateString()]
+        <p className="text-muted-foreground mt-1">
+          {[
+            post.targetName,
+            post.captureDate ? formatShortUsDate(post.captureDate) : null,
+          ]
             .filter(Boolean)
             .join(" · ")}
         </p>
       )}
-      {post.description && (
-        <p className="mt-4 whitespace-pre-wrap text-muted-foreground">
-          {post.description}
-        </p>
-      )}
 
-      {imageAssetId || thumbAssetId ? (
-        <PostImageInspector
-          alt={post.title}
-          className="mt-6"
-          src={`/api/assets/${imageAssetId ?? thumbAssetId}/view`}
-        />
-      ) : (
-        <div className="mt-6 flex min-h-[220px] items-center justify-center rounded-[1.6rem] border border-dashed border-white/12 bg-white/[0.03] shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
-          <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
+      {isOwner && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm" className="gap-2">
+            <Link href={`/posts/${post.slug}/edit`}>
+              <Pencil className="h-4 w-4" />
+              Edit post
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/drafts">Back to Drafts</Link>
+          </Button>
         </div>
       )}
 
-      {isOwner && (
-        <>
-          <PostEditorForm
-            postId={post.id}
-            initialTitle={post.title}
-            initialSlug={post.slug}
-            initialDescription={post.description}
+      <div className="mt-6">
+        {imageAssetId || thumbAssetId ? (
+          <PostImageInspector
+            alt={post.title}
+            className="w-full overflow-hidden rounded-[1.4rem] border border-white/10 bg-muted/50 shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)]"
+            src={`/api/assets/${imageAssetId ?? thumbAssetId}/view`}
           />
-          <FinalImageUpload
-            postId={post.id}
-            currentImageAssetId={post.finalImageAssetId}
-            currentThumbAssetId={post.finalThumbAssetId}
-            initialAutoThumbJob={
-              autoThumbJob
-                ? {
-                    id: autoThumbJob.id,
-                    status: autoThumbJob.status,
-                    attempts: autoThumbJob.attempts,
-                    errorMessage: autoThumbJob.errorMessage,
-                    updatedAt: autoThumbJob.updatedAt,
-                  }
-                : null
-            }
-            className="mt-6"
-          />
-        </>
+        ) : (
+          <div className="flex min-h-[220px] items-center justify-center rounded-[1.6rem] border border-dashed border-white/12 bg-white/[0.03] shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm">
+            <ImageIcon className="text-muted-foreground/50 h-16 w-16" />
+          </div>
+        )}
+      </div>
+
+      {post.description && (
+        <div className="mt-6">
+          <PostDescriptionMarkdown source={post.description} />
+        </div>
       )}
 
       {isOwner && post.status === "DRAFT" && (
@@ -106,53 +94,25 @@ export default async function PostDetailPage({ params }: Props) {
           <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
             This post is a draft. Publish to make it public.
           </p>
+          <p className="text-muted-foreground mt-2 text-xs">
+            Add images and edit copy on the{" "}
+            <Link
+              className="text-primary underline-offset-4 hover:underline"
+              href={`/posts/${post.slug}/edit`}
+            >
+              edit post
+            </Link>{" "}
+            page.
+          </p>
           <PublishButton postId={post.id} className="mt-3" />
         </div>
       )}
 
-      {post.integrationSets.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-lg font-semibold">Integration Sets</h2>
-          <div className="mt-3 space-y-4">
-            {post.integrationSets.map((set: IntegrationSet) => (
-              <div
-                key={set.id}
-                className="rounded-[1.4rem] border border-white/10 bg-white/[0.035] p-4 shadow-[0_18px_60px_-30px_rgba(0,0,0,0.8)] backdrop-blur-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">{set.title}</h3>
-                  {isOwner && (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/integration-sets/${set.id}`}>Manage</Link>
-                    </Button>
-                  )}
-                </div>
-                {set.assets.length > 0 && (
-                  <ul className="mt-3 space-y-2">
-                    {set.assets.map((asset: IntegrationAsset) => (
-                      <li
-                        key={asset.id}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2"
-                      >
-                        <span className="truncate font-mono text-sm">
-                          {asset.relativePath}
-                        </span>
-                        <a
-                          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                          href={`/api/assets/${asset.id}/download`}
-                        >
-                          <Download className="h-4 w-4" />
-                          Download
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <PostLinkedIntegrationSummaries
+        sets={integrationSummarySets}
+        showOwnerLinks={isOwner}
+        className="mt-10"
+      />
     </div>
   );
 }

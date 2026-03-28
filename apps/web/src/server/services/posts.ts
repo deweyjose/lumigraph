@@ -1,4 +1,6 @@
-import { getPrisma, type Prisma } from "@lumigraph/db";
+import { Prisma } from "@prisma/client";
+import { getPrisma } from "@lumigraph/db";
+import { replacePostIntegrationSetLinksTx } from "./integration-sets";
 
 export type CreatePostInput = {
   title: string;
@@ -22,6 +24,36 @@ const postInclude = {
   finalImageAsset: true,
   finalThumbAsset: true,
 } satisfies Prisma.PostInclude;
+
+/** Single include shape so TS infers `integrationSets[].assets` (spread breaks payload inference). */
+const postWithLinkedIntegrationSummariesArgs =
+  Prisma.validator<Prisma.PostDefaultArgs>()({
+    include: {
+      ...postInclude,
+      integrationSets: {
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          notes: true,
+          assets: {
+            where: { status: "UPLOADED", kind: "INTEGRATION" },
+            orderBy: { relativePath: "asc" },
+            select: {
+              relativePath: true,
+              filename: true,
+              contentType: true,
+              sizeBytes: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+export type PostWithLinkedIntegrationSummaries = Prisma.PostGetPayload<
+  typeof postWithLinkedIntegrationSummariesArgs
+>;
 
 export async function createDraft(userId: string, input: CreatePostInput) {
   const prisma = await getPrisma();
@@ -68,6 +100,59 @@ export async function updatePostDraft(
   });
 }
 
+export type UpdatePostDraftWithIntegrationInput = UpdatePostInput & {
+  integrationSetIds?: string[];
+};
+
+/**
+ * Updates draft fields and optionally integration-set links in a single
+ * transaction so partial writes are impossible.
+ */
+export async function updatePostDraftWithIntegrationSync(
+  userId: string,
+  postId: string,
+  input: UpdatePostDraftWithIntegrationInput
+) {
+  const prisma = await getPrisma();
+  const { integrationSetIds, ...postInput } = input;
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.post.findUnique({ where: { id: postId } });
+    if (!existing || existing.userId !== userId) return null;
+
+    const data: Prisma.PostUpdateInput = {};
+    if (postInput.title !== undefined) data.title = postInput.title;
+    if (postInput.slug !== undefined) data.slug = postInput.slug;
+    if (postInput.description !== undefined)
+      data.description = postInput.description;
+    if (postInput.targetName !== undefined)
+      data.targetName = postInput.targetName;
+    if (postInput.targetType !== undefined)
+      data.targetType = postInput.targetType;
+    if (postInput.captureDate !== undefined)
+      data.captureDate = postInput.captureDate;
+    if (postInput.bortle !== undefined) data.bortle = postInput.bortle;
+
+    if (Object.keys(data).length > 0) {
+      await tx.post.update({ where: { id: postId }, data });
+    }
+
+    if (integrationSetIds !== undefined) {
+      await replacePostIntegrationSetLinksTx(
+        tx,
+        userId,
+        postId,
+        integrationSetIds
+      );
+    }
+
+    return tx.post.findUnique({
+      where: { id: postId },
+      include: postInclude,
+    });
+  });
+}
+
 export async function publishPost(userId: string, postId: string) {
   const prisma = await getPrisma();
   const existing = await prisma.post.findUnique({ where: { id: postId } });
@@ -91,6 +176,18 @@ export async function listMyPosts(userId: string) {
   });
 }
 
+/** Owner’s posts with integration-set file lists (for workspace / drafts summaries). */
+export async function listMyPostsWithIntegrationAssets(
+  userId: string
+): Promise<PostWithLinkedIntegrationSummaries[]> {
+  const prisma = await getPrisma();
+  return prisma.post.findMany({
+    where: { userId },
+    orderBy: [{ updatedAt: "desc" }],
+    ...postWithLinkedIntegrationSummariesArgs,
+  });
+}
+
 export async function listPublicPosts(options?: { limit?: number }) {
   const prisma = await getPrisma();
   return prisma.post.findMany({
@@ -108,22 +205,23 @@ export async function getPostBySlugForView(
   const prisma = await getPrisma();
   const post = await prisma.post.findUnique({
     where: { slug },
-    include: {
-      ...postInclude,
-      integrationSets: {
-        include: {
-          assets: {
-            where: { status: "UPLOADED", kind: "INTEGRATION" },
-            orderBy: { relativePath: "asc" },
-          },
-        },
-      },
-    },
+    ...postWithLinkedIntegrationSummariesArgs,
   });
   if (!post) return null;
   if (post.status === "PUBLISHED") return post;
   if (userId && post.userId === userId) return post;
   return null;
+}
+
+/** Owner-only post for the edit screen (integration sets with assets for summaries). */
+export async function getPostBySlugForOwnerEdit(slug: string, userId: string) {
+  const prisma = await getPrisma();
+  const post = await prisma.post.findUnique({
+    where: { slug },
+    ...postWithLinkedIntegrationSummariesArgs,
+  });
+  if (!post || post.userId !== userId) return null;
+  return post;
 }
 
 export async function getPostForOwner(postId: string, userId: string) {

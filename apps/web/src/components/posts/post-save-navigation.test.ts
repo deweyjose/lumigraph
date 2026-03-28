@@ -11,4 +11,12 @@ describe("getPostSaveNavigation", () => {
       replace: "/posts/m31-andromeda",
     });
   });
+
+  it("uses the edit path when mode is edit", () => {
+    expect(
+      getPostSaveNavigation("m31", "m31-andromeda", { mode: "edit" })
+    ).toEqual({
+      replace: "/posts/m31-andromeda/edit",
+    });
+  });
 });
