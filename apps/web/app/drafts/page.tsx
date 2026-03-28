@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "auth";
-import { listMyPosts } from "@/server/services/posts";
-import { PostCard, type PostCardPost } from "@/components/gallery/post-card";
+import { PostCard } from "@/components/gallery/post-card";
+import { draftWorkspacePostsToCardViews } from "@/lib/post-integration-preview";
+import { listMyPostsWithIntegrationAssets } from "@/server/services/posts";
 import { Button } from "@/components/ui/button";
 import { FileImage, Plus } from "lucide-react";
 
@@ -19,7 +20,8 @@ export default async function DraftsPage() {
     redirect("/auth/signin?callbackUrl=/drafts");
   }
 
-  const myPosts = await listMyPosts(session.user.id);
+  const myPosts = await listMyPostsWithIntegrationAssets(session.user.id);
+  const draftCards = draftWorkspacePostsToCardViews(myPosts);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
@@ -47,24 +49,17 @@ export default async function DraftsPage() {
 
       {myPosts.length > 0 ? (
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {myPosts.map((post: PostCardPost) => (
-            <li key={post.id} className="h-full">
+          {draftCards.map(({ post, linkedIntegrations }) => (
+            <li
+              key={post.id}
+              className="h-full"
+              aria-label={`${post.status === "PUBLISHED" ? "Published post" : "Draft post"}: ${post.title}`}
+            >
               <PostCard
-                post={{
-                  id: post.id,
-                  slug: post.slug,
-                  title: post.title,
-                  description: post.description,
-                  status: post.status,
-                  finalImageAssetId: post.finalImageAssetId,
-                  finalThumbAssetId: post.finalThumbAssetId,
-                  targetName: post.targetName,
-                  targetType: post.targetType,
-                  captureDate: post.captureDate,
-                  updatedAt: post.updatedAt,
-                }}
+                post={post}
                 hrefBase="/posts"
                 tone="workspace"
+                linkedIntegrations={linkedIntegrations}
               />
             </li>
           ))}

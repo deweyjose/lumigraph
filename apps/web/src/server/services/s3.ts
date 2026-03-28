@@ -155,6 +155,45 @@ export async function deleteS3Object(
   );
 }
 
+async function s3BodyToBuffer(body: unknown): Promise<Buffer> {
+  if (!body) {
+    throw new Error("S3 object body was empty");
+  }
+  if (Buffer.isBuffer(body)) return body;
+  if (body instanceof Uint8Array) return Buffer.from(body);
+  const withTransform = body as {
+    transformToByteArray?: () => Promise<Uint8Array>;
+  };
+  if (typeof withTransform.transformToByteArray === "function") {
+    return Buffer.from(await withTransform.transformToByteArray());
+  }
+  throw new Error("Unsupported S3 object body type");
+}
+
+/**
+ * Reads the first `maxBytes` of an object (for FITS header sniffing, etc.).
+ */
+export async function readS3ObjectPrefix(
+  bucket: string,
+  key: string,
+  maxBytes: number
+): Promise<Buffer | null> {
+  try {
+    const client = await getS3Client();
+    const out = await client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Range: `bytes=0-${maxBytes - 1}`,
+      })
+    );
+    if (!out.Body) return null;
+    return await s3BodyToBuffer(out.Body);
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // S3 key helpers (match docs/ARCHITECTURE.md § S3 Layout)
 // ---------------------------------------------------------------------------

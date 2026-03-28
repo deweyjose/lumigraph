@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { type NodeApi, type NodeRendererProps, Tree } from "react-arborist";
 import {
@@ -22,6 +30,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   downloadUnavailableMessage,
   isExportJobActive,
   isExportJobExpired,
@@ -30,6 +48,22 @@ import {
 } from "./export-job-state";
 
 const EXPORT_POLL_INTERVAL_MS = 5000;
+
+const EMPTY_DELETING_SET: ReadonlySet<string> = new Set();
+
+const noopExplorerRequest = () => {};
+
+const ExplorerActionsContext = createContext<{
+  requestDeleteFile: (assetId: string, label: string) => void;
+  requestDeleteFolder: (folderPath: string, label: string) => void;
+  deletingAssetIds: ReadonlySet<string>;
+  deletingFolderPaths: ReadonlySet<string>;
+}>({
+  requestDeleteFile: noopExplorerRequest,
+  requestDeleteFolder: noopExplorerRequest,
+  deletingAssetIds: EMPTY_DELETING_SET,
+  deletingFolderPaths: EMPTY_DELETING_SET,
+});
 
 type UploadEntry = {
   clientId: string;
@@ -297,6 +331,12 @@ function runningProgress(job: DownloadJobRow): {
 
 function NodeRow({ node, style, dragHandle }: NodeRendererProps<ExplorerNode>) {
   const data = node.data;
+  const {
+    requestDeleteFile,
+    requestDeleteFolder,
+    deletingAssetIds,
+    deletingFolderPaths,
+  } = useContext(ExplorerActionsContext);
 
   return (
     <div
@@ -336,14 +376,54 @@ function NodeRow({ node, style, dragHandle }: NodeRendererProps<ExplorerNode>) {
         <span className="truncate font-mono">{data.name}</span>
       </div>
 
-      {data.kind === "file" && (
-        <a
-          href={`/api/assets/${data.assetId}/download`}
-          className="shrink-0 text-primary hover:underline"
+      {data.kind === "folder" && data.path !== "" && (
+        <div
+          className="flex shrink-0"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          role="presentation"
         >
-          Download
-        </a>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+            disabled={deletingFolderPaths.has(data.path)}
+            onClick={() =>
+              requestDeleteFolder(data.path, data.name || data.path)
+            }
+          >
+            {deletingFolderPaths.has(data.path) ? "…" : "Delete folder"}
+          </Button>
+        </div>
+      )}
+
+      {data.kind === "file" && (
+        <div
+          className="flex shrink-0 items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+          role="presentation"
+        >
+          <a
+            href={`/api/assets/${data.assetId}/download`}
+            className="text-primary hover:underline"
+          >
+            Download
+          </a>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+            disabled={deletingAssetIds.has(data.assetId)}
+            onClick={() =>
+              requestDeleteFile(data.assetId, data.name || data.path)
+            }
+          >
+            {deletingAssetIds.has(data.assetId) ? "…" : "Delete"}
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -370,6 +450,20 @@ export function IntegrationAssetUpload({
   const [downloadingJobIds, setDownloadingJobIds] = useState<string[]>([]);
   const [deletedJobIds, setDeletedJobIds] = useState<string[]>([]);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [deletingAssetIds, setDeletingAssetIds] = useState(
+    () => new Set<string>()
+  );
+  const [deletingFolderPaths, setDeletingFolderPaths] = useState(
+    () => new Set<string>()
+  );
+  const [pendingExplorerDelete, setPendingExplorerDelete] = useState<
+    | null
+    | { kind: "file"; assetId: string; label: string }
+    | { kind: "folder"; path: string; label: string }
+  >(null);
+  const [explorerDeleteError, setExplorerDeleteError] = useState<string | null>(
+    null
+  );
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
   const [exportNotice, setExportNotice] = useState<string | null>(null);
   const [lastPolledAt, setLastPolledAt] = useState<number | null>(null);
@@ -382,6 +476,97 @@ export function IntegrationAssetUpload({
     () => new Set(deletedJobIds),
     [deletedJobIds]
   );
+
+  const requestDeleteFile = useCallback((assetId: string, label: string) => {
+    setExplorerDeleteError(null);
+    setPendingExplorerDelete({ kind: "file", assetId, label });
+  }, []);
+
+  const requestDeleteFolder = useCallback(
+    (folderPath: string, label: string) => {
+      if (!folderPath.trim()) return;
+      setExplorerDeleteError(null);
+      setPendingExplorerDelete({ kind: "folder", path: folderPath, label });
+    },
+    []
+  );
+
+  const confirmExplorerDelete = useCallback(async () => {
+    const op = pendingExplorerDelete;
+    if (!op) return;
+    setPendingExplorerDelete(null);
+
+    if (op.kind === "file") {
+      const { assetId } = op;
+      setDeletingAssetIds((prev) => new Set(prev).add(assetId));
+      try {
+        const res = await fetch(`/api/assets/${assetId}`, {
+          method: "DELETE",
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        if (!res.ok) {
+          setExplorerDeleteError(data.message ?? "Failed to delete file");
+          return;
+        }
+        setDisplayAssets((prev) => prev.filter((a) => a.id !== assetId));
+        setSelectedNodeIds((prev) =>
+          prev.filter((nid) => nid !== `file:${assetId}`)
+        );
+        router.refresh();
+      } catch {
+        setExplorerDeleteError("Failed to delete file");
+      } finally {
+        setDeletingAssetIds((prev) => {
+          const next = new Set(prev);
+          next.delete(assetId);
+          return next;
+        });
+      }
+      return;
+    }
+
+    const folderPath = op.path;
+    setDeletingFolderPaths((prev) => new Set(prev).add(folderPath));
+    try {
+      const res = await fetch(
+        `/api/integration-sets/${integrationSetId}/delete-folder`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: folderPath }),
+        }
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        message?: string;
+        deletedCount?: number;
+      };
+      if (!res.ok) {
+        setExplorerDeleteError(data.message ?? "Failed to delete folder");
+        return;
+      }
+      setDisplayAssets((prev) =>
+        prev.filter(
+          (a) =>
+            !(
+              a.relativePath === folderPath ||
+              a.relativePath.startsWith(`${folderPath}/`)
+            )
+        )
+      );
+      setSelectedNodeIds([]);
+      router.refresh();
+    } catch {
+      setExplorerDeleteError("Failed to delete folder");
+    } finally {
+      setDeletingFolderPaths((prev) => {
+        const next = new Set(prev);
+        next.delete(folderPath);
+        return next;
+      });
+    }
+  }, [integrationSetId, pendingExplorerDelete, router]);
 
   useEffect(() => {
     setDisplayAssets(assets);
@@ -1127,8 +1312,8 @@ export function IntegrationAssetUpload({
           <div>
             <h3 className="text-sm font-semibold">Explorer</h3>
             <p className="text-xs text-muted-foreground">
-              Selected {selectedSummary.fileCount} file
-              {selectedSummary.fileCount === 1 ? "" : "s"}
+              Selected {selectedSummary.fileCount}{" "}
+              {selectedSummary.fileCount === 1 ? "file" : "files"}
               {selectedSummary.fileCount > 0
                 ? ` • ${formatBytes(selectedSummary.totalBytes)}`
                 : ""}
@@ -1230,6 +1415,12 @@ export function IntegrationAssetUpload({
           </p>
         )}
 
+        {explorerDeleteError && (
+          <p className="mb-3 text-sm text-red-500" role="alert">
+            {explorerDeleteError}
+          </p>
+        )}
+
         <div
           ref={treeContainerRef}
           className="h-[360px] overflow-hidden rounded border"
@@ -1241,21 +1432,32 @@ export function IntegrationAssetUpload({
                 : "No files match the current filter."}
             </div>
           ) : (
-            <Tree
-              key={`${treeResetToken}-${openTreeByDefault ? "open" : "closed"}-${searchQuery.trim().length > 0 ? "filtered" : "all"}`}
-              data={treeData}
-              width={treeWidth}
-              height={360}
-              rowHeight={32}
-              indent={20}
-              openByDefault={openTreeByDefault || searchQuery.trim().length > 0}
-              overscanCount={8}
-              onSelect={(nodes: NodeApi<ExplorerNode>[]) => {
-                setSelectedNodeIds(nodes.map((node) => String(node.id)));
+            <ExplorerActionsContext.Provider
+              value={{
+                requestDeleteFile,
+                requestDeleteFolder,
+                deletingAssetIds,
+                deletingFolderPaths,
               }}
             >
-              {(props) => <NodeRow {...props} />}
-            </Tree>
+              <Tree
+                key={`${treeResetToken}-${openTreeByDefault ? "open" : "closed"}-${searchQuery.trim().length > 0 ? "filtered" : "all"}`}
+                data={treeData}
+                width={treeWidth}
+                height={360}
+                rowHeight={32}
+                indent={20}
+                openByDefault={
+                  openTreeByDefault || searchQuery.trim().length > 0
+                }
+                overscanCount={8}
+                onSelect={(nodes: NodeApi<ExplorerNode>[]) => {
+                  setSelectedNodeIds(nodes.map((node) => String(node.id)));
+                }}
+              >
+                {(props) => <NodeRow {...props} />}
+              </Tree>
+            </ExplorerActionsContext.Provider>
           )}
         </div>
       </div>
@@ -1426,6 +1628,51 @@ export function IntegrationAssetUpload({
           </ul>
         )}
       </div>
+
+      <AlertDialog
+        key={
+          pendingExplorerDelete
+            ? `${pendingExplorerDelete.kind}-${
+                pendingExplorerDelete.kind === "file"
+                  ? pendingExplorerDelete.assetId
+                  : pendingExplorerDelete.path
+              }`
+            : "idle"
+        }
+        open={pendingExplorerDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingExplorerDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingExplorerDelete?.kind === "folder"
+                ? "Delete folder?"
+                : "Delete file?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingExplorerDelete?.kind === "folder"
+                ? `Delete "${pendingExplorerDelete.label}" and every file inside it? This cannot be undone.`
+                : pendingExplorerDelete?.kind === "file"
+                  ? `Delete "${pendingExplorerDelete.label}" from this integration set? This cannot be undone.`
+                  : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmExplorerDelete();
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

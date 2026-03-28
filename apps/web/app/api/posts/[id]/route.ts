@@ -3,7 +3,11 @@ import { z } from "zod";
 import { auth } from "auth";
 import { apiError, apiValidationError } from "@/server/api-responses";
 import { toJsonSafe } from "@/server/json";
-import { getPostForOwner, updatePostDraft } from "@/server/services/posts";
+import { InvalidIntegrationSelectionForPostError } from "@/server/services/integration-sets";
+import {
+  getPostForOwner,
+  updatePostDraftWithIntegrationSync,
+} from "@/server/services/posts";
 
 const TargetType = z.enum([
   "GALAXY",
@@ -21,11 +25,12 @@ const UpdateSchema = z.object({
     .max(200)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/i)
     .optional(),
-  description: z.string().max(10_000).optional().nullable(),
+  description: z.string().max(12_000).optional().nullable(),
   targetName: z.string().max(255).optional().nullable(),
   targetType: TargetType.optional().nullable(),
   captureDate: z.string().datetime().optional().nullable(),
   bortle: z.number().int().min(1).max(9).optional().nullable(),
+  integrationSetIds: z.array(z.string().uuid()).optional(),
 });
 
 export async function GET(
@@ -64,7 +69,7 @@ export async function PUT(
   }
   try {
     const body = UpdateSchema.parse(await request.json());
-    const post = await updatePostDraft(session.user.id, id, {
+    const post = await updatePostDraftWithIntegrationSync(session.user.id, id, {
       ...(body.title !== undefined && { title: body.title }),
       ...(body.slug !== undefined && { slug: body.slug }),
       ...(body.description !== undefined && { description: body.description }),
@@ -74,12 +79,22 @@ export async function PUT(
         captureDate: body.captureDate ? new Date(body.captureDate) : null,
       }),
       ...(body.bortle !== undefined && { bortle: body.bortle }),
+      ...(body.integrationSetIds !== undefined && {
+        integrationSetIds: body.integrationSetIds,
+      }),
     });
     if (!post) {
       return apiError(404, "NOT_FOUND", "Post not found or you do not own it");
     }
     return NextResponse.json(toJsonSafe(post));
   } catch (err) {
+    if (err instanceof InvalidIntegrationSelectionForPostError) {
+      return apiError(
+        400,
+        "BAD_REQUEST",
+        "Invalid integration set selection or sets do not belong to you"
+      );
+    }
     if (err instanceof z.ZodError) {
       return apiValidationError(err);
     }

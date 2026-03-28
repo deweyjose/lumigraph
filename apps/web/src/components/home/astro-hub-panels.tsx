@@ -54,18 +54,21 @@ function HeroOutboundLinks({ actions }: { actions?: AstroHubActionLink[] }) {
 
   return (
     <div className="mt-4 flex flex-wrap gap-2">
-      {actions.map((action) => (
-        <a
-          key={`${action.href}-${action.label}`}
-          href={action.href}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/20 bg-slate-950/60 px-3 py-1.5 text-xs font-medium text-cyan-100 transition-colors hover:border-cyan-200/40 hover:bg-cyan-500/10"
-        >
-          {heroActionIcon(action.kind)}
-          {action.label}
-        </a>
-      ))}
+      {actions.map((action) => {
+        const text = action.label.trim() || "Open link";
+        return (
+          <a
+            key={`${action.href}-${text}`}
+            href={action.href}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-200/20 bg-slate-950/60 px-3 py-1.5 text-xs font-medium text-cyan-100 transition-colors hover:border-cyan-200/40 hover:bg-cyan-500/10"
+          >
+            <span aria-hidden>{heroActionIcon(action.kind)}</span>
+            {text}
+          </a>
+        );
+      })}
     </div>
   );
 }
@@ -161,11 +164,12 @@ export function HeroSurfaceCard({
               href={hero.sourceUrl ?? hero.imageUrl}
               target="_blank"
               rel="noreferrer noopener"
+              aria-label={`Open media: ${hero.title}`}
               className="group overflow-hidden rounded-2xl border border-cyan-200/15 bg-slate-950/60"
             >
               <img
                 src={hero.imageUrl}
-                alt={hero.title}
+                alt=""
                 decoding="async"
                 className="aspect-[4/3] h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.02]"
               />

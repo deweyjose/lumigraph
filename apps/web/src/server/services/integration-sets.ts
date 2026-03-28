@@ -1,4 +1,51 @@
+import type { PrismaClient } from "@prisma/client";
 import { getPrisma } from "@lumigraph/db";
+
+/** Prisma interactive transaction client (for nested writes in one transaction). */
+type DbTx = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
+
+export class InvalidIntegrationSelectionForPostError extends Error {
+  constructor() {
+    super("Invalid integration set selection for this post");
+    this.name = "InvalidIntegrationSelectionForPostError";
+  }
+}
+
+/**
+ * Clears `postId` for the owner's sets linked to this post, then links the
+ * given set IDs. Validates that every ID belongs to the user when non-empty.
+ * Must run inside a transaction that also updates the post when used for atomic edits.
+ */
+export async function replacePostIntegrationSetLinksTx(
+  tx: DbTx,
+  userId: string,
+  postId: string,
+  integrationSetIds: string[]
+): Promise<void> {
+  if (integrationSetIds.length > 0) {
+    const owned = await tx.integrationSet.findMany({
+      where: { userId, id: { in: integrationSetIds } },
+      select: { id: true },
+    });
+    if (owned.length !== integrationSetIds.length) {
+      throw new InvalidIntegrationSelectionForPostError();
+    }
+  }
+
+  await tx.integrationSet.updateMany({
+    where: { userId, postId },
+    data: { postId: null },
+  });
+  for (const id of integrationSetIds) {
+    await tx.integrationSet.update({
+      where: { id, userId },
+      data: { postId },
+    });
+  }
+}
 
 export type CreateIntegrationSetInput = {
   title: string;
@@ -99,4 +146,32 @@ export async function getIntegrationSetForOwner(
 export async function getIntegrationSetById(integrationSetId: string) {
   const prisma = await getPrisma();
   return prisma.integrationSet.findUnique({ where: { id: integrationSetId } });
+}
+
+/**
+ * Sets which integration sets link to a post. Clears `postId` for any of the
+ * user's sets previously linked to this post, then links the given set IDs.
+ */
+export async function syncPostIntegrationSets(
+  userId: string,
+  postId: string,
+  integrationSetIds: string[]
+): Promise<boolean> {
+  const prisma = await getPrisma();
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const post = await tx.post.findUnique({ where: { id: postId } });
+      if (!post || post.userId !== userId) return false;
+      await replacePostIntegrationSetLinksTx(
+        tx,
+        userId,
+        postId,
+        integrationSetIds
+      );
+      return true;
+    });
+  } catch (err) {
+    if (err instanceof InvalidIntegrationSelectionForPostError) return false;
+    throw err;
+  }
 }
