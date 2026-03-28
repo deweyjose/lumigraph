@@ -7,6 +7,8 @@ import { FinalImageUpload } from "@/components/posts/final-image-upload";
 import { PostEditorForm } from "@/components/posts/post-editor-form";
 import { PublishButton } from "@/components/posts/publish-button";
 import { Button } from "@/components/ui/button";
+import { DeletePostButton } from "@/components/posts/delete-post-button";
+import { VisibilityBadge } from "@/components/gallery/visibility-badge";
 import { PostLinkedIntegrationSummaries } from "@/components/posts/post-linked-integration-summaries";
 import { mapPostIntegrationSetsForSummary } from "@/lib/post-integration-preview";
 import { getLatestAutoThumbJobForPostOwner } from "@/server/services/auto-thumb-jobs";
@@ -17,7 +19,16 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Edit ${slug} — Post` };
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { title: `Edit — ${slug}` };
+  }
+  const post = await getPostBySlugForOwnerEdit(slug, session.user.id);
+  if (!post) {
+    return { title: `Edit — ${slug}` };
+  }
+  const scope = post.status === "DRAFT" ? "Draft" : "Published post";
+  return { title: `Edit ${scope}: ${post.title}` };
 }
 
 export default async function PostEditPage({ params }: Props) {
@@ -44,29 +55,43 @@ export default async function PostEditPage({ params }: Props) {
     post.integrationSets
   );
 
+  const isDraft = post.status === "DRAFT";
+  const pageTitle = isDraft ? "Edit draft" : "Edit published post";
+  const pageSubline = isDraft
+    ? "Only you can see this until you publish."
+    : "Changes show on your public post in the gallery.";
+  const viewLabel = isDraft ? "View draft" : "View public post";
+
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Button asChild variant="ghost" size="sm">
           <Link href={`/posts/${post.slug}`} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            View post
+            {viewLabel}
           </Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link href="/drafts">Back to Drafts</Link>
+          <Link href="/drafts">Back to workspace</Link>
         </Button>
       </div>
 
-      <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-        Edit post
-      </h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+          {pageTitle}
+        </h1>
+        <VisibilityBadge visibility={post.status} />
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">{pageSubline}</p>
       <p className="mt-1 text-sm text-muted-foreground">
-        {post.title} · <code className="text-xs">{post.slug}</code>
+        <span className="font-medium text-foreground/90">{post.title}</span>
+        {" · "}
+        <code className="text-xs">{post.slug}</code>
       </p>
 
       <PostEditorForm
         postId={post.id}
+        postStatus={post.status}
         initialTitle={post.title}
         initialSlug={post.slug}
         initialDescription={post.description}
@@ -112,6 +137,18 @@ export default async function PostEditPage({ params }: Props) {
           <PublishButton postId={post.id} className="mt-3" />
         </div>
       )}
+
+      <div className="mt-8 border-t border-border pt-6">
+        <p className="text-sm font-medium text-destructive">Danger zone</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {isDraft
+            ? "Deleting removes this draft and its final images. Integration sets stay in your library."
+            : "Deleting removes this published post from the gallery and deletes its final images. Integration sets stay in your library."}
+        </p>
+        <div className="mt-3">
+          <DeletePostButton postId={post.id} postTitle={post.title} />
+        </div>
+      </div>
     </div>
   );
 }

@@ -9,11 +9,14 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getPostSaveNavigation } from "./post-save-navigation";
 import { PostWriteupAssistDialog } from "./post-writeup-assist-dialog";
+import type { PostStatus } from "@/components/gallery/visibility-badge";
 
 type IntegrationSetOption = { id: string; title: string };
 
 type Props = {
   postId: string;
+  /** Shapes labels (e.g. Save draft vs Save changes) and the form panel heading. */
+  postStatus: PostStatus;
   initialTitle: string;
   initialSlug: string;
   initialDescription?: string | null;
@@ -28,6 +31,7 @@ type Props = {
 
 export function PostEditorForm({
   postId,
+  postStatus,
   initialTitle,
   initialSlug,
   initialDescription,
@@ -36,6 +40,12 @@ export function PostEditorForm({
   initialIntegrationSetIds = [],
   includeIntegrationSetIdsInSave = false,
 }: Props) {
+  const isDraft = postStatus === "DRAFT";
+  const editorHeading = isDraft ? "Draft editor" : "Published post editor";
+  const integrationLegend = isDraft
+    ? "Integration sets on this draft"
+    : "Integration sets on this post";
+  const saveLabel = isDraft ? "Save draft" : "Save changes";
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [slug, setSlug] = useState(initialSlug);
@@ -167,7 +177,7 @@ export function PostEditorForm({
 
   return (
     <form onSubmit={onSave} className="mt-6 space-y-4 rounded-lg border p-4">
-      <h2 className="text-lg font-semibold">Post editor</h2>
+      <h2 className="text-lg font-semibold">{editorHeading}</h2>
       <FormField
         id="post-title"
         label="Title"
@@ -184,11 +194,11 @@ export function PostEditorForm({
         integrationSetOptions.length > 0 && (
           <fieldset className="space-y-3 rounded-md border p-3">
             <legend className="px-1 text-sm font-medium">
-              Integration sets on this post
+              {integrationLegend}
             </legend>
             <p className="text-muted-foreground text-xs">
-              Choose which of your integration sets appear with this post.
-              Manage files on each set&apos;s own page.
+              Choose which of your integration sets appear here. Manage files on
+              each set&apos;s own page.
             </p>
             <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
               {integrationSetOptions.map((opt) => (
@@ -279,7 +289,7 @@ export function PostEditorForm({
         </p>
       )}
       <Button type="submit" disabled={isSaving}>
-        {isSaving ? "Saving..." : "Save draft"}
+        {isSaving ? "Saving..." : saveLabel}
       </Button>
       <PostWriteupAssistDialog
         postId={postId}

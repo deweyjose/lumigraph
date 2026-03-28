@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { getPrisma } from "@lumigraph/db";
+import { deleteS3Object, getS3Bucket } from "./s3";
 
 /** Prisma interactive transaction client (for nested writes in one transaction). */
 type DbTx = Omit<
@@ -146,6 +147,61 @@ export async function getIntegrationSetForOwner(
 export async function getIntegrationSetById(integrationSetId: string) {
   const prisma = await getPrisma();
   return prisma.integrationSet.findUnique({ where: { id: integrationSetId } });
+}
+
+/**
+ * Deletes an owned integration set (cascades assets and download jobs in DB),
+ * then best-effort deletes related S3 objects.
+ */
+export async function deleteIntegrationSetForOwner(
+  integrationSetId: string,
+  userId: string
+): Promise<"deleted" | "not_found"> {
+  const prisma = await getPrisma();
+  const set = await prisma.integrationSet.findUnique({
+    where: { id: integrationSetId },
+    select: { id: true, userId: true },
+  });
+  if (!set || set.userId !== userId) return "not_found";
+
+  const [assets, jobs] = await Promise.all([
+    prisma.asset.findMany({
+      where: { integrationSetId, userId },
+      select: { s3Key: true },
+    }),
+    prisma.downloadJob.findMany({
+      where: { integrationSetId, userId },
+      select: { outputS3Key: true },
+    }),
+  ]);
+
+  const keys = new Set<string>();
+  for (const a of assets) keys.add(a.s3Key);
+  for (const j of jobs) {
+    if (j.outputS3Key) keys.add(j.outputS3Key);
+  }
+
+  await prisma.integrationSet.delete({ where: { id: integrationSetId } });
+
+  let bucket: string;
+  try {
+    bucket = getS3Bucket();
+  } catch {
+    return "deleted";
+  }
+  for (const key of keys) {
+    try {
+      await deleteS3Object(bucket, key);
+    } catch (err) {
+      console.error("[integration-set-delete] S3 object delete failed", {
+        integrationSetId,
+        key,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return "deleted";
 }
 
 /**

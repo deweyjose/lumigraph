@@ -60,11 +60,11 @@ export default async function PostDetailPage({ params }: Props) {
           <Button asChild size="sm" className="gap-2">
             <Link href={`/posts/${post.slug}/edit`}>
               <Pencil className="h-4 w-4" />
-              Edit post
+              {post.status === "DRAFT" ? "Edit draft" : "Edit published post"}
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/drafts">Back to Drafts</Link>
+            <Link href="/drafts">Back to workspace</Link>
           </Button>
         </div>
       )}
@@ -100,7 +100,7 @@ export default async function PostDetailPage({ params }: Props) {
               className="text-primary underline-offset-4 hover:underline"
               href={`/posts/${post.slug}/edit`}
             >
-              edit post
+              edit draft
             </Link>{" "}
             page.
           </p>
